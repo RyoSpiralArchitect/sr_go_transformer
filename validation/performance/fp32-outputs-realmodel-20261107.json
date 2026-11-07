@@ -55,7 +55,8 @@
       "reference_median_seconds": 191.25,
       "candidate_median_seconds": 117.59,
       "candidate_over_reference_median": 0.615,
-      "output_sha256": "69096f20d7b760802f1e68d780ee387f"
+      "output_sha256": "19014ec5c52286699c44359b97816fd891f04b1f3b75afe24ca53d6dc4585738",
+      "correction_note": "This field previously recorded the MD5 digest (32 hex chars) of the identical outputs instead of SHA-256; corrected against the preserved raw outputs in runs/realmodel-llama3b/."
     },
     "q8_control_tokens_32": {
       "note": "Q8 weights use linearQ8Into/linearQ8WideInto/dotQ8PairBlock64, not linearFP32Range; included as a no-regression control",
