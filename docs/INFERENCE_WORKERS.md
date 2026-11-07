@@ -465,6 +465,17 @@ outputs and lse stay bit-identical. Whole-attend timing improves another
 ~10-18% over the merged four-position version; generation deltas are ~0.98x
 and scale with context length.
 
+### Input-dimension unrolling in the oct remainder loop
+
+A [j-unroll receipt](../validation/performance/fp32-junroll-selection-20261108.json)
+unrolls the input dimension four elements per iteration inside the
+eight-column remainder loop. Each output's accumulator still receives its
+products in the same ascending order as sequential adds, so results stay
+bit-identical; combining the four products into one expression was measured
+to change rounding and is not used. Kernel timing improves a further
+~0.57-0.69x at workers1 on decode shapes; generation measures ~0.97-0.98x
+on the synthetic fixture and ~0.99x on a real-model 128-token run.
+
 ## FP32 invocation reuse (2026-11-06)
 
 The historical worker table above predates FP32 invocation reuse. A live executor
