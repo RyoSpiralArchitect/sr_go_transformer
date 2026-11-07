@@ -109,6 +109,74 @@ func pairedScoreAttend(q, out, scores []float32, length int, kv func(int) ([]flo
 	return lse
 }
 
+// octScoreAttend shares each query load across eight score positions and
+// unrolls the value pass four elements at a time (elementwise, bit-exact).
+func octScoreAttend(q, out, scores []float32, length int, kv func(int) ([]float32, []float32)) float64 {
+	hd := len(q)
+	scale := float32(1 / math.Sqrt(float64(hd)))
+	maxScore := float32(-math.MaxFloat32)
+	clear(out)
+	s := 0
+	for ; s+7 < length; s += 8 {
+		k0, _ := kv(s)
+		k1, _ := kv(s + 1)
+		k2, _ := kv(s + 2)
+		k3, _ := kv(s + 3)
+		k4, _ := kv(s + 4)
+		k5, _ := kv(s + 5)
+		k6, _ := kv(s + 6)
+		k7, _ := kv(s + 7)
+		var d0, d1, d2, d3, d4, d5, d6, d7 float32
+		for j, v := range q {
+			d0 += v * k0[j]
+			d1 += v * k1[j]
+			d2 += v * k2[j]
+			d3 += v * k3[j]
+			d4 += v * k4[j]
+			d5 += v * k5[j]
+			d6 += v * k6[j]
+			d7 += v * k7[j]
+		}
+		for t, d := range [8]float32{d0 * scale, d1 * scale, d2 * scale, d3 * scale, d4 * scale, d5 * scale, d6 * scale, d7 * scale} {
+			scores[s+t] = d
+			if d > maxScore {
+				maxScore = d
+			}
+		}
+	}
+	for ; s < length; s++ {
+		k, _ := kv(s)
+		var dot float32
+		for j, v := range q {
+			dot += v * k[j]
+		}
+		scores[s] = dot * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+	}
+	var sum float64
+	for s := 0; s < length; s++ {
+		sum += math.Exp(float64(scores[s]) - float64(maxScore))
+	}
+	lse := float64(maxScore) + math.Log(sum)
+	for s := 0; s < length; s++ {
+		p := float32(math.Exp(float64(scores[s]) - lse))
+		_, v := kv(s)
+		j := 0
+		for ; j+3 < hd; j += 4 {
+			out[j] += p * v[j]
+			out[j+1] += p * v[j+1]
+			out[j+2] += p * v[j+2]
+			out[j+3] += p * v[j+3]
+		}
+		for ; j < hd; j++ {
+			out[j] += p * v[j]
+		}
+	}
+	return lse
+}
+
 func attendFixture(hd, length, kvheads int, seed uint64) ([]float32, [][]float32, [][]float32) {
 	r := &RNG{seed}
 	q := make([]float32, hd)
@@ -161,6 +229,7 @@ func TestPairedScoreAttendExact(t *testing.T) {
 				}
 				wantLSE := frozenScalarAttend(q, wantOut, wantScores, length, kv)
 				exactAttendBits(t, pairedScoreAttend, q, ks, vs, length, kvHead, wantOut, wantLSE)
+				exactAttendBits(t, octScoreAttend, q, ks, vs, length, kvHead, wantOut, wantLSE)
 			}
 		}
 	}
@@ -183,6 +252,7 @@ func TestPairedScoreAttendExact(t *testing.T) {
 	kv := func(pos int) ([]float32, []float32) { return ks[pos][64:128], vs[pos][64:128] }
 	wantLSE := frozenScalarAttend(q, wantOut, wantScores, 37, kv)
 	exactAttendBits(t, pairedScoreAttend, q, ks, vs, 37, 1, wantOut, wantLSE)
+	exactAttendBits(t, octScoreAttend, q, ks, vs, 37, 1, wantOut, wantLSE)
 }
 
 type attendTimingResult struct {
@@ -225,10 +295,14 @@ func TestPairedScoreAttendTiming(t *testing.T) {
 			kv := func(pos int) ([]float32, []float32) { return ks[pos][:hdQ], vs[pos][:hdQ] }
 			outA, outB := make([]float32, hdQ), make([]float32, hdQ)
 			scoresA, scoresB := make([]float32, length), make([]float32, length)
+			outC := make([]float32, hdQ)
+			scoresC := make([]float32, length)
 			functions := []func(){
-				func() { frozenScalarAttend(q, outA, scoresA, length, kv) },
-				func() { pairedScoreAttend(q, outB, scoresB, length, kv) },
+				func() { pairedScoreAttend(q, outA, scoresA, length, kv) },
+				func() { octScoreAttend(q, outB, scoresB, length, kv) },
+				func() { octScoreAttend(q, outC, scoresC, length, kv) },
 			}
+			_ = functions[2]
 			for warm := 0; warm < 8; warm++ {
 				functions[0]()
 				functions[1]()

@@ -455,6 +455,16 @@ end-to-end with identical completions. Per-output accumulation order is
 unchanged; a 4-column x 4-row variant was skipped because sixteen
 accumulators are already measured slower.
 
+### Eight-position attend scoring and value-pass unroll
+
+An [oct-attend receipt](../validation/performance/attend-oct-selection-20261108.json)
+leads the score pass with an eight-position group and unrolls the value
+pass four independent elements at a time; both steps keep every position's
+dot order, in-order max updates and per-element accumulation order, so
+outputs and lse stay bit-identical. Whole-attend timing improves another
+~10-18% over the merged four-position version; generation deltas are ~0.98x
+and scale with context length.
+
 ## FP32 invocation reuse (2026-11-06)
 
 The historical worker table above predates FP32 invocation reuse. A live executor
