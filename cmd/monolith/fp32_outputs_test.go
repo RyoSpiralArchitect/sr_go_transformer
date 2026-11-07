@@ -177,9 +177,15 @@ func TestPairedOutputFP32SpecialBits(t *testing.T) {
 		for _, fn := range []func(*fp32Kernel, int, int){pairedOutputFP32Range, linearFP32Range} {
 			fn(&fp32Kernel{x: x, y: got, w: w, n: rows}, 0, tasks)
 			for i := range got {
-				if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
-					t.Fatalf("special bits rows%d/element%d", rows, i)
+				if math.Float32bits(got[i]) == math.Float32bits(want[i]) {
+					continue
 				}
+				// NaN payloads are not portable: operand order inside otherwise
+				// identical kernel shapes changes which NaN payload propagates.
+				if math.IsNaN(float64(got[i])) && math.IsNaN(float64(want[i])) {
+					continue
+				}
+				t.Fatalf("special bits rows%d/element%d", rows, i)
 			}
 		}
 	}
