@@ -1,0 +1,15 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-colpair4-rejection-20261108",
+  "purpose": "Rejection record for pairing two output columns in the Q8 four-row path",
+  "date": "2026-11-08",
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3 darwin/arm64"},
+  "baseline": {"commit": "da30c89"},
+  "experiment": {
+    "description": "Pair two output columns in the Q8 four-row loop so x-row loads serve both weight columns. Each output's per-group partial-accumulator reduction order (a+b)+(c+d), tails and scale application kept bit-exact.",
+    "bit_exact": true,
+    "timing": {"n4/in256/out64": 1.1952, "n8/in704/out256": 2.9106, "n4/in64/out33": 1.0072, "n8/in1536/out512": 4.6299},
+    "decision": "rejected",
+    "reason": "Preserving the 4-partial-accumulator group reduction forces 32 live accumulators for two columns x four rows; register spilling dominates any shared-load benefit (up to 4.6x slower at larger shapes). Consistent with the earlier Q8 remainder-row column-pairing rejection (~1.02-1.05x) and the FP32 sixteen-accumulator rejection."
+  }
+}
