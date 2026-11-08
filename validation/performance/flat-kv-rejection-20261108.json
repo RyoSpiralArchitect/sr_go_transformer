@@ -1,0 +1,15 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "flat-kv-rejection-20261108",
+  "purpose": "Rejection record for precomputed per-position K/V slice headers in decode attention",
+  "date": "2026-11-08",
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3 darwin/arm64"},
+  "baseline": {"commit": "da30c89", "description": "Merged oct attend scoring and value-pass unroll"},
+  "experiment": {
+    "description": "Precompute k/v slice headers per position into lane-scoped [][]float32 scratch so attend's kv() closure indexes a table instead of calling KVCache.row (div/mod + slice) twice per position.",
+    "isolated_kernel_result": "flat-kv variant of the oct-score attend measured ~0.89-0.95x of the closure-based variant at hd64/128, lengths 33-2048",
+    "whole_generation_result": "production attentionRange with precomputed headers measured ~0.99-1.01x across five shapes x two processes; all completions identical. The per-task header-fill pass costs what the removed indirection saved.",
+    "decision": "rejected",
+    "reason": "Neutral to slightly slower end-to-end, plus added workspace memory (lanes x stride x 2 headers) and clearing/lifecycle complexity. Experiment retained in cmd/monolith/attention_outputs_test.go (TestFlatKVAttendTiming) and validation/performance/flatkv-generation-20261108-run{1,2}.json"
+  }
+}
