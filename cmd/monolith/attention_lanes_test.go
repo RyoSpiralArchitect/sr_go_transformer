@@ -26,7 +26,7 @@ func baselineInferenceAttention(executor *kernelExecutor, w *decodeWorkspace, c 
 					k, v := cache.row(l, pos)
 					return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
 				}
-				attend(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, positions[i]+1, kv)
+				attendSingleExp(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, positions[i]+1, kv)
 			}
 		}
 	})

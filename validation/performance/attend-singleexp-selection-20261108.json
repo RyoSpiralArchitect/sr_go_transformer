@@ -1,0 +1,59 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "attend-singleexp-selection-20261108",
+  "purpose": "Adoption record for single-exp softmax normalization on the decode attention path",
+  "date": "2026-11-08",
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3 darwin/arm64"},
+  "baseline": {"commit": "da30c89", "description": "Merged oct attend scoring, value-pass unroll, FP32 j-unroll"},
+  "candidate": {
+    "description": "attendSingleExp computes exp once per position, stores e = exp(score-max) in scores, normalizes by invSum, and keeps the eight/four/scalar score pairing plus the four-element value unroll. Decode path only (attentionRange); the train/prefill attend keeps the two-exp form.",
+    "exactness": "NOT bit-identical: p = e*invSum differs from exp(s-lse) by up to ~1.9e-08 absolute (~0.9% relative on near-zero elements). lse remains bit-identical. Adopted under the completion-identical standard: every measured completion is byte-identical."
+  },
+  "drift": {
+    "worst_abs_delta": 1.86e-08,
+    "worst_rel_delta": 0.00925,
+    "completions_identical": "5 synthetic generation shapes x 24 trials + real Llama-3.2-3B 128-token runs, all byte-identical"
+  },
+  "timing": {
+    "synthetic_generation_ratios": "~0.96-0.98 vs merged oct attend",
+    "real_model_seconds": {"reference": 37.78, "candidate": 35.53, "ratio": 0.94}
+  },
+  "limitations": ["The drift values above describe the original fixture only, not a universal bound. Completion equality is not guaranteed for other prompts, models or sampling settings."],
+  "review_audit": {
+    "date": "2026-11-09",
+    "scope_correction": "attentionRange serves cached inference including chunked prefill, not exclusively single-token decode. Training and evaluation callers of attend are unchanged.",
+    "synthetic_evidence": {
+      "status": "Preserved local before/after sources differ only by package name and the single-exp normalization in shared attend. This validates the arithmetic experiment, not the exact later decode-only integration.",
+      "before_source_sha256": "a011913098fa50c0e377593cf09f9ac8e55d16bb393f8dd59e04093c12fb3262",
+      "after_source_sha256": "3a66f9b85ec048123de8c6b7eed2ad0774b045b64594c7b542012c3b3db557c1",
+      "harness_sha256": "fecd099a1ececac7147598bbc1f47f81dc48f07f7372a8ea15974e656ba48cb6",
+      "harness": "runs/attend-expreduce-generation-20261108/main.go",
+      "raw_results": "runs/attend-expreduce-generation-run1.json",
+      "protocol": "GOMAXPROCS=4, five shapes, three warmups then 24 alternating paired trials; harness compares JSON-encoded completions and panics on mismatch. Sources and raw results are local ignored artifacts."
+    },
+    "real_model_evidence": {
+      "output_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "outputs": ["runs/realmodel-llama3b/er-attend.out", "runs/realmodel-llama3b/er-exprd.out"],
+      "reference_binary_sha256": "b2fc8575d09a55427a78f845ac2e7340d09dddff59f45f222d899b0f43bd7554",
+      "candidate_binary_sha256": "87609ce3aecc409cc967b80e0937d1c8425b4ee6ee8da20e4150bedd50850203",
+      "reference_build_revision": "56ed6aa35a17527c2e5632958908f85b2a43057b",
+      "candidate_build_revision": "da30c89d7699d570c305175b909a11851d03ef28",
+      "both_builds_dirty": true,
+      "correction": "The real-model reference is NOT the stated da30c89 baseline. Its dirty build predates that baseline. Preserve the 37.78/35.53 seconds as historical observations, but do not attribute their ratio to single-exp normalization alone.",
+      "command_arguments": "generate -hf-model ~/SpiralReality/models/Llama-3.2-3B-Instruct -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4"
+    },
+    "matched_baseline_completion_recheck": {
+      "date": "2026-11-09",
+      "baseline_commit": "da30c89d7699d570c305175b909a11851d03ef28",
+      "candidate_monolith_source_sha256": "912870ebf6e41819ba51fc106864f32ec5b239973a0e302debcdf386b2d70717",
+      "baseline_binary_sha256": "275cad26305970326e68cd9c4dd72e6406759a2da05c763e48713b2dd65c2c0f",
+      "candidate_binary_sha256": "22c75d3f22b8014f2d92ee03ea360e27c15366c30180e85ad57626ac3962bff9",
+      "output_sha256_both": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "comparison": "cmp succeeded on complete stdout from base and candidate, same model path and command_arguments as above. One greedy prompt, 128 tokens, threads=4. This is output validation only; no timing conclusion.",
+      "build": "Go 1.27.3, CGO_ENABLED=0, go build -trimpath ./cmd/monolith; baseline built from detached da30c89 worktree.",
+      "artifacts": ["runs/realmodel-llama3b/review-singleexp-base.out", "runs/realmodel-llama3b/review-singleexp-candidate.out"],
+      "availability": "Raw outputs and binaries retained locally outside Git; hashes establish identity but do not make the model or raw data publicly available."
+    },
+    "production_test": "TestExpReduceAttendDelta now directly exercises attendSingleExp against frozen octScoreAttend, including 8/4/scalar tails, finite outputs, identical LSE, and fixture tolerance abs(delta) <= 2e-7 + 2e-6*abs(reference). This tolerance is a regression guard for these fixtures, not a mathematical global bound."
+  }
+}

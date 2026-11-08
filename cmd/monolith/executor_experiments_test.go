@@ -41,7 +41,7 @@ func (s *capturedAttentionExperiment) invoke(e *kernelExecutor, w *decodeWorkspa
 						k, v := cache.row(layer, pos)
 						return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
 					}
-					attend(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
+					attendSingleExp(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
 				}
 			}
 		}
@@ -72,7 +72,7 @@ func snapshotHeadsAttentionExperiment(job *attentionKernel, lo, hi int) {
 				k, v := cache.row(layer, pos)
 				return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
 			}
-			attend(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
+			attendSingleExp(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
 		}
 	}
 }
