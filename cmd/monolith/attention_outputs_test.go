@@ -436,6 +436,9 @@ func TestFlatKVAttendTiming(t *testing.T) {
 			octScoreAttend(q, outA, sA, length, kv)
 			flatKVAttend(q, outB, sB, length, ks, vs)
 			exactWorkerFloats(t, outA, outB)
+			if os.Getenv("MONOLITH_FLAT_KV_TIMING") == "" {
+				continue
+			}
 			iterations := max(1, (1<<22)/max(1, length*hd))
 			var bestA, bestB float64 = 1e18, 1e18
 			for trial := 0; trial < 8; trial++ {

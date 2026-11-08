@@ -8,8 +8,21 @@
   "experiment": {
     "description": "Precompute k/v slice headers per position into lane-scoped [][]float32 scratch so attend's kv() closure indexes a table instead of calling KVCache.row (div/mod + slice) twice per position.",
     "isolated_kernel_result": "flat-kv variant of the oct-score attend measured ~0.89-0.95x of the closure-based variant at hd64/128, lengths 33-2048",
-    "whole_generation_result": "production attentionRange with precomputed headers measured ~0.99-1.01x across five shapes x two processes; all completions identical. The per-task header-fill pass costs what the removed indirection saved.",
+    "whole_generation_result": "Historical observation: ~0.99-1.01x across five shapes x two processes, with completion equality checked by the local harness. Candidate integration was reverted and is not included in this PR. These results do not independently establish that header-fill cost explains the neutral timing.",
     "decision": "rejected",
     "reason": "Neutral to slightly slower end-to-end, plus added workspace memory (lanes x stride x 2 headers) and clearing/lifecycle complexity. Experiment retained in cmd/monolith/attention_outputs_test.go (TestFlatKVAttendTiming) and validation/performance/flatkv-generation-20261108-run{1,2}.json"
+  },
+  "review_audit": {
+    "date": "2026-11-09",
+    "status": "Not adopted; historical observations retained, not a reproducible production benchmark in this PR.",
+    "kernel_limitations": "Precomputed header construction is outside the timed region; reference is timed first; ratios use independent minima. The isolated result is not an end-to-end speedup estimate.",
+    "local_provenance": {
+      "source_directory": "runs/flatkv-generation-20261108/",
+      "before_source_sha256": "a011913098fa50c0e377593cf09f9ac8e55d16bb393f8dd59e04093c12fb3262",
+      "after_source_sha256": "5f50d16fb6d2f6f2f3d600b0fc99200fcd78fd5148c5292dde989d711c65594f",
+      "harness_sha256": "fecd099a1ececac7147598bbc1f47f81dc48f07f7372a8ea15974e656ba48cb6",
+      "availability": "Sources remain local ignored artifacts; public timing arrays alone cannot reproduce the reverted integration or independently verify completions."
+    },
+    "interpretation": "Retain the decision not to adopt a more complex implementation without demonstrated end-to-end benefit; do not infer header-fill causality or a general KV-layout ceiling."
   }
 }
