@@ -29,6 +29,14 @@ output accumulators, step by step:
 5. **PR #63** (`56bd251`, hardened by `25ee5ac` after fresh-eye review):
    four-row (prefill) path pairs two output columns, so each four-row input
    bundle serves eight accumulators.
+6. **PR #64** (`65682fa`): `attend` score pass leads with an eight-position
+   group; the value pass unrolls four independent output elements.
+7. **PR #65** (`380056c`, portability fixed by `bd6b1e6`): the oct
+   remainder-row loop unrolls the input dimension four elements per
+   iteration with sequential accumulator adds. CI caught a NaN-payload
+   divergence on amd64 — operand order inside differently shaped kernels
+   changes which NaN payload propagates — so the special-bits check treats
+   NaN lanes as NaN while every non-NaN lane stays bit-exact.
 
 Every output keeps its original ascending input-index accumulation order, so
 results are bit-identical to the pre-change kernel. Task partitioning, worker
