@@ -177,6 +177,50 @@ func octScoreAttend(q, out, scores []float32, length int, kv func(int) ([]float3
 	return lse
 }
 
+// expReduceAttend computes exp once per position: scores[] holds e_s =
+// exp(score - max); probabilities multiply by invSum instead of a second
+// exp(score - lse). lse is still returned identically.
+func expReduceAttend(q, out, scores []float32, length int, kv func(int) ([]float32, []float32)) float64 {
+	hd := len(q)
+	scale := float32(1 / math.Sqrt(float64(hd)))
+	maxScore := float32(-math.MaxFloat32)
+	clear(out)
+	for s := 0; s < length; s++ {
+		k, _ := kv(s)
+		var dot float32
+		for j, v := range q {
+			dot += v * k[j]
+		}
+		scores[s] = dot * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+	}
+	var sum float64
+	for s := 0; s < length; s++ {
+		e := math.Exp(float64(scores[s]) - float64(maxScore))
+		scores[s] = float32(e)
+		sum += e
+	}
+	lse := float64(maxScore) + math.Log(sum)
+	inv := float32(1 / sum)
+	for s := 0; s < length; s++ {
+		p := scores[s] * inv
+		_, v := kv(s)
+		j := 0
+		for ; j+3 < hd; j += 4 {
+			out[j] += p * v[j]
+			out[j+1] += p * v[j+1]
+			out[j+2] += p * v[j+2]
+			out[j+3] += p * v[j+3]
+		}
+		for ; j < hd; j++ {
+			out[j] += p * v[j]
+		}
+	}
+	return lse
+}
+
 func attendFixture(hd, length, kvheads int, seed uint64) ([]float32, [][]float32, [][]float32) {
 	r := &RNG{seed}
 	q := make([]float32, hd)
@@ -265,6 +309,38 @@ type attendTimingResult struct {
 	AfterAllocs  float64   `json:"after_allocs"`
 }
 
+func TestExpReduceAttendDelta(t *testing.T) {
+	var worst, worstRel float64
+	for _, hd := range []int{64, 128} {
+		for _, length := range []int{33, 128, 512, 2048} {
+			q, ks, vs := attendFixture(hd, length, 1, uint64(hd*7+length))
+			outA, outB := make([]float32, hd), make([]float32, hd)
+			sA, sB := make([]float32, length), make([]float32, length)
+			kv := func(pos int) ([]float32, []float32) { return ks[pos][:hd], vs[pos][:hd] }
+			lseA := octScoreAttend(q, outA, sA, length, kv)
+			lseB := expReduceAttend(q, outB, sB, length, kv)
+			var rel float64
+			for i := range outA {
+				d := math.Abs(float64(outA[i]) - float64(outB[i]))
+				if d > worst {
+					worst = d
+				}
+				r := d / math.Max(1e-30, math.Abs(float64(outA[i])))
+				if r > rel {
+					rel = r
+				}
+			}
+			if rel > worstRel {
+				worstRel = rel
+			}
+			if math.Float64bits(lseA) != math.Float64bits(lseB) {
+				t.Fatalf("lse differs %v %v", lseA, lseB)
+			}
+		}
+	}
+	t.Logf("worst absolute delta: %g, worst relative: %g", worst, worstRel)
+}
+
 func TestPairedScoreAttendTiming(t *testing.T) {
 	output := os.Getenv("MONOLITH_ATTEND_SCORES_OUTPUT")
 	if output == "" {
@@ -299,7 +375,7 @@ func TestPairedScoreAttendTiming(t *testing.T) {
 			scoresC := make([]float32, length)
 			functions := []func(){
 				func() { pairedScoreAttend(q, outA, scoresA, length, kv) },
-				func() { octScoreAttend(q, outB, scoresB, length, kv) },
+				func() { expReduceAttend(q, outB, scoresB, length, kv) },
 				func() { octScoreAttend(q, outC, scoresC, length, kv) },
 			}
 			_ = functions[2]

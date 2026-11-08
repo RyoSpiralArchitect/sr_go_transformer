@@ -1,0 +1,22 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "attend-singleexp-selection-20261108",
+  "purpose": "Adoption record for single-exp softmax normalization on the decode attention path",
+  "date": "2026-11-08",
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3 darwin/arm64"},
+  "baseline": {"commit": "da30c89", "description": "Merged oct attend scoring, value-pass unroll, FP32 j-unroll"},
+  "candidate": {
+    "description": "attendSingleExp computes exp once per position, stores e = exp(score-max) in scores, normalizes by invSum, and keeps the eight/four/scalar score pairing plus the four-element value unroll. Decode path only (attentionRange); the train/prefill attend keeps the two-exp form.",
+    "exactness": "NOT bit-identical: p = e*invSum differs from exp(s-lse) by up to ~1.9e-08 absolute (~0.9% relative on near-zero elements). lse remains bit-identical. Adopted under the completion-identical standard: every measured completion is byte-identical."
+  },
+  "drift": {
+    "worst_abs_delta": 1.86e-08,
+    "worst_rel_delta": 0.00925,
+    "completions_identical": "5 synthetic generation shapes x 24 trials + real Llama-3.2-3B 128-token runs, all byte-identical"
+  },
+  "timing": {
+    "synthetic_generation_ratios": "~0.96-0.98 vs merged oct attend",
+    "real_model_seconds": {"reference": 37.78, "candidate": 35.53, "ratio": 0.94}
+  },
+  "limitations": ["Output values differ within ~2e-8; downstream argmax unchanged in all measurements, not a universal guarantee"]
+}

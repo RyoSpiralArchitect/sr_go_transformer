@@ -5460,6 +5460,116 @@ func attend(q, out, scores []float32, length int, kv func(int) ([]float32, []flo
 	}
 	return lse
 }
+
+// attendSingleExp is the decode-path variant of attend: it computes exp once
+// per position, stores e = exp(score - max) in scores, then normalizes by
+// invSum instead of a second exp(score - lse). Returned lse is identical;
+// probability values differ by tiny rounding (~1e-8 abs on the outputs), so
+// this path is completion-identical, not bit-identical, versus attend.
+func attendSingleExp(q, out, scores []float32, length int, kv func(int) ([]float32, []float32)) float64 {
+	hd := len(q)
+	scale := float32(1 / math.Sqrt(float64(hd)))
+	maxScore := float32(-math.MaxFloat32)
+	clear(out)
+	s := 0
+	for ; s+7 < length; s += 8 {
+		k0, _ := kv(s)
+		k1, _ := kv(s + 1)
+		k2, _ := kv(s + 2)
+		k3, _ := kv(s + 3)
+		k4, _ := kv(s + 4)
+		k5, _ := kv(s + 5)
+		k6, _ := kv(s + 6)
+		k7, _ := kv(s + 7)
+		var d0, d1, d2, d3, d4, d5, d6, d7 float32
+		for j, v := range q {
+			d0 += v * k0[j]
+			d1 += v * k1[j]
+			d2 += v * k2[j]
+			d3 += v * k3[j]
+			d4 += v * k4[j]
+			d5 += v * k5[j]
+			d6 += v * k6[j]
+			d7 += v * k7[j]
+		}
+		scores[s] = d0 * scale
+		scores[s+1] = d1 * scale
+		scores[s+2] = d2 * scale
+		scores[s+3] = d3 * scale
+		scores[s+4] = d4 * scale
+		scores[s+5] = d5 * scale
+		scores[s+6] = d6 * scale
+		scores[s+7] = d7 * scale
+		for t := s; t < s+8; t++ {
+			if scores[t] > maxScore {
+				maxScore = scores[t]
+			}
+		}
+	}
+	for ; s+3 < length; s += 4 {
+		k0, _ := kv(s)
+		k1, _ := kv(s + 1)
+		k2, _ := kv(s + 2)
+		k3, _ := kv(s + 3)
+		var d0, d1, d2, d3 float32
+		for j, v := range q {
+			d0 += v * k0[j]
+			d1 += v * k1[j]
+			d2 += v * k2[j]
+			d3 += v * k3[j]
+		}
+		scores[s] = d0 * scale
+		scores[s+1] = d1 * scale
+		scores[s+2] = d2 * scale
+		scores[s+3] = d3 * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+		if scores[s+1] > maxScore {
+			maxScore = scores[s+1]
+		}
+		if scores[s+2] > maxScore {
+			maxScore = scores[s+2]
+		}
+		if scores[s+3] > maxScore {
+			maxScore = scores[s+3]
+		}
+	}
+	for ; s < length; s++ {
+		k, _ := kv(s)
+		var dot float32
+		for j, v := range q {
+			dot += v * k[j]
+		}
+		scores[s] = dot * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+	}
+	var sum float64
+	for s := 0; s < length; s++ {
+		e := math.Exp(float64(scores[s]) - float64(maxScore))
+		scores[s] = float32(e)
+		sum += e
+	}
+	lse := float64(maxScore) + math.Log(sum)
+	inv := float32(1 / sum)
+	for s := 0; s < length; s++ {
+		p := scores[s] * inv
+		_, v := kv(s)
+		j := 0
+		for ; j+3 < hd; j += 4 {
+			out[j] += p * v[j]
+			out[j+1] += p * v[j+1]
+			out[j+2] += p * v[j+2]
+			out[j+3] += p * v[j+3]
+		}
+		for ; j < hd; j++ {
+			out[j] += p * v[j]
+		}
+	}
+	return lse
+}
 func (m *Model) attention(q, k, v []float32, batch, seq int) ([]float32, []float64) {
 	c := m.Config
 	d, kd, hd := c.Dim, c.KVDim(), c.Dim/c.Heads
@@ -6251,7 +6361,7 @@ func attentionRange(job *attentionKernel, lo, hi int) {
 				k, v := cache.row(layer, pos)
 				return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
 			}
-			attend(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
+			attendSingleExp(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
 		}
 	}
 }
