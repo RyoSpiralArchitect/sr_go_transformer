@@ -5464,8 +5464,8 @@ func attend(q, out, scores []float32, length int, kv func(int) ([]float32, []flo
 // attendSingleExp is the decode-path variant of attend: it computes exp once
 // per position, stores e = exp(score - max) in scores, then normalizes by
 // invSum instead of a second exp(score - lse). Returned lse is identical;
-// probability values differ by tiny rounding (~1e-8 abs on the outputs), so
-// this path is completion-identical, not bit-identical, versus attend.
+// probability values differ through rounding; measured completions matched,
+// but neither bit identity nor universal completion equality is guaranteed.
 func attendSingleExp(q, out, scores []float32, length int, kv func(int) ([]float32, []float32)) float64 {
 	hd := len(q)
 	scale := float32(1 / math.Sqrt(float64(hd)))
