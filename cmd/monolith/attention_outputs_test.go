@@ -434,3 +434,113 @@ func TestPairedScoreAttendTiming(t *testing.T) {
 		t.Fatal(closeErr)
 	}
 }
+
+// flatKVAttend precomputes per-position k/v slices into a scratch list so the
+// inner loops avoid per-call indirection. Semantics identical to
+// octScoreAttend; only the access pattern differs.
+func flatKVAttend(q, out, scores []float32, length int, ks, vs [][]float32) float64 {
+	hd := len(q)
+	scale := float32(1 / math.Sqrt(float64(hd)))
+	maxScore := float32(-math.MaxFloat32)
+	clear(out)
+	s := 0
+	for ; s+7 < length; s += 8 {
+		k0, k1, k2, k3 := ks[s], ks[s+1], ks[s+2], ks[s+3]
+		k4, k5, k6, k7 := ks[s+4], ks[s+5], ks[s+6], ks[s+7]
+		var d0, d1, d2, d3, d4, d5, d6, d7 float32
+		for j, v := range q {
+			d0 += v * k0[j]
+			d1 += v * k1[j]
+			d2 += v * k2[j]
+			d3 += v * k3[j]
+			d4 += v * k4[j]
+			d5 += v * k5[j]
+			d6 += v * k6[j]
+			d7 += v * k7[j]
+		}
+		scores[s] = d0 * scale
+		scores[s+1] = d1 * scale
+		scores[s+2] = d2 * scale
+		scores[s+3] = d3 * scale
+		scores[s+4] = d4 * scale
+		scores[s+5] = d5 * scale
+		scores[s+6] = d6 * scale
+		scores[s+7] = d7 * scale
+		for t := s; t < s+8; t++ {
+			if scores[t] > maxScore {
+				maxScore = scores[t]
+			}
+		}
+	}
+	for ; s < length; s++ {
+		var dot float32
+		for j, v := range q {
+			dot += v * ks[s][j]
+		}
+		scores[s] = dot * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+	}
+	var sum float64
+	for s := 0; s < length; s++ {
+		sum += math.Exp(float64(scores[s]) - float64(maxScore))
+	}
+	lse := float64(maxScore) + math.Log(sum)
+	for s := 0; s < length; s++ {
+		p := float32(math.Exp(float64(scores[s]) - lse))
+		v := vs[s]
+		j := 0
+		for ; j+3 < hd; j += 4 {
+			out[j] += p * v[j]
+			out[j+1] += p * v[j+1]
+			out[j+2] += p * v[j+2]
+			out[j+3] += p * v[j+3]
+		}
+		for ; j < hd; j++ {
+			out[j] += p * v[j]
+		}
+	}
+	return lse
+}
+
+func TestFlatKVAttendTiming(t *testing.T) {
+	for _, hd := range []int{64, 128} {
+		for _, length := range []int{33, 128, 512, 2048} {
+			q, ks8, vs8 := attendFixture(hd, length, 1, uint64(hd*7+length))
+			ks := make([][]float32, length)
+			vs := make([][]float32, length)
+			for i := 0; i < length; i++ {
+				ks[i], vs[i] = ks8[i][:hd], vs8[i][:hd]
+			}
+			outA, outB := make([]float32, hd), make([]float32, hd)
+			sA, sB := make([]float32, length), make([]float32, length)
+			kv := func(pos int) ([]float32, []float32) { return ks[pos], vs[pos] }
+			octScoreAttend(q, outA, sA, length, kv)
+			flatKVAttend(q, outB, sB, length, ks, vs)
+			exactWorkerFloats(t, outA, outB)
+			if os.Getenv("MONOLITH_FLAT_KV_TIMING") == "" {
+				continue
+			}
+			iterations := max(1, (1<<22)/max(1, length*hd))
+			var bestA, bestB float64 = 1e18, 1e18
+			for trial := 0; trial < 8; trial++ {
+				start := time.Now()
+				for i := 0; i < iterations; i++ {
+					octScoreAttend(q, outA, sA, length, kv)
+				}
+				if e := float64(time.Since(start).Nanoseconds()) / float64(iterations); e < bestA {
+					bestA = e
+				}
+				start = time.Now()
+				for i := 0; i < iterations; i++ {
+					flatKVAttend(q, outB, sB, length, ks, vs)
+				}
+				if e := float64(time.Since(start).Nanoseconds()) / float64(iterations); e < bestB {
+					bestB = e
+				}
+			}
+			t.Logf("hd%d/len%d: flat-kv ratio %.4f", hd, length, bestB/bestA)
+		}
+	}
+}
