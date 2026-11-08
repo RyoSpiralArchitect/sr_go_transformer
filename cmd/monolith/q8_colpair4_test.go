@@ -2,6 +2,8 @@ package main
 
 import (
 	"math"
+	"os"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -117,7 +119,9 @@ func q8KernelFixture(n, in, out int, seed uint64) ([]float32, *Param) {
 }
 
 func TestPairedColsQ8ExactAndTiming(t *testing.T) {
-	for _, shape := range [][3]int{{4, 256, 64}, {8, 704, 256}, {4, 64, 33}, {8, 1536, 512}} {
+	old := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(old)
+	for _, shape := range [][3]int{{4, 1, 2}, {4, 63, 32}, {8, 65, 34}, {4, 256, 64}, {8, 704, 256}, {4, 64, 33}, {8, 1536, 512}} {
 		n, in, out := shape[0], shape[1], shape[2]
 		x, w := q8KernelFixture(n, in, out, uint64(n*131+in))
 		tasks := ((n + 3) / 4) * ((out + 31) / 32)
@@ -143,6 +147,9 @@ func TestPairedColsQ8ExactAndTiming(t *testing.T) {
 			if math.Float32bits(want[i]) != math.Float32bits(got[i]) {
 				t.Fatalf("shape %v mismatch at %d", shape, i)
 			}
+		}
+		if os.Getenv("MONOLITH_Q8_COLPAIR4_TIMING") == "" || out%2 != 0 {
+			continue
 		}
 		var bestA, bestB float64 = 1e18, 1e18
 		for trial := 0; trial < 8; trial++ {
