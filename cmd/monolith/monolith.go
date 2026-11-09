@@ -3719,17 +3719,13 @@ func parallel(n, work int, fn func(lo, hi int)) {
 // close must have a single caller,
 // and callbacks must not recursively dispatch work through this executor.
 type kernelExecutor struct {
-	workers    int
-	jobs       chan kernelJob
-	completed  chan struct{}
-	lifetime   sync.WaitGroup
-	linear     fp32Kernel
-	linearFn   func(lo, hi int)
-	q4Fn       func(lo, hi int)
-	group      [3]fp32Kernel
-	groupEnds  [3]int
-	groupCount int
-	groupFn    func(lo, hi int)
+	workers   int
+	jobs      chan kernelJob
+	completed chan struct{}
+	lifetime  sync.WaitGroup
+	linear    fp32Kernel
+	linearFn  func(lo, hi int)
+	q4Fn      func(lo, hi int)
 }
 
 type fp32Kernel struct {
@@ -3950,68 +3946,6 @@ func addBias(x []float32, bias *Param) {
 	}
 	for i := range x {
 		x[i] += bias.Data[i%len(bias.Data)]
-	}
-}
-
-// Projections in a group borrow the same input and write disjoint outputs.
-// Only the owning actor may dispatch, and every worker joins before any output
-// is consumed. Q8 and extreme Q4 inputs retain their established fallbacks.
-type inferenceProjection struct {
-	y []float32
-	w *Param
-}
-
-func linearGroupInto(e *kernelExecutor, x []float32, n int, projections ...inferenceProjection) {
-	eligible := e != nil && e.workers > 1 && len(projections) >= 2 && len(projections) <= 3
-	work, tasks := 0, 0
-	hasQ4 := false
-	for _, p := range projections {
-		work += n * p.w.Rows * p.w.Cols
-		tasks += ((n + 3) / 4) * ((p.w.Rows + 31) / 32)
-		hasQ4 = hasQ4 || p.w.Q4 != nil
-		if p.w.Q8 != nil || p.w.Cols != projections[0].w.Cols {
-			eligible = false
-		}
-	}
-	if eligible && hasQ4 && q8NeedsWideSum(x[:n*projections[0].w.Cols]) {
-		eligible = false
-	}
-	if !eligible || work < 131072 || tasks < 2 {
-		for _, p := range projections {
-			linearIntoWithExecutor(e, p.y, x, p.w, n)
-		}
-		return
-	}
-	end := 0
-	for i, p := range projections {
-		e.group[i] = fp32Kernel{x: x, y: p.y, w: p.w, n: n}
-		end += ((n + 3) / 4) * ((p.w.Rows + 31) / 32)
-		e.groupEnds[i] = end
-	}
-	e.groupCount = len(projections)
-	if e.groupFn == nil {
-		e.groupFn = func(lo, hi int) { e.groupRange(lo, hi) }
-	}
-	e.parallel(tasks, work, e.groupFn)
-	// A worker clears its borrowed closure before acknowledging completion.
-	e.group = [3]fp32Kernel{}
-	e.groupEnds = [3]int{}
-	e.groupCount = 0
-}
-
-func (e *kernelExecutor) groupRange(lo, hi int) {
-	start := 0
-	for i := 0; i < e.groupCount; i++ {
-		end := e.groupEnds[i]
-		a, b := max(lo, start)-start, min(hi, end)-start
-		if a < b {
-			if e.group[i].w.Q4 != nil {
-				linearQ4Range(&e.group[i], a, b)
-			} else {
-				linearFP32Range(&e.group[i], a, b)
-			}
-		}
-		start = end
 	}
 }
 
@@ -7160,7 +7094,9 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		}
 		region := trace.StartRegion(ctx, "monolith.prefill_layer")
 		inferenceNorm(w.N, w.X, b.N1, b.N1B, n, c.NormEps)
-		linearGroupInto(executor, w.N, n, inferenceProjection{w.Q, b.Q}, inferenceProjection{w.K, b.K}, inferenceProjection{w.V, b.V})
+		linearIntoWithExecutor(executor, w.Q, w.N, b.Q, n)
+		linearIntoWithExecutor(executor, w.K, w.N, b.K, n)
+		linearIntoWithExecutor(executor, w.V, w.N, b.V, n)
 		addBias(w.Q, b.QB)
 		addBias(w.K, b.KB)
 		addBias(w.V, b.VB)
@@ -7178,11 +7114,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		addBias(w.Q, b.OB)
 		addInPlace(w.X, w.Q)
 		inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
-		if m.Position != nil {
-			linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
-		} else {
-			linearGroupInto(executor, w.N, n, inferenceProjection{w.G, b.Gate}, inferenceProjection{w.U, b.Up})
-		}
+		linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
 		// Gate values are dead after activation. Overwrite them only after
 		// the projections join, preserving each element's arithmetic order.
 		if m.Position != nil {
@@ -7192,6 +7124,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 				w.G[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
 			}
 		} else {
+			linearIntoWithExecutor(executor, w.U, w.N, b.Up, n)
 			for i, v := range w.G {
 				w.G[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
 			}
