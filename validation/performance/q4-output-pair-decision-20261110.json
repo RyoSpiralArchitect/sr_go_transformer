@@ -1,0 +1,103 @@
+{
+  "decision": "adopt if final-head CI passes",
+  "numerical_identity_both_repeats": true,
+  "measurements": [
+    {
+      "repeat": 1,
+      "sessions": 1,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 2.9417569375,
+        "after": 2.9060676670000003
+      },
+      "ratio": 0.9878680423779914,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 1,
+      "sessions": 1,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 3.518625688,
+        "after": 2.9286308555
+      },
+      "ratio": 0.8323223653734662,
+      "limit": 0.95,
+      "pass_gate": true
+    },
+    {
+      "repeat": 1,
+      "sessions": 2,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 5.7749911874999995,
+        "after": 5.8572265415
+      },
+      "ratio": 1.0142399098682608,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 1,
+      "sessions": 2,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 4.285501668,
+        "after": 4.413935979
+      },
+      "ratio": 1.0299694927105087,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 1,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 3.294829063,
+        "after": 2.9144771040000004
+      },
+      "ratio": 0.8845609433062114,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 1,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 4.084768125,
+        "after": 2.9302590000000004
+      },
+      "ratio": 0.7173623839419282,
+      "limit": 0.95,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 2,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 5.743291042,
+        "after": 5.69968075
+      },
+      "ratio": 0.9924067417651163,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 2,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 4.270727311,
+        "after": 4.225498396
+      },
+      "ratio": 0.9894095521192596,
+      "limit": 1.05,
+      "pass_gate": true
+    }
+  ],
+  "limitation": "Host-specific short-prefix core-forward measurement; substantial between-repeat timing variation. No general quality, long-context or serving-throughput claim."
+}
