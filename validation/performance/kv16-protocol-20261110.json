@@ -1,0 +1,43 @@
+{
+  "format": "monolith-kv16-protocol-v1",
+  "scope": "Opt-in BF16 KV on existing pinned Mistral-7B-Instruct-v0.3 Q4-mixed, same immutable weights and FP32 compute. This is a bounded quality screen, not a general quality guarantee. FP32 remains the default.",
+  "context": 1024,
+  "workers": 4,
+  "payload_gate": "Every allocated KV and prefix page has exactly half the numeric payload bytes of FP32; planner, admission and telemetry agree. Runtime/weight/RSS memory is not claimed to halve.",
+  "default_gate": "Default and explicit FP32 logits, KV and IDs match the predecessor bit-for-bit; existing race/lifecycle/prefix/CLI tests pass.",
+  "quality": {
+    "corpus": "validation/quality/corpus.json",
+    "documents": "All six evaluation_documents, first up to 48 next-token targets per document, no selection prompts",
+    "comparison": "Paired teacher-forced contexts, same token IDs; KL(FP32 || BF16) and target NLL for every row. Record all per-row metrics and document means.",
+    "mean_kl_max": 0.001,
+    "p95_kl_max": 0.005,
+    "mean_nll_increase_max": 0.01,
+    "finite_required": true
+  },
+  "long_answers": {
+    "inputs": "validation/quality/kv16-long-prompts.json",
+    "prefix": "Repeat the six evaluation documents in order until at least 384 encoded tokens, keep the first 384, then append each fixed question using the HF tokenizer with post-processing/BOS disabled (encodeText(ctx,text,1024,false)).",
+    "outputs": 128,
+    "sampling": "Greedy, fixed 128 steps including EOS, context must fit. This bounded continuation probe is not a completed chat-answer claim.",
+    "comparison": "Save both complete token sequences and decoded continuations. Inspect both for new repeated loops, non-finite output or loss of the question's requested facts/language. Any new BF16-only failure holds adoption pending investigation; disagreement alone is reported rather than scored as failure. No regenerated answers or threshold relaxation."
+  },
+  "execution": "One resident set of immutable weights, separate model views/pools/caches for each format; same process teacher-forced pairs alternate FP32/BF16 order each token. Long-answer formats run FP32 then BF16 for English and reverse for Japanese. Keep all first results. Timing is diagnostic only, no speed claim from this probe.",
+  "adoption": "All numerical, memory, lifecycle and long-answer screen gates must pass. Otherwise preserve negative evidence and keep the candidate experimental/unadopted. No automatic default-format change.",
+  "input_sha256": {
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/quality/kv16-long-prompts.json": "feb640dfff5d14ea32c1e398ec24a2cbba74afffc482a9c45386aeb63013886b",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b"
+  },
+  "execution_bound": {
+    "model_and_probe_context_minutes": 30,
+    "go_test_timeout_minutes": 32,
+    "process_timeout_seconds": 1980,
+    "reason": "Fixed workload includes six teacher-forced documents plus four 384+ token prefill / 128 output continuations; generous local bound fixed before first model screen."
+  },
+  "default_reference": {
+    "baseline_commit": "1a01515d44442060c6a3dc0354a00152532fffda",
+    "receipt": "validation/performance/q4-output-pair-mistral-20261110-run1.json",
+    "receipt_sha256": "d711c4cce5632e7530a6227a7645d897932194161654f4afedde360a42abce66",
+    "verification": "scripts/verify_default_kv.py checks predecessor source, harness, model and corpus identity before comparing all logits/KV/IDs. Timing is diagnostic only."
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "format": "monolith-hf-check-v1",
+  "weights": {
+    "format": "monolith-hf-plan-v1",
+    "model_type": "mistral",
+    "tied_embeddings": false,
+    "eos_token_ids": [
+      2
+    ],
+    "config": {
+      "vocab": 32768,
+      "dim": 4096,
+      "hidden": 14336,
+      "layers": 32,
+      "heads": 32,
+      "kv_heads": 8,
+      "context": 4096,
+      "rope_theta": 1000000,
+      "norm_eps": 0.00001
+    },
+    "parameters": 7248023552,
+    "weight_bytes": 4212146176,
+    "weight_format": "q4-mixed",
+    "fp32_weight_bytes": 28992094208,
+    "quantized_parameters": 7247757312,
+    "q8_parameters": 268435456,
+    "q4_parameters": 6979321856,
+    "scale_bytes": 452984832,
+    "quantization_block": 64,
+    "quantization_buffer_bytes": 256,
+    "rope_bytes": 2097152,
+    "kv_bytes_per_token": 262144,
+    "full_context_kv_bytes": 1073741824,
+    "conversion_buffer_bytes": 65536,
+    "source_bytes": 14496080928,
+    "shards": 3,
+    "tensor_dtypes": {
+      "BF16": 291
+    }
+  },
+  "tokenizer_profile": "mistral-v3-metaspace-bytefallback",
+  "chat_supported": true,
+  "model_context": 32768,
+  "weight_budget_bytes": 8589934592,
+  "kv_page_aligned_bytes_per_session": 536870912,
+  "kv_plan": {
+    "format": "bf16",
+    "positions": 4096,
+    "pages": 128,
+    "page_bytes": 4194304,
+    "required_bytes": 536870912,
+    "budget_bytes": 536870912,
+    "fits_budget": true
+  },
+  "weight_values_checked": false
+}

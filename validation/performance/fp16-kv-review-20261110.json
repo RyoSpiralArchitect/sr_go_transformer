@@ -1,0 +1,43 @@
+{
+  "candidate_commit": "c20f72d",
+  "review_scope": "working diff later committed as c20f72d, plus runtime callers and harness",
+  "fresh_source_review": {
+    "finding": "No actionable P1/P2 findings",
+    "coverage": [
+      "conversion and rounding",
+      "attention and prefix/page formats",
+      "accounting and CLI routing",
+      "overflow propagation and cache position commit/retry",
+      "engine cleanup",
+      "tests and frozen protocol"
+    ],
+    "independent_oracle_cases": 295229,
+    "oracle_limit": "Independent Python IEEE-half oracle compared an equivalent transcription, not compiled Go; reviewer did not run Go or real-model tests."
+  },
+  "operator_checks": {
+    "targeted_fp16_tests": "passed",
+    "race": "passed, cmd/monolith 173.544 s",
+    "vet": "passed",
+    "python_tests": 83,
+    "isolated_probe_builds": "passed",
+    "cgo_disabled_build": "passed",
+    "cli_smoke": "passed"
+  },
+  "logs": {
+    "runs/fp16-verification/race.log": {
+      "sha256": "0225da083ef820327f3f4567e31490a13693e8a17d7800bc7c273aab8affb574"
+    },
+    "runs/fp16-verification/vet.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/fp16-verification/python.log": {
+      "sha256": "1f8a586d37a002ef9da3960dbfeb3b2a44499b903952f076175a2f86700d408e"
+    },
+    "runs/fp16-verification/probes.log": {
+      "sha256": "b942c10fac7e7165b382af7514daf805dc665a2b565f7988eae885dcf4649ee4"
+    },
+    "runs/fp16-verification/smoke.log": {
+      "sha256": "fafb739ab6ed84b8b0336c53607df6f19c16d45aa38f5dc976b07aa651793f76"
+    }
+  }
+}

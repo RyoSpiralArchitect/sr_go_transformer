@@ -1,0 +1,38 @@
+{
+  "decision": "not adopted: new BF16-only Japanese content error",
+  "candidate_source_commit": "0a89422",
+  "archive_base": "ce2661a2ef642edb1a237b92dd85da19f528f3d2",
+  "patch_sha256": "1f5928c0c40795bc20eec3ff00dab4e7a519a3afb8b82985291eddf19cf026e8",
+  "quality_receipt_sha256": "cfe4b39ed6887f2e57d2088a130cf05973638fb85ca043161246238f774a4941",
+  "default_fp32_exact": true,
+  "numerical_gates": {
+    "mean_kl": true,
+    "mean_nll_increase": true,
+    "p95_kl": true
+  },
+  "mean_kl": 2.1304947103818123e-05,
+  "p95_kl": 9.937813773020134e-06,
+  "mean_nll_increase": -0.0009767404326627145,
+  "long_cases": {
+    "english": {
+      "same_prompt_ids": true,
+      "same_output_ids": true,
+      "same_text": true,
+      "f32_bytes": 150994944,
+      "bf16_bytes": 75497472,
+      "half_payload": true
+    },
+    "japanese": {
+      "same_prompt_ids": true,
+      "same_output_ids": false,
+      "same_text": false,
+      "f32_bytes": 167772160,
+      "bf16_bytes": 83886080,
+      "half_payload": true,
+      "first_different_output_index": 96
+    }
+  },
+  "failed_gate": "Japanese BF16 says 木材の3種類 (three kinds of wood), replacing source screws of various sizes. FP32 preserves screws in its truncated third item. This is a new content error, not merely truncation.",
+  "limits": "Both Japanese answers are unnatural and incomplete at 128 tokens; English answers also continue off task. Numeric gates do not override the content gate.",
+  "next_candidate": "Evaluate FP16 as a distinct higher-precision 16-bit candidate with identical quality thresholds and inputs; retain this BF16 failure permanently. No BF16 answer is regenerated to replace this result."
+}

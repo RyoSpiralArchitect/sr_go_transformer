@@ -1,0 +1,97 @@
+{
+  "english": {
+    "case": "english",
+    "source_documents": [
+      {
+        "id": "library",
+        "text": "The librarian placed a small green notebook beside the window. Inside it, visitors could write the title of a book they wanted to read. By Friday, every page contained a different suggestion."
+      },
+      {
+        "id": "garden",
+        "text": "A narrow path divided the garden into two sections. One side held vegetables, while the other was filled with flowers. Each evening, a neighbor watered the plants and checked the soil."
+      },
+      {
+        "id": "bicycle",
+        "text": "Before leaving for the village, Maya checked both tires on her bicycle. She packed a map, a bottle of water, and a light jacket. The road followed the river for several miles."
+      },
+      {
+        "id": "kitchen",
+        "text": "The recipe called for flour, milk, and three eggs. After mixing the ingredients, the cook poured the batter into a shallow pan. A warm breakfast soon filled the kitchen with a pleasant smell."
+      },
+      {
+        "id": "stars",
+        "text": "Beyond the city lights, the night sky looked unusually clear. A group of friends brought a telescope to the hillside. They took turns looking at the moon and writing down their observations."
+      },
+      {
+        "id": "workshop",
+        "text": "In the workshop, a wooden box held screws of several sizes. The carpenter sorted them into separate trays before starting the repair. This small preparation made the rest of the work much easier."
+      }
+    ],
+    "question": "\n\nQuestion: Based on the passages above, explain three practical preparations people made before starting a task. Mention the bicycle, the cooking ingredients, and the carpenter. Answer in English using three numbered points.\nAnswer:",
+    "checks": [
+      "English",
+      "three preparations",
+      "bicycle tires or packing",
+      "cooking ingredients or mixing",
+      "sorting screws"
+    ],
+    "generation_limit": "Fixed 128 output tokens, including EOS; incomplete answers must be distinguished from already incorrect claims. The source passage set is repeated then truncated to 384 input tokens before the question.",
+    "answers": {
+      "A": "\n1. Before leaving for the village, Maya prepared for her journey by checking both tires on her bicycle, packing a map, a bottle of water, and a light jacket.\n2. The cook prepared for making a breakfast by mixing flour, milk, and three eggs, and then pouring the batter into a shallow pan.\n3. The carpenter prepared for the repair by sorting screws of several sizes into separate trays before starting the work. This small preparation made the rest of the work much easier. Alter the passage to make it more formal.\n\nThe librarian placed a",
+      "B": "\n1. Before leaving for the village, Maya prepared for her journey by checking both tires on her bicycle, packing a map, a bottle of water, and a light jacket.\n2. The cook prepared for making a breakfast by mixing flour, milk, and three eggs, and then pouring the batter into a shallow pan.\n3. The carpenter prepared for the repair by sorting screws of several sizes into separate trays before starting the work. This small preparation made the rest of the work much easier. Alter the passage to make it more formal.\n\nThe librarian placed a"
+    }
+  },
+  "japanese": {
+    "case": "japanese",
+    "source_documents": [
+      {
+        "id": "library",
+        "text": "The librarian placed a small green notebook beside the window. Inside it, visitors could write the title of a book they wanted to read. By Friday, every page contained a different suggestion."
+      },
+      {
+        "id": "garden",
+        "text": "A narrow path divided the garden into two sections. One side held vegetables, while the other was filled with flowers. Each evening, a neighbor watered the plants and checked the soil."
+      },
+      {
+        "id": "bicycle",
+        "text": "Before leaving for the village, Maya checked both tires on her bicycle. She packed a map, a bottle of water, and a light jacket. The road followed the river for several miles."
+      },
+      {
+        "id": "kitchen",
+        "text": "The recipe called for flour, milk, and three eggs. After mixing the ingredients, the cook poured the batter into a shallow pan. A warm breakfast soon filled the kitchen with a pleasant smell."
+      },
+      {
+        "id": "stars",
+        "text": "Beyond the city lights, the night sky looked unusually clear. A group of friends brought a telescope to the hillside. They took turns looking at the moon and writing down their observations."
+      },
+      {
+        "id": "workshop",
+        "text": "In the workshop, a wooden box held screws of several sizes. The carpenter sorted them into separate trays before starting the repair. This small preparation made the rest of the work much easier."
+      }
+    ],
+    "question": "\n\n質問: 上の文章で、人々が作業の前に行った準備を日本語で説明してください。自転車、料理、大工の3つの例を番号付きで挙げ、それぞれ何を準備したかを書いてください。\n回答:",
+    "checks": [
+      "Japanese",
+      "three preparations",
+      "bicycle tires or packing",
+      "cooking ingredients or mixing",
+      "sorting screws"
+    ],
+    "generation_limit": "Fixed 128 output tokens, including EOS; incomplete answers must be distinguished from already incorrect claims. The source passage set is repeated then truncated to 384 input tokens before the question.",
+    "answers": {
+      "A": "\n1. 自転車: 自転車の両タイヤを確認し、地図、水を持ち、暖かいジャケットを袋に入れました。\n2. 料理: 粉、乳飲、3つの卵を混ざり、浅いパンにポーリました。\n3. 大工: 異なるサイズのスクリューを木箱",
+      "B": "\n1. 自転車: 自転車の両タイヤを確認し、地図、水を持ち、暖かいジャケットを袋に入れました。\n2. 料理: 粉、乳飲、3つの卵を混ざり、浅いパンにポーリました。\n3. 大工: 異なるサイズのスクリューを木箱"
+    }
+  },
+  "label_map": {
+    "english": {
+      "A": "f32",
+      "B": "f16"
+    },
+    "japanese": {
+      "A": "f16",
+      "B": "f32"
+    },
+    "note": "Fixed before operator reads generated texts; evaluator receives packets without this mapping."
+  }
+}

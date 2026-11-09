@@ -919,6 +919,15 @@ func (a *hfArchive) readTensorValues(ctx context.Context, name string, count int
 	return ctx.Err()
 }
 
+func kvFormatFlag(f *flag.FlagSet) {
+	f.String("kv-format", "f32", "KV cache payload: f32 (default) or f16 (experimental)")
+}
+func selectedKVFormat(f *flag.FlagSet) string {
+	if v := f.Lookup("kv-format"); v != nil {
+		return v.Value.String()
+	}
+	return ""
+}
 func hfFlags(f *flag.FlagSet) (*string, *int, *int64, *string) {
 	dir := f.String("hf-model", "", "local Hugging Face model directory (supported Llama/Qwen2/GPT-2 profiles)")
 	limit := f.Int("context", 0, "HF context cap; 0 uses min(model maximum, 2048)")
@@ -1002,6 +1011,7 @@ func checkHFFormat(dir string, limit int, budget int64, requireChat bool, format
 
 func runCheckHF(args []string, validateOnly bool) error {
 	f := flags("check-hf")
+	kvFormatFlag(f)
 	dir, limit, budget, format := hfFlags(f)
 	kvMiB := f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
 	asJSON := f.Bool("json", false, "emit machine-readable preflight report")
@@ -1016,11 +1026,12 @@ func runCheckHF(args []string, validateOnly bool) error {
 	if err != nil {
 		return err
 	}
-	kvPlan, err := planInferenceKV(report.Weights.Config, report.Weights.Config.Context, *kvMiB<<20)
+	kvPlan, err := planInferenceKVFormat(report.Weights.Config, report.Weights.Config.Context, *kvMiB<<20, selectedKVFormat(f))
 	if err != nil {
 		return err
 	}
 	report.KVPlan = &kvPlan
+	report.KVPageAlignedBytes = kvPlan.RequiredBytes
 	if !kvPlan.FitsBudget {
 		return kvPlan.budgetError()
 	}
@@ -1192,7 +1203,7 @@ func inferHFIDs(ctx context.Context, m *Model, ids []int, count, chunk int, logi
 			return out, errors.New("HF token ID outside vocabulary")
 		}
 	}
-	plan, err := planInferenceKV(m.Config, len(ids)+count, m.directKVBudget())
+	plan, err := planInferenceKVFormat(m.Config, len(ids)+count, m.directKVBudget(), m.kvFormat)
 	if err != nil {
 		return out, err
 	}
@@ -1240,6 +1251,7 @@ func inferHFIDs(ctx context.Context, m *Model, ids []int, count, chunk int, logi
 }
 func runInferHF(ctx context.Context, args []string, validateOnly bool) error {
 	f := flags("infer-hf")
+	kvFormatFlag(f)
 	dir, limit, budget, format := hfFlags(f)
 	kvMiB := f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
 	input := f.String("ids", "", "comma-separated token IDs, already framed")
@@ -1273,7 +1285,7 @@ func runInferHF(ctx context.Context, args []string, validateOnly bool) error {
 	if err := setThreads(*threads); err != nil {
 		return err
 	}
-	m, _, err := loadHFModelFormatKV(ctx, *dir, *limit, *budget, *format, *kvMiB<<20, true)
+	m, _, err := loadHFModelKVFormat(ctx, *dir, *limit, *budget, *format, *kvMiB<<20, true, selectedKVFormat(f))
 	if err != nil {
 		return err
 	}
@@ -1314,7 +1326,7 @@ func loadInference(ctx context.Context, f *flag.FlagSet, model, dir string, limi
 		if err != nil {
 			return nil, nil, err
 		}
-		m, _, err := loadHFModelFormatKV(ctx, dir, limit, budget, format, kvBytes, f.Name() != "chat" && f.Name() != "serve")
+		m, _, err := loadHFModelKVFormat(ctx, dir, limit, budget, format, kvBytes, f.Name() != "chat" && f.Name() != "serve", selectedKVFormat(f))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1328,7 +1340,7 @@ func loadInference(ctx context.Context, f *flag.FlagSet, model, dir string, limi
 	}
 	m, tok, _, err := LoadCheckpoint(model)
 	if m != nil {
-		m.directKVBytes = kvBytes
+		m.directKVBytes, m.kvFormat = kvBytes, selectedKVFormat(f)
 	}
 	return m, tok, err
 }
@@ -5300,7 +5312,8 @@ type Model struct {
 	Params              []*Param
 	Cos, Sin            []float32
 	Revision            uint64
-	directKVBytes       int64 // Immutable after load; zero selects the 512 MiB default.
+	kvFormat            string // Immutable after load; empty selects f32.
+	directKVBytes       int64  // Immutable after load; zero selects the 512 MiB default.
 	decodePool          sync.Pool
 	hf                  *hfConfig // Non-nil marks imported, inference-only model semantics.
 }
@@ -5343,6 +5356,9 @@ func loadHFModelFormat(ctx context.Context, dir string, limit int, mib int64, fo
 // Direct loaders reserve the full selected context before reading weights.
 // Engine loaders use their existing request/page-pool reservations instead.
 func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64, format string, kvBytes int64, fullContext bool) (*Model, HFPlan, error) {
+	return loadHFModelKVFormat(ctx, dir, limit, mib, format, kvBytes, fullContext, "")
+}
+func loadHFModelKVFormat(ctx context.Context, dir string, limit int, mib int64, format string, kvBytes int64, fullContext bool, kvFormat string) (*Model, HFPlan, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, HFPlan{}, err
 	}
@@ -5350,7 +5366,7 @@ func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64, 
 	if err != nil {
 		return nil, HFPlan{}, err
 	}
-	plan, err := planInferenceKV(config, config.Context, kvBytes)
+	plan, err := planInferenceKVFormat(config, config.Context, kvBytes, kvFormat)
 	if err != nil {
 		return nil, HFPlan{}, err
 	}
@@ -5368,13 +5384,13 @@ func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64, 
 	if a.Config.ModelType == "gpt2" {
 		m, err := loadGPT2(ctx, a)
 		if m != nil {
-			m.directKVBytes = kvBytes
+			m.directKVBytes, m.kvFormat = kvBytes, kvFormat
 		}
 		return m, a.Plan, err
 	}
 	m := allocateModelStorageFormat(a.Plan.Config, nil, format)
 	m.hf = &a.Config
-	m.directKVBytes = kvBytes
+	m.directKVBytes, m.kvFormat = kvBytes, kvFormat
 	makeExtra := func(name string, rows, cols int) *Param {
 		p := newInferenceParamFormat(name, rows, cols, name == "output", format)
 		m.Params = append(m.Params, p)
@@ -5857,6 +5873,112 @@ func attendSingleExp(q, out, scores []float32, length int, kv func(int) ([]float
 		}
 		for ; j < hd; j++ {
 			out[j] += p * v[j]
+		}
+	}
+	return lse
+}
+
+// FP16 storage follows the FP32 attention reduction order, widening only each value read.
+func attendF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []uint16)) float64 {
+	hd := len(q)
+	scale := float32(1 / math.Sqrt(float64(hd)))
+	maxScore := float32(-math.MaxFloat32)
+	clear(out)
+	s := 0
+	for ; s+7 < length; s += 8 {
+		k0, _ := kv(s)
+		k1, _ := kv(s + 1)
+		k2, _ := kv(s + 2)
+		k3, _ := kv(s + 3)
+		k4, _ := kv(s + 4)
+		k5, _ := kv(s + 5)
+		k6, _ := kv(s + 6)
+		k7, _ := kv(s + 7)
+		var d0, d1, d2, d3, d4, d5, d6, d7 float32
+		for j, v := range q {
+			d0 += v * fromF16(k0[j])
+			d1 += v * fromF16(k1[j])
+			d2 += v * fromF16(k2[j])
+			d3 += v * fromF16(k3[j])
+			d4 += v * fromF16(k4[j])
+			d5 += v * fromF16(k5[j])
+			d6 += v * fromF16(k6[j])
+			d7 += v * fromF16(k7[j])
+		}
+		scores[s] = d0 * scale
+		scores[s+1] = d1 * scale
+		scores[s+2] = d2 * scale
+		scores[s+3] = d3 * scale
+		scores[s+4] = d4 * scale
+		scores[s+5] = d5 * scale
+		scores[s+6] = d6 * scale
+		scores[s+7] = d7 * scale
+		for t := s; t < s+8; t++ {
+			if scores[t] > maxScore {
+				maxScore = scores[t]
+			}
+		}
+	}
+	for ; s+3 < length; s += 4 {
+		k0, _ := kv(s)
+		k1, _ := kv(s + 1)
+		k2, _ := kv(s + 2)
+		k3, _ := kv(s + 3)
+		var d0, d1, d2, d3 float32
+		for j, v := range q {
+			d0 += v * fromF16(k0[j])
+			d1 += v * fromF16(k1[j])
+			d2 += v * fromF16(k2[j])
+			d3 += v * fromF16(k3[j])
+		}
+		scores[s] = d0 * scale
+		scores[s+1] = d1 * scale
+		scores[s+2] = d2 * scale
+		scores[s+3] = d3 * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+		if scores[s+1] > maxScore {
+			maxScore = scores[s+1]
+		}
+		if scores[s+2] > maxScore {
+			maxScore = scores[s+2]
+		}
+		if scores[s+3] > maxScore {
+			maxScore = scores[s+3]
+		}
+	}
+	for ; s < length; s++ {
+		k, _ := kv(s)
+		var dot float32
+		for j, v := range q {
+			dot += v * fromF16(k[j])
+		}
+		scores[s] = dot * scale
+		if scores[s] > maxScore {
+			maxScore = scores[s]
+		}
+	}
+	var sum float64
+	for s := 0; s < length; s++ {
+		e := math.Exp(float64(scores[s]) - float64(maxScore))
+		scores[s] = float32(e)
+		sum += e
+	}
+	lse := float64(maxScore) + math.Log(sum)
+	inv := float32(1 / sum)
+	for s := 0; s < length; s++ {
+		p := scores[s] * inv
+		_, v := kv(s)
+		j := 0
+		for ; j+3 < hd; j += 4 {
+			out[j] += p * fromF16(v[j])
+			out[j+1] += p * fromF16(v[j+1])
+			out[j+2] += p * fromF16(v[j+2])
+			out[j+3] += p * fromF16(v[j+3])
+		}
+		for ; j < hd; j++ {
+			out[j] += p * fromF16(v[j])
 		}
 	}
 	return lse
@@ -6356,8 +6478,63 @@ func (m *Model) backwardInto(t *Tape, w *backwardWorkspace) {
 // reservation of the full request budget prevents mid-generation pool deadlock.
 const pageTokens = 32
 
-type kvPage struct{ Data []float32 }
+type kvPage struct {
+	Data []float32
+	F16  []uint16
+}
+
+func validKVFormat(format string) bool { return format == "" || format == "f32" || format == "f16" }
+func kvElementBytes(format string) int {
+	if format == "f16" {
+		return 2
+	}
+	return 4
+}
+func newKVPage(elements int, format string) *kvPage {
+	if format == "f16" {
+		return &kvPage{F16: make([]uint16, elements)}
+	}
+	return &kvPage{Data: make([]float32, elements)}
+}
+func (p *kvPage) valid(elements int, format string) bool {
+	if p == nil {
+		return false
+	}
+	if format == "f16" {
+		return len(p.F16) == elements && len(p.Data) == 0
+	}
+	return len(p.Data) == elements && len(p.F16) == 0
+}
+
+// Round binary32 to binary16, nearest with ties to even. Preserve NaN class.
+// Cache stores separately reject overflow and non-finite inputs before writing.
+func toF16(x float32) uint16 {
+	b := math.Float32bits(x)
+	sign, a := uint16(b>>16)&0x8000, b&0x7fffffff
+	if a > 0x7f800000 {
+		return sign | 0x7c00 | uint16(a>>13)&0x3ff | 0x200
+	}
+	if a >= 0x477ff000 {
+		return sign | 0x7c00
+	}
+	if a >= 0x38800000 {
+		return sign | uint16((a+0xfff+((a>>13)&1)-0x38000000)>>13)
+	}
+	if a < 0x33000000 {
+		return sign
+	}
+	shift := uint(126 - int(a>>23))
+	mantissa := (a & 0x7fffff) | 0x800000
+	q, rem, midpoint := mantissa>>shift, mantissa&((1<<shift)-1), uint32(1)<<(shift-1)
+	if rem > midpoint || (rem == midpoint && q&1 != 0) {
+		q++
+	}
+	return sign | uint16(q)
+}
+func fromF16(x uint16) float32 { return halfFloat(x) }
+
 type pagePool struct {
+	Format                                   string
 	PageElements, Limit, Reserved, Allocated int
 	Free                                     []*kvPage
 }
@@ -6373,7 +6550,7 @@ func (p *pagePool) acquire() *kvPage {
 		panic("KV reservation invariant violated")
 	}
 	p.Allocated++
-	return &kvPage{make([]float32, p.PageElements)}
+	return newKVPage(p.PageElements, p.Format)
 }
 
 // A prefix snapshot is private to one engine actor. Its pages are immutable
@@ -6385,12 +6562,13 @@ type prefixSnapshot struct {
 	pages       []*kvPage
 	borrowers   int
 	includeTail bool
+	kvFormat    string
 }
 
 // Restore the exact prefix into a newly admitted cache. The last prompt ID
 // must run through the model because this snapshot stores no logits.
 func (p *prefixSnapshot) restore(c *KVCache, ids []int) {
-	if p.model != c.Model || p.revision != c.Revision || len(ids) < 2 {
+	if p.model != c.Model || p.revision != c.Revision || p.kvFormat != c.format || len(ids) < 2 {
 		return
 	}
 	n := min(len(p.ids), len(ids)-1)
@@ -6414,6 +6592,13 @@ func (p *prefixSnapshot) restore(c *KVCache, ids []int) {
 
 // Each layer stores separate contiguous key and value planes of 32 rows.
 func copyKVPrefixRows(dst, src *kvPage, kvDim, rows int) {
+	if len(src.F16) > 0 {
+		for offset := 0; offset < len(src.F16); offset += pageTokens * kvDim {
+			end := offset + rows*kvDim
+			copy(dst.F16[offset:end], src.F16[offset:end])
+		}
+		return
+	}
 	if rows == pageTokens {
 		copy(dst.Data, src.Data)
 		return
@@ -6437,7 +6622,7 @@ func (p *prefixSnapshot) clear() {
 // borrowers prevent replacement. Prefix allocation stays in its own allowance.
 func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
 	soleBorrower := c.shared == p && p.borrowers == 1 && p.model == m && p.revision == m.Revision
-	if (p.borrowers != 0 && !soleBorrower) || c.Revision != m.Revision {
+	if (p.borrowers != 0 && !soleBorrower) || c.Revision != m.Revision || (len(p.pages) > 0 && p.kvFormat != c.format) {
 		return
 	}
 	positions := c.Pos
@@ -6450,7 +6635,7 @@ func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
 		return
 	}
 	for len(p.pages) < n {
-		p.pages = append(p.pages, &kvPage{Data: make([]float32, 2*pageTokens*m.Config.KVDim()*m.Config.Layers)})
+		p.pages = append(p.pages, newKVPage(2*pageTokens*m.Config.KVDim()*m.Config.Layers, c.format))
 	}
 	for i := 0; i < n; i++ {
 		if p.pages[i] != c.Pages[i] {
@@ -6459,10 +6644,11 @@ func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
 	}
 	// Retained spare pages remain charged even when the new prefix is shorter.
 	p.ids = append(p.ids[:0], ids[:positions]...)
-	p.model, p.revision = m, m.Revision
+	p.model, p.revision, p.kvFormat = m, m.Revision, c.format
 }
 
 type KVCache struct {
+	format      string // Frozen at construction; a page pool and its caches must agree.
 	Model       *Model
 	Revision    uint64
 	Pos         int
@@ -6479,16 +6665,26 @@ const defaultInferenceKVBytes int64 = 512 << 20
 const maxInferenceKVBytes int64 = 1 << 40
 
 type KVMemoryPlan struct {
-	Positions     int   `json:"positions"`
-	Pages         int   `json:"pages"`
-	PageBytes     int64 `json:"page_bytes"`
-	RequiredBytes int64 `json:"required_bytes"`
-	BudgetBytes   int64 `json:"budget_bytes"`
-	FitsBudget    bool  `json:"fits_budget"`
+	Format        string `json:"format"`
+	Positions     int    `json:"positions"`
+	Pages         int    `json:"pages"`
+	PageBytes     int64  `json:"page_bytes"`
+	RequiredBytes int64  `json:"required_bytes"`
+	BudgetBytes   int64  `json:"budget_bytes"`
+	FitsBudget    bool   `json:"fits_budget"`
 }
 
 func planInferenceKV(c Config, positions int, budget int64) (KVMemoryPlan, error) {
-	p := KVMemoryPlan{Positions: positions, BudgetBytes: budget}
+	return planInferenceKVFormat(c, positions, budget, "f32")
+}
+func planInferenceKVFormat(c Config, positions int, budget int64, format string) (KVMemoryPlan, error) {
+	if format == "" {
+		format = "f32"
+	}
+	p := KVMemoryPlan{Positions: positions, BudgetBytes: budget, Format: format}
+	if !validKVFormat(format) {
+		return p, errors.New("KV format must be f32 or f16")
+	}
 	if err := c.validateShapeLimits(maxHFVocab, math.MaxInt64); err != nil {
 		return p, err
 	}
@@ -6496,7 +6692,7 @@ func planInferenceKV(c Config, positions int, budget int64) (KVMemoryPlan, error
 		return p, errors.New("invalid KV positions or byte budget")
 	}
 	p.Pages = (positions + pageTokens - 1) / pageTokens
-	p.PageBytes = int64(2*pageTokens) * int64(c.KVDim()) * int64(c.Layers) * 4
+	p.PageBytes = int64(2*pageTokens) * int64(c.KVDim()) * int64(c.Layers) * int64(kvElementBytes(format))
 	p.RequiredBytes = int64(p.Pages) * p.PageBytes
 	p.FitsBudget = p.RequiredBytes <= budget
 	return p, nil
@@ -6511,7 +6707,7 @@ func (m *Model) directKVBudget() int64 {
 	return m.directKVBytes
 }
 func (m *Model) NewCache() *KVCache {
-	return &KVCache{Model: m, Revision: m.Revision, budgetBytes: m.directKVBudget()}
+	return &KVCache{Model: m, Revision: m.Revision, format: m.kvFormat, budgetBytes: m.directKVBudget()}
 }
 
 // Explicit full-context admission for callers that own a direct KV cache.
@@ -6519,14 +6715,14 @@ func (m *Model) NewCacheWithBudget(bytes int64) (*KVCache, error) {
 	if m == nil {
 		return nil, errors.New("nil cache model")
 	}
-	p, err := planInferenceKV(m.Config, m.Config.Context, bytes)
+	p, err := planInferenceKVFormat(m.Config, m.Config.Context, bytes, m.kvFormat)
 	if err != nil {
 		return nil, err
 	}
 	if !p.FitsBudget {
 		return nil, p.budgetError()
 	}
-	return &KVCache{Model: m, Revision: m.Revision, budgetBytes: bytes}, nil
+	return &KVCache{Model: m, Revision: m.Revision, format: m.kvFormat, budgetBytes: bytes}, nil
 }
 func (c *KVCache) ensurePage() {
 	c.ensurePages(c.Pos + 1)
@@ -6541,7 +6737,7 @@ func (c *KVCache) ensurePages(end int) {
 		if c.pool != nil {
 			p = c.pool.acquire()
 		} else {
-			p = &kvPage{make([]float32, 2*pageTokens*c.Model.Config.KVDim()*c.Model.Config.Layers)}
+			p = newKVPage(2*pageTokens*c.Model.Config.KVDim()*c.Model.Config.Layers, c.format)
 		}
 		c.Pages = append(c.Pages, p)
 	}
@@ -6551,6 +6747,32 @@ func (c *KVCache) row(layer, pos int) ([]float32, []float32) {
 	p := c.Pages[pos/pageTokens]
 	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
 	return p.Data[base : base+kd], p.Data[base+pageTokens*kd : base+pageTokens*kd+kd]
+}
+func (c *KVCache) rowF16(layer, pos int) ([]uint16, []uint16) {
+	kd := c.Model.Config.KVDim()
+	p := c.Pages[pos/pageTokens]
+	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
+	return p.F16[base : base+kd], p.F16[base+pageTokens*kd : base+pageTokens*kd+kd]
+}
+func (c *KVCache) store(layer, pos int, keys, values []float32) error {
+	if c.format == "f16" {
+		// Validate the whole row before changing either plane. No silent overflow
+		// or automatic FP32 fallback beyond the admitted payload budget.
+		for i := range keys {
+			if math.Float32bits(keys[i])&0x7fffffff >= 0x477ff000 || math.Float32bits(values[i])&0x7fffffff >= 0x477ff000 {
+				return fmt.Errorf("FP16 KV range exceeded at layer %d position %d element %d; use -kv-format f32", layer, pos, i)
+			}
+		}
+		k, v := c.rowF16(layer, pos)
+		for i := range k {
+			k[i], v[i] = toF16(keys[i]), toF16(values[i])
+		}
+	} else {
+		k, v := c.row(layer, pos)
+		copy(k, keys)
+		copy(v, values)
+	}
+	return nil
 }
 func (c *KVCache) Close() {
 	if c.released {
@@ -6648,6 +6870,14 @@ func attentionRange(job *attentionKernel, lo, hi int) {
 			i, h := task/job.heads, task%job.heads
 			cache := w.rowCaches[i]
 			kh, qi := h/group, i*d+h*hd
+			if cache.format == "f16" {
+				kv := func(pos int) ([]uint16, []uint16) {
+					k, v := cache.rowF16(layer, pos)
+					return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
+				}
+				attendF16(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
+				continue
+			}
 			kv := func(pos int) ([]float32, []float32) {
 				k, v := cache.row(layer, pos)
 				return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
@@ -6776,7 +7006,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 	n, maxPos := 0, 0
 	pageElements := 2 * pageTokens * c.KVDim() * c.Layers
 	for i, cache := range caches {
-		if cache == nil || cache.Model != m || cache.Revision != m.Revision || cache.released || seen[cache] {
+		if cache == nil || cache.Model != m || cache.Revision != m.Revision || cache.released || !validKVFormat(cache.format) || cache.format != m.kvFormat || seen[cache] {
 			return nil, errors.New("foreign, stale, released, or duplicate KV cache")
 		}
 		if cache.shared != nil && (cache.sharedPages < 1 || cache.sharedPages > len(cache.shared.pages) || cache.sharedPages > len(cache.Pages) || cache.Pos < cache.sharedPages*pageTokens) {
@@ -6801,7 +7031,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 			if budget == 0 {
 				budget = m.directKVBudget()
 			}
-			plan, err := planInferenceKV(c, end, budget)
+			plan, err := planInferenceKVFormat(c, end, budget, cache.format)
 			if err != nil {
 				return nil, err
 			}
@@ -6813,12 +7043,12 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 			return nil, errors.New("invalid KV page coverage")
 		}
 		for _, page := range cache.Pages {
-			if page == nil || len(page.Data) != pageElements {
+			if !page.valid(pageElements, cache.format) {
 				return nil, errors.New("invalid KV page storage")
 			}
 		}
 		if p := cache.pool; p != nil {
-			if p.PageElements != pageElements || p.Limit < 1 || p.Allocated < 0 || p.Allocated > p.Limit || len(p.Free) > p.Allocated || p.Reserved > p.Limit || cache.reserved < 1 || pages > cache.reserved || len(cache.Pages) > cache.reserved {
+			if p.Format != cache.format || p.PageElements != pageElements || p.Limit < 1 || p.Allocated < 0 || p.Allocated > p.Limit || len(p.Free) > p.Allocated || p.Reserved > p.Limit || cache.reserved < 1 || pages > cache.reserved || len(cache.Pages) > cache.reserved {
 				return nil, errors.New("invalid KV page reservation")
 			}
 			if pools == nil {
@@ -6843,7 +7073,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		// Validate only the free pages this call will actually acquire.
 		for j := 0; j < min(use.pages, len(p.Free)); j++ {
 			page := p.Free[len(p.Free)-1-j]
-			if page == nil || len(page.Data) != pageElements {
+			if !page.valid(pageElements, p.Format) {
 				return nil, errors.New("invalid free KV page storage")
 			}
 		}
@@ -6900,9 +7130,10 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 				m.rope(w.Q[i*d:(i+1)*d], 1, 1, c.Heads, positions[i], false)
 				m.rope(w.K[i*kd:(i+1)*kd], 1, 1, c.KVHeads, positions[i], false)
 			}
-			k, v := cache.row(l, positions[i])
-			copy(k, w.K[i*kd:(i+1)*kd])
-			copy(v, w.V[i*kd:(i+1)*kd])
+			if err := cache.store(l, positions[i], w.K[i*kd:(i+1)*kd], w.V[i*kd:(i+1)*kd]); err != nil {
+				region.End()
+				return nil, err
+			}
 		}
 		w.attend(executor, c, l, n, attention)
 		// Attention has joined every Q reader. Reuse Q for both residual
@@ -8082,7 +8313,7 @@ func generateInput(ctx context.Context, m *Model, tok inferenceTokenizer, prompt
 	if err != nil {
 		return Completion{}, err
 	}
-	plan, err := planInferenceKV(m.Config, len(ids)+s.MaxTokens, m.directKVBudget())
+	plan, err := planInferenceKVFormat(m.Config, len(ids)+s.MaxTokens, m.directKVBudget(), m.kvFormat)
 	if err != nil {
 		return Completion{}, err
 	}
@@ -8541,17 +8772,20 @@ func newEngine(m *Model, tok inferenceTokenizer, c EngineConfig) (*Engine, error
 	if tok.Vocab() != m.Config.Vocab {
 		return nil, errors.New("tokenizer/model mismatch")
 	}
+	if !validKVFormat(m.kvFormat) {
+		return nil, errors.New("KV format must be f32 or f16")
+	}
 	elements := 2 * pageTokens * m.Config.KVDim() * m.Config.Layers
-	prefixLimit := int(c.PrefixCacheBytes / int64(elements*4))
+	prefixLimit := int(c.PrefixCacheBytes / int64(elements*kvElementBytes(m.kvFormat)))
 	if c.PrefixCacheBytes != 0 && prefixLimit == 0 {
 		return nil, errors.New("prefix cache budget cannot hold one KV page")
 	}
-	limit := int((c.CacheBytes - c.PrefixCacheBytes) / int64(elements*4))
+	limit := int((c.CacheBytes - c.PrefixCacheBytes) / int64(elements*kvElementBytes(m.kvFormat)))
 	if limit < 1 {
 		return nil, errors.New("cache budget cannot hold one KV page")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	e := &Engine{Model: m, Tokenizer: tok, Config: c, queue: make(chan *engineRequest, c.Queue), admission: make(chan struct{}, c.Queue+c.MaxBatch), httpSlots: make(chan struct{}, c.Queue+c.MaxBatch), ctx: ctx, cancel: cancel, done: make(chan struct{}), pool: pagePool{PageElements: elements, Limit: limit}, prefix: prefixSnapshot{includeTail: c.PrefixCacheTail}, prefixLimit: prefixLimit, clearPrefix: make(chan chan struct{}), pieces: tok.Pieces()}
+	e := &Engine{Model: m, Tokenizer: tok, Config: c, queue: make(chan *engineRequest, c.Queue), admission: make(chan struct{}, c.Queue+c.MaxBatch), httpSlots: make(chan struct{}, c.Queue+c.MaxBatch), ctx: ctx, cancel: cancel, done: make(chan struct{}), pool: pagePool{PageElements: elements, Limit: limit, Format: m.kvFormat}, prefix: prefixSnapshot{includeTail: c.PrefixCacheTail}, prefixLimit: prefixLimit, clearPrefix: make(chan chan struct{}), pieces: tok.Pieces()}
 	return e, nil
 }
 func (e *Engine) Stats() EngineStats {
@@ -8742,9 +8976,9 @@ func (e *Engine) run() {
 	wantLogits := make([]bool, e.Config.MaxBatch)
 	rotation := 0
 	accounting := func() {
-		prefixBytes := int64(len(e.prefix.pages) * e.pool.PageElements * 4)
-		e.stats.Reserved.Store(int64(e.pool.Reserved * e.pool.PageElements * 4))
-		e.stats.Allocated.Store(int64(e.pool.Allocated*e.pool.PageElements*4) + prefixBytes)
+		prefixBytes := int64(len(e.prefix.pages) * e.pool.PageElements * kvElementBytes(e.pool.Format))
+		e.stats.Reserved.Store(int64(e.pool.Reserved * e.pool.PageElements * kvElementBytes(e.pool.Format)))
+		e.stats.Allocated.Store(int64(e.pool.Allocated*e.pool.PageElements*kvElementBytes(e.pool.Format)) + prefixBytes)
 		e.stats.PrefixBytes.Store(prefixBytes)
 	}
 	clearPrefix := func(done chan struct{}) {
@@ -9257,6 +9491,9 @@ func parseInferenceAction(f *flag.FlagSet, args []string, validateOnly bool) err
 	return validateInferenceFlags(f)
 }
 func validateInferenceFlags(f *flag.FlagSet) error {
+	if !validKVFormat(selectedKVFormat(f)) {
+		return errors.New("kv-format must be f32 or f16")
+	}
 	if v := f.Lookup("weight-format"); v != nil && !validHFWeightFormat(v.Value.String()) {
 		return errors.New("weight-format must be f32, q8, q4 or q4-mixed")
 	}
@@ -10065,6 +10302,7 @@ func runDemo(ctx context.Context, args []string) error {
 }
 func runGenerate(ctx context.Context, args []string, validateOnly bool) error {
 	f := flags("generate")
+	kvFormatFlag(f)
 	model := f.String("model", "runs/model.mglm", "checkpoint")
 	dir, limit, budget, format := hfFlags(f)
 	f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
@@ -10215,6 +10453,7 @@ func chatLoop(ctx context.Context, e *Engine, tok *hfTokenizer, system string, s
 
 func runChat(ctx context.Context, args []string, validateOnly bool) error {
 	f := flags("chat")
+	kvFormatFlag(f)
 	dir, limit, budget, format := hfFlags(f)
 	system := f.String("system", "", "system message; empty uses the model template default")
 	memory := f.Int64("kv-mib", 256, "KV cache budget in MiB")
@@ -10469,6 +10708,7 @@ func (t *inferenceTrace) close() error {
 
 func runServe(ctx context.Context, args []string, validateOnly bool) (err error) {
 	f := flags("serve")
+	kvFormatFlag(f)
 	model := f.String("model", "runs/model.mglm", "checkpoint")
 	dir, limit, weightBudget, format := hfFlags(f)
 	addr := f.String("addr", "127.0.0.1:8080", "HTTP listen address")
