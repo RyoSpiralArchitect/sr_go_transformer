@@ -1,0 +1,126 @@
+{
+  "format": "inference-liveness-summary-v1",
+  "runtime_commit": "1e8fe4c4032f8590443b6c174f1720f927fc60e4",
+  "receipt": "inference-liveness-mistral-20261110.json",
+  "receipt_sha256": "dd35bc61f5bc5d713f9e9d91bb68222febf1ac0586d6b35f5a65b46484ea6a3a",
+  "protocol": "inference-liveness-protocol-20261110.json",
+  "all_numerical_signatures_equal": true,
+  "all_workspace_deltas_match_protocol": true,
+  "cases": [
+    {
+      "sessions": 1,
+      "measured_trials_per_variant": 6,
+      "workspace_bytes": {
+        "before": 2228736,
+        "after": 1638912
+      },
+      "saved_workspace_bytes": 589824,
+      "workspace_reduction_fraction": 0.26464507236388696,
+      "prefill_seconds": {
+        "before": 2.9108851875,
+        "after": 2.887684771,
+        "after_over_before": 0.99202977273043,
+        "exceeds_5_percent_regression_screen": false
+      },
+      "decode_seconds": {
+        "before": 3.2433442925,
+        "after": 3.2345281655000004,
+        "after_over_before": 0.9972817788662197,
+        "exceeds_5_percent_regression_screen": false
+      }
+    },
+    {
+      "sessions": 2,
+      "measured_trials_per_variant": 6,
+      "workspace_bytes": {
+        "before": 4456960,
+        "after": 3277312
+      },
+      "saved_workspace_bytes": 1179648,
+      "workspace_reduction_fraction": 0.2646754738655945,
+      "prefill_seconds": {
+        "before": 5.83964925,
+        "after": 6.0044428540000006,
+        "after_over_before": 1.0282197777546316,
+        "exceeds_5_percent_regression_screen": false
+      },
+      "decode_seconds": {
+        "before": 4.440350604000001,
+        "after": 4.385097083,
+        "after_over_before": 0.9875564958879087,
+        "exceeds_5_percent_regression_screen": false
+      }
+    }
+  ],
+  "process_medians": [
+    {
+      "index": 0,
+      "variant": "before",
+      "peak_rss_bytes": 4176707584,
+      "cases": [
+        {
+          "sessions": 1,
+          "prefill_seconds": 2.606702542,
+          "decode_seconds": 3.1487200830000006
+        },
+        {
+          "sessions": 2,
+          "prefill_seconds": 5.609633458,
+          "decode_seconds": 4.0679725
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "variant": "after",
+      "peak_rss_bytes": 4177920000,
+      "cases": [
+        {
+          "sessions": 1,
+          "prefill_seconds": 2.7609735,
+          "decode_seconds": 3.265268164
+        },
+        {
+          "sessions": 2,
+          "prefill_seconds": 5.786513833,
+          "decode_seconds": 4.289989541
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "variant": "after",
+      "peak_rss_bytes": 4185145344,
+      "cases": [
+        {
+          "sessions": 2,
+          "prefill_seconds": 6.6258067910000005,
+          "decode_seconds": 4.4386617489999995
+        },
+        {
+          "sessions": 1,
+          "prefill_seconds": 2.8883025,
+          "decode_seconds": 3.2037881670000004
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "variant": "before",
+      "peak_rss_bytes": 4179460096,
+      "cases": [
+        {
+          "sessions": 2,
+          "prefill_seconds": 5.987633584,
+          "decode_seconds": 5.174257208
+        },
+        {
+          "sessions": 1,
+          "prefill_seconds": 3.191847583,
+          "decode_seconds": 3.9058856250000002
+        }
+      ]
+    }
+  ],
+  "scope": "Apple M4, Go 1.27.1, four workers. Numerical and workspace gates passed. Time medians are descriptive only; process/order drift prevents a speedup claim. Peak RSS did not establish a reduction. Synthetic 64-layer correctness is separate from the executed 32-layer Mistral model."
+}

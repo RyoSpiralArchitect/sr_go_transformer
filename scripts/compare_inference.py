@@ -29,13 +29,13 @@ def isolated_go_environment():
 
 
 def numerical_signature(report):
-    """Keep the input contract, all logit/KV bits and generated IDs, not timing."""
+    """Keep inputs and numerical outputs; retain timing/workspace only in reports."""
     return dict(plan=report['plan'], threads=report['threads'],
                 kernel_workers=report['kernel_workers'], context=report['context'],
                 prefill_tokens_per_session=report['prefill_tokens_per_session'],
                 decode_steps=report['decode_steps'], generated_ids_per_session=report['generated_ids_per_session'],
                 cases=[dict(sessions=c['sessions'], prompt_ids=c['prompt_ids'],
-                            trials=[{k: t[k] for k in ('logits_sha256', 'kv_sha256', 'token_ids', 'workspace_bytes')}
+                            trials=[{k: t[k] for k in ('logits_sha256', 'kv_sha256', 'token_ids')}
                                     for t in c['trials']]) for c in sorted(report['cases'], key=lambda c: c['sessions'])])
 
 

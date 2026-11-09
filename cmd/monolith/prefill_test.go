@@ -279,10 +279,10 @@ func TestPrefillReservationValidationAndRelease(t *testing.T) {
 }
 
 func TestPrefillWorkspaceBoundBeforeAllocation(t *testing.T) {
-	// Valid geometry, no weights: the MLP buffers plus public/buffered logits
+	// Valid HF geometry, no weights: the MLP buffers plus public/buffered logits
 	// exceed the budget even when attention scratch is bounded by worker lanes.
-	c := Config{Vocab: 65536, Dim: 512, Hidden: 32768, Layers: 1, Heads: 256, KVHeads: 1, Context: 32, RopeTheta: 10000, NormEps: 1e-5}
-	if err := c.Validate(); err != nil {
+	c := Config{Vocab: 131072, Dim: 512, Hidden: 32768, Layers: 1, Heads: 256, KVHeads: 1, Context: 32, RopeTheta: 10000, NormEps: 1e-5}
+	if err := c.validateShapeLimits(maxHFVocab, maxHFParameters); err != nil {
 		t.Fatal(err)
 	}
 	m := &Model{Config: c}

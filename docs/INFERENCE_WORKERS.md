@@ -54,6 +54,17 @@ bounded by 1,024 rows and 256 sessions: fixed row/position/index arrays and
 reused validation maps. Cache and pool references are cleared after every
 completed or failed computation, once all kernel borrowers have joined.
 
+Inference scratch is reused between layers and between phases of each layer.
+After all attention readers join, Q storage becomes the output/residual buffer;
+after the FFN projections join, Gate storage becomes the activated FFN input.
+The final selected-row compaction also uses Q, after the last layer has finished.
+No matrix kernel reads and writes the same buffer. This saves
+`4 * rows * (Dim + Hidden)` bytes compared with separate residual/activation
+buffers, without changing arithmetic or adding shared mutable model state.
+GPT-2 GELU and rotary-model SwiGLU both use this reuse. Layer count does not
+multiply these activation buffers; weights and KV storage still grow with depth.
+See [buffer lifetimes and validation](INFERENCE_LIVENESS.md).
+
 `monolith_workspace_float_bytes` and `EngineStats.WorkspaceFloatBytes` report
 retained float array capacity after each tick, excluding metadata, weights,
 KV storage, allocator overhead and garbage awaiting collection. The gauge

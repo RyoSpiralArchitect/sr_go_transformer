@@ -1,0 +1,43 @@
+{
+  "format": "inference-liveness-protocol-v1",
+  "baseline": "3c0ab74dcdb4d707abf6e397cc3b6b56672db19f",
+  "candidate_runtime_sha256": "c4ea964e43d0a3147ca2fd3947cc344fd80709d3bc1c13fdd0947ad9036ac3a1",
+  "model_catalog_id": "mistral-7b-v03",
+  "weight_format": "q4-mixed",
+  "offline": true,
+  "process_order": [
+    "before",
+    "after",
+    "after",
+    "before"
+  ],
+  "case_orders": [
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      1
+    ]
+  ],
+  "prefill_rows_per_session": 8,
+  "decode_calls": 7,
+  "trials_per_case_per_process": 3,
+  "warmups_per_case": 1,
+  "gates": {
+    "all_logits_kv_bits_and_generated_ids_equal": true,
+    "workspace_saved_bytes_per_session": 589824,
+    "layers_in_real_model": 32
+  },
+  "latency_policy": "Report all samples. Investigate aggregate prefill or decode median regression above 5%. Do not infer a speedup from this memory optimization; no repeated attempts to obtain a passing screen.",
+  "limits": "Real probe uses short prefixes and one/two sessions. Synthetic 64-layer tests do not establish large trained-model quality. The 1024-row memory calculation is not an executed 1024-row model run."
+}
