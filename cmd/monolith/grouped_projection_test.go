@@ -24,7 +24,7 @@ func assertGroupCleared(t testing.TB, e *kernelExecutor) {
 func TestGroupedProjectionExactAndFallback(t *testing.T) {
 	for _, format := range []string{"f32", "q4", "q8", "mixed", "wide"} {
 		for _, n := range []int{1, 2, 4, 7, 17} {
-			for _, in := range []int{63, 64, 513} {
+			for _, in := range []int{63, 64, 513, 2048} {
 				t.Run(fmt.Sprintf("%s/rows%d/in%d", format, n, in), func(t *testing.T) {
 					x, _, _ := linearFixture(n, in, 1)
 					if format == "wide" {
@@ -61,7 +61,15 @@ func TestGroupedProjectionExactAndFallback(t *testing.T) {
 							e = newKernelExecutor(workers)
 						}
 						for _, count := range []int{3, 2, 3} {
+							for _, p := range projections {
+								for j := range p.y {
+									p.y[j] = float32(math.NaN())
+								}
+							}
 							linearGroupInto(e, x, n, projections[:count]...)
+							if workers == 4 && in == 2048 && format == "q4" && e.groupFn == nil {
+								t.Fatal("aligned Q4 group did not dispatch")
+							}
 							for i, p := range projections[:count] {
 								exactWorkerFloats(t, p.y, wants[i])
 								if guards[i][0] != 987 || guards[i][len(guards[i])-1] != 987 {
@@ -96,6 +104,10 @@ func TestGroupedProjectionJoinsAndReuses(t *testing.T) {
 	if got := testing.AllocsPerRun(10, func() { linearGroupInto(e, x, 4, projections...) }); got != 0 {
 		e.close()
 		t.Fatal("warm allocations", got)
+	}
+	want := append([]float32(nil), a...)
+	for j := range a {
+		a[j], b[j] = float32(math.NaN()), float32(math.NaN())
 	}
 	original := e.groupFn
 	entered, release, done := make(chan struct{}, 4), make(chan struct{}), make(chan struct{})
@@ -132,5 +144,6 @@ func TestGroupedProjectionJoinsAndReuses(t *testing.T) {
 		t.Fatal("join timeout")
 	}
 	assertGroupCleared(t, e)
-	exactWorkerFloats(t, a, b)
+	exactWorkerFloats(t, a, want)
+	exactWorkerFloats(t, b, want)
 }
