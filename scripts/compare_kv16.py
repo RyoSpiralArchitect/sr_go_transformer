@@ -60,8 +60,8 @@ def main():
     failure = None
     with (output/'probe.log').open('w') as log:
         try:
-            run_measured([str(binary),'-test.run=^TestHFCache16Quality$','-test.v','-test.timeout=22m'],
-                cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=1380,outcome_path=output/'resources.json')
+            run_measured([str(binary),'-test.run=^TestHFCache16Quality$','-test.v','-test.timeout=32m'],
+                cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=1980,outcome_path=output/'resources.json')
         except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as exc:
             failure = str(exc)
     # Preserve a failed gate or timeout alongside verified identities, never retry.

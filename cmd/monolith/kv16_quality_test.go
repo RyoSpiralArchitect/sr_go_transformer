@@ -99,7 +99,7 @@ func TestHFCache16Quality(t *testing.T) {
 	if runtime.GOMAXPROCS(0) != 4 {
 		fail("requires GOMAXPROCS=4")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	phase = "model_load"
 	record(map[string]any{"event": "phase", "phase": phase})

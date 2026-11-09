@@ -8,6 +8,7 @@ This replays the identical numerical workload once. It makes no timing claim.
 import argparse
 import hashlib
 import json
+import platform
 from pathlib import Path
 import subprocess
 
@@ -78,6 +79,7 @@ def main():
     receipt=dict(format='monolith-default-kv-parity-v1',baseline_commit=baseline,baseline_runtime_sha256=runtime_hash,reference_receipt_sha256=reference_hash,
         source_inputs_sha256=hashes,reference_model=source['repo'],revision=source['revision'],files=source['files'],binary_sha256=binary_hash,
         identities_unchanged=unchanged,numerical_identity=same,report=report,resources=resources,
+        go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),host=platform.system()+'/'+platform.machine(),
         note='One numerical replay of the identical 1/2-session workload. Reference after-runtime is bound to the selected Git predecessor. No speed claim.')
     with (output/'receipt.json').open('x') as f:json.dump(receipt,f,indent=2,allow_nan=False);f.write('\n')
     if not same or not unchanged:raise RuntimeError('Default parity failed; retained receipt')

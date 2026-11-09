@@ -27,5 +27,17 @@
     "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
     "validation/quality/kv16-long-prompts.json": "feb640dfff5d14ea32c1e398ec24a2cbba74afffc482a9c45386aeb63013886b",
     "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b"
+  },
+  "execution_bound": {
+    "model_and_probe_context_minutes": 30,
+    "go_test_timeout_minutes": 32,
+    "process_timeout_seconds": 1980,
+    "reason": "Fixed workload includes six teacher-forced documents plus four 384+ token prefill / 128 output continuations; generous local bound fixed before first model screen."
+  },
+  "default_reference": {
+    "baseline_commit": "1a01515d44442060c6a3dc0354a00152532fffda",
+    "receipt": "validation/performance/q4-output-pair-mistral-20261110-run1.json",
+    "receipt_sha256": "d711c4cce5632e7530a6227a7645d897932194161654f4afedde360a42abce66",
+    "verification": "scripts/verify_default_kv.py checks predecessor source, harness, model and corpus identity before comparing all logits/KV/IDs. Timing is diagnostic only."
   }
 }
