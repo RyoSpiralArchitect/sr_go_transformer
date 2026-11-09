@@ -49,9 +49,10 @@ class ComparisonProtocolTests(unittest.TestCase):
         reversed_report = copy.deepcopy(report)
         reversed_report['cases'].reverse()
         reversed_report['cases'][0]['trials'][0]['decode_seconds'] = 99.0
+        reversed_report['cases'][0]['trials'][0]['workspace_bytes'] = 1
         self.assertEqual(numerical_signature(report), numerical_signature(reversed_report))
         for field, bad in (('logits_sha256', 'bad'), ('kv_sha256', 'bad'),
-                           ('token_ids', [[99]]), ('workspace_bytes', 999)):
+                           ('token_ids', [[99]])):
             changed = copy.deepcopy(reversed_report)
             changed['cases'][0]['trials'][0][field] = bad
             self.assertNotEqual(numerical_signature(report), numerical_signature(changed))

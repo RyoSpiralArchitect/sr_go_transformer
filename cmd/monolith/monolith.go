@@ -6308,7 +6308,7 @@ func (c *KVCache) Close() {
 
 type decodePoolUse struct{ pages, reserved int }
 type decodeWorkspace struct {
-	X, N, Q, K, V, A, G, U, H, Tmp, Logits, Scores []float32
+	X, N, Q, K, V, A, G, U, Logits, Scores []float32
 	// Metadata has the same hard bounds as PrefillBatch. Only this workspace's
 	// owner may use it; pointer-bearing fields are cleared after kernels join.
 	rowCaches   [1024]*KVCache
@@ -6334,7 +6334,7 @@ func (w *decodeWorkspace) clearReferences() {
 
 func (w *decodeWorkspace) floatBytes() int64 {
 	var elements int64
-	for _, x := range [][]float32{w.X, w.N, w.Q, w.K, w.V, w.A, w.G, w.U, w.H, w.Tmp, w.Logits, w.Scores} {
+	for _, x := range [][]float32{w.X, w.N, w.Q, w.K, w.V, w.A, w.G, w.U, w.Logits, w.Scores} {
 		elements += int64(cap(x))
 	}
 	return elements * 4
@@ -6596,8 +6596,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 	arrays := []inferenceArray{
 		{&w.X, n * d}, {&w.N, n * d}, {&w.Q, n * d},
 		{&w.K, n * kd}, {&w.V, n * kd}, {&w.A, n * d},
-		{&w.Tmp, n * d}, {&w.G, n * c.Hidden},
-		{&w.U, upElements}, {&w.H, n * c.Hidden},
+		{&w.G, n * c.Hidden}, {&w.U, upElements},
 		{&w.Logits, sessions * c.Vocab}, {&w.Scores, attention.lanes * attention.stride},
 	}
 	if err := resizeInferenceArrays(arrays, int64(sessions)*int64(c.Vocab), maxActivationElements); err != nil {
@@ -6640,38 +6639,42 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 			copy(v, w.V[i*kd:(i+1)*kd])
 		}
 		w.attend(executor, c, l, n, attention)
-		linearIntoWithExecutor(executor, w.Tmp, w.A, b.O, n)
-		addBias(w.Tmp, b.OB)
-		addInPlace(w.X, w.Tmp)
+		// Attention has joined every Q reader. Reuse Q for both residual
+		// projections; their inputs (A and G) remain separate.
+		linearIntoWithExecutor(executor, w.Q, w.A, b.O, n)
+		addBias(w.Q, b.OB)
+		addInPlace(w.X, w.Q)
 		inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
 		linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
+		// Gate values are dead after activation. Overwrite them only after
+		// the projections join, preserving each element's arithmetic order.
 		if m.Position != nil {
 			addBias(w.G, b.GateB)
 			for i, v := range w.G {
 				x := float64(v)
-				w.H[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
+				w.G[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
 			}
 		} else {
 			linearIntoWithExecutor(executor, w.U, w.N, b.Up, n)
 			for i, v := range w.G {
-				w.H[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
+				w.G[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
 			}
 		}
-		linearIntoWithExecutor(executor, w.Tmp, w.H, b.Down, n)
-		addBias(w.Tmp, b.DownB)
-		addInPlace(w.X, w.Tmp)
+		linearIntoWithExecutor(executor, w.Q, w.G, b.Down, n)
+		addBias(w.Q, b.DownB)
+		addInPlace(w.X, w.Q)
 		region.End()
 	}
 	// Compact selected final rows so mixed batches still share head weight reads.
 	heads := 0
 	for i, row := range lastRows {
 		if wantLogits == nil || wantLogits[i] {
-			copy(w.Tmp[heads*d:(heads+1)*d], w.X[row*d:(row+1)*d])
+			copy(w.Q[heads*d:(heads+1)*d], w.X[row*d:(row+1)*d])
 			heads++
 		}
 	}
 	if heads > 0 {
-		inferenceNorm(w.N[:heads*d], w.Tmp[:heads*d], m.Final, m.FinalBias, heads, c.NormEps)
+		inferenceNorm(w.N[:heads*d], w.Q[:heads*d], m.Final, m.FinalBias, heads, c.NormEps)
 		head := m.Emb
 		if m.output != nil {
 			head = m.output
@@ -7779,7 +7782,7 @@ func generationPromptRows(m *Model, tokens, workers int, targetElements int64) i
 		return 1
 	}
 	c := m.Config
-	rowElements := int64(5*c.Dim + 2*c.KVDim() + 3*c.Hidden)
+	rowElements := int64(4*c.Dim + 2*c.KVDim() + 2*c.Hidden)
 	if m.Position != nil {
 		rowElements -= int64(c.Hidden)
 	}

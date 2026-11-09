@@ -175,7 +175,7 @@ func TestPromptPrefillSoftBudgetAndWorkerPlan(t *testing.T) {
 		} // Soft-target fallback; hard forward admission remains authoritative.
 		c := large.Config
 		p := planInferenceAttention(&kernelExecutor{workers: 4}, c, rows, 32768)
-		lengths := []int{rows * c.Dim, rows * c.Dim, rows * c.Dim, rows * c.KVDim(), rows * c.KVDim(), rows * c.Dim, rows * c.Dim, rows * c.Hidden, rows * c.Hidden, rows * c.Hidden, c.Vocab, p.lanes * p.stride, c.Vocab}
+		lengths := []int{rows * c.Dim, rows * c.Dim, rows * c.Dim, rows * c.KVDim(), rows * c.KVDim(), rows * c.Dim, rows * c.Hidden, rows * c.Hidden, c.Vocab, p.lanes * p.stride, c.Vocab}
 		used := int64(0)
 		for _, n := range lengths {
 			used += int64(n)
