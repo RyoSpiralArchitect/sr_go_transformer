@@ -11,6 +11,17 @@ from compare_inference import isolated_go_environment
 from quant_quality import sha, run_measured, source_path
 
 
+def read_quality_report(path):
+    """Keep a missing/truncated final report from hiding durable progress."""
+    try:
+        report = json.loads(path.read_text())
+        if not isinstance(report, dict) or report.get('format') != 'monolith-kv16-quality-v1':
+            return None, 'Unexpected quality report format'
+        return report, None
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--model', type=Path, required=True)
@@ -57,17 +68,17 @@ def main():
     unchanged = hashes == {str(p.relative_to(root)):sha(p) for p in paths}
     unchanged = unchanged and sha(binary) == binary_hash
     unchanged = unchanged and all(sha(model/n)==v for n,v in source['files'].items())
-    report = json.loads((output/'quality.json').read_text()) if (output/'quality.json').exists() else None
+    report, report_error = read_quality_report(output/'quality.json')
     progress_path = output/'quality.json.progress.jsonl'
     progress = dict(path=progress_path.name, sha256=sha(progress_path)) if progress_path.exists() else None
     receipt = dict(format='monolith-kv16-screen-receipt-v1',model=source['repo'],revision=source['revision'],
         files=source['files'],inputs_sha256=hashes,binary_sha256=binary_hash,identities_unchanged=unchanged,
         go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),
-        failure=failure,report=report,progress=progress,resources=json.loads((output/'resources.json').read_text()),
+        failure=failure,report=report,report_error=report_error,progress=progress,resources=json.loads((output/'resources.json').read_text()),
         note='Long-answer review remains separate from numerical gates. All first results retained.')
     with (output/'receipt.json').open('x') as f:
         json.dump(receipt,f,indent=2,ensure_ascii=False,allow_nan=False);f.write('\n')
-    if not unchanged or failure:
+    if not unchanged or failure or report_error:
         raise RuntimeError('Screen incomplete or gate failed; retained receipt: '+str(output/'receipt.json'))
 
 
