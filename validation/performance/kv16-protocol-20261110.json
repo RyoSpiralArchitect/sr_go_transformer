@@ -16,7 +16,7 @@
   },
   "long_answers": {
     "inputs": "validation/quality/kv16-long-prompts.json",
-    "prefix": "Repeat the six evaluation documents in order until at least 384 encoded tokens, keep the first 384, then append each fixed question using tokenizer.Encode(text,false,false).",
+    "prefix": "Repeat the six evaluation documents in order until at least 384 encoded tokens, keep the first 384, then append each fixed question using the HF tokenizer with post-processing/BOS disabled (encodeText(ctx,text,1024,false)).",
     "outputs": 128,
     "sampling": "Greedy, fixed 128 steps including EOS, context must fit. This bounded continuation probe is not a completed chat-answer claim.",
     "comparison": "Save both complete token sequences and decoded continuations. Inspect both for new repeated loops, non-finite output or loss of the question's requested facts/language. Any new BF16-only failure holds adoption pending investigation; disagreement alone is reported rather than scored as failure. No regenerated answers or threshold relaxation."

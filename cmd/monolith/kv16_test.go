@@ -4,8 +4,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"testing"
 )
@@ -170,5 +172,59 @@ func TestKV16CLIValidation(t *testing.T) {
 		if err := runInferenceAction(context.Background(), action, args, true); err == nil || !strings.Contains(err.Error(), "kv-format") {
 			t.Fatal(action, err)
 		}
+	}
+}
+
+func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
+	dir := hfCLIFixture(t)
+	t.Setenv("HF_HUB_OFFLINE", "1")
+	denyHFNetwork(t)
+	out, err := os.CreateTemp(t.TempDir(), "check-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer out.Close()
+	original := os.Stdout
+	os.Stdout = out
+	defer func() { os.Stdout = original }()
+	if err := runInferLocal(context.Background(), []string{"-path", dir, "-context", "64", "check", "-kv-format", "bf16", "-json"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := out.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	var report hfCheck
+	if err := json.NewDecoder(out).Decode(&report); err != nil {
+		t.Fatal(err)
+	}
+	if report.KVPlan == nil || report.KVPlan.Format != "bf16" || report.KVPageAlignedBytes*2 != 64*report.Weights.KVBytesPerToken {
+		t.Fatal(report)
+	}
+	for _, action := range []string{"generate", "chat", "serve"} {
+		f := flags(action)
+		hfFlags(f)
+		kvFormatFlag(f)
+		f.Int64("kv-mib", 1, "")
+		if err := f.Parse([]string{"-kv-format", "bf16"}); err != nil {
+			t.Fatal(err)
+		}
+		m, tok, err := loadInference(context.Background(), f, "", dir, 64, 8, "f32")
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := m.NewCache()
+		c.ensurePages(1)
+		if len(c.Pages[0].Data) != 0 || len(c.Pages[0].BF16) == 0 {
+			t.Fatal("loader ignored format", action)
+		}
+		c.Close()
+		e, err := newEngine(m, tok, EngineConfig{MaxBatch: 1, Queue: 1, CacheBytes: 1 << 20})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e.pool.Format != "bf16" {
+			t.Fatal("engine ignored format", action)
+		}
+		e.cancel()
 	}
 }

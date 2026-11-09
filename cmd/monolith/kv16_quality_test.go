@@ -196,7 +196,11 @@ func TestHFCache16Quality(t *testing.T) {
 	prefix = prefix[:384]
 	long := []kv16LongResult{}
 	for qi, q := range prompts.Questions {
-		ids := append(append([]int(nil), prefix...), tok.Encode(q.Question, false, false)...)
+		questionIDs, err := tok.encodeText(ctx, q.Question, 1024, false)
+		if err != nil {
+			fail(err)
+		}
+		ids := append(append([]int(nil), prefix...), questionIDs...)
 		if len(ids)+128 > 1024 {
 			fail("long context overflow")
 		}
