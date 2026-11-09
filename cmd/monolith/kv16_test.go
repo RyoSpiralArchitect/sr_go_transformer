@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -226,5 +228,36 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 			t.Fatal("engine ignored format", action)
 		}
 		e.cancel()
+	}
+}
+
+func TestKV16FailedProbeRetainsProgress(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "quality.json")
+	command := exec.Command(exe, "-test.run=^TestHFCache16Quality$", "-test.timeout=10s")
+	command.Env = append(os.Environ(), "GOMAXPROCS=4", "MONOLITH_KV16_MODEL="+t.TempDir(), "MONOLITH_KV16_OUTPUT="+output)
+	if log, err := command.CombinedOutput(); err == nil {
+		t.Fatal("missing model unexpectedly passed", string(log))
+	}
+	raw, err := os.ReadFile(output + ".progress.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) < 3 {
+		t.Fatal("missing durable phase/failure", string(raw))
+	}
+	var event struct{ Event, Phase, Error string }
+	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Event != "failure" || event.Phase != "model_load" || event.Error == "" {
+		t.Fatal(event)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatal("failed probe claimed completed report", err)
 	}
 }
