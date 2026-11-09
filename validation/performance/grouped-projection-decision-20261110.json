@@ -1,0 +1,113 @@
+{
+  "decision": "not adopted; preserve candidate patch and both first comparisons",
+  "baseline_commit": "cc91daf3b455c1578e5cdd5143b10b7f4e241cc4",
+  "candidate_commit": "43f2b7c3da5ffd1588e49a4db0710e08a7676d71",
+  "candidate_runtime_sha256": "1e452446ccc0cdd5a9bbcee90b72ec100691a69ccf4e06e3d24e43b4e117b0c9",
+  "patch_sha256": "a6eea83b893ebf4296117ecb25ca67520ab8e7510d0f765596132a2aef073601",
+  "numerical_identity_both_repeats": true,
+  "measurements": [
+    {
+      "repeat": 1,
+      "sessions": 1,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 3.2082223745,
+        "after": 3.2835625415000003
+      },
+      "ratio": 1.0234834616200013,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 1,
+      "sessions": 1,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 3.147674729,
+        "after": 3.4069263745000002
+      },
+      "ratio": 1.082362908438879,
+      "limit": 0.95,
+      "pass_gate": false
+    },
+    {
+      "repeat": 1,
+      "sessions": 2,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 6.426859416999999,
+        "after": 6.1231519169999995
+      },
+      "ratio": 0.9527440262351704,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 1,
+      "sessions": 2,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 4.6509021235,
+        "after": 4.567063082000001
+      },
+      "ratio": 0.9819735958156637,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 1,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 3.8211537289999997,
+        "after": 3.41946475
+      },
+      "ratio": 0.8948775664398296,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 1,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 4.1498515625,
+        "after": 3.3663573945
+      },
+      "ratio": 0.8111994715473633,
+      "limit": 0.95,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 2,
+      "metric": "prefill_seconds",
+      "medians": {
+        "before": 7.159353208000001,
+        "after": 6.519886083
+      },
+      "ratio": 0.9106808804620161,
+      "limit": 1.05,
+      "pass_gate": true
+    },
+    {
+      "repeat": 2,
+      "sessions": 2,
+      "metric": "decode_seconds",
+      "medians": {
+        "before": 5.751887979999999,
+        "after": 4.717549250499999
+      },
+      "ratio": 0.8201740484000177,
+      "limit": 1.05,
+      "pass_gate": true
+    }
+  ],
+  "reason": "Both repetitions must improve single-session decode by at least 5% and preserve controls. Do not replace the original failing repetition or weaken the gate.",
+  "scope": "Host-specific short-prefix 1/2-session core-forward evaluation, not a universal claim about grouped dispatch. Timings varied substantially between repeats; this is not evidence of a universal regression or a demonstrated performance cause.",
+  "patch_reconstructed_source_sha256": {
+    "cmd/monolith/monolith.go": "1e452446ccc0cdd5a9bbcee90b72ec100691a69ccf4e06e3d24e43b4e117b0c9",
+    "cmd/monolith/q4_call_overhead_test.go": "40f128bd90a7a0be0ee8b91df32cb2830bac5d8fedd786c71bc62552d80a45bf",
+    "cmd/monolith/grouped_projection_test.go": "dcb71eb4c7e6b035fcc6122bab4094a19892800ac53a1986c6e56925613fb0c8"
+  }
+}
