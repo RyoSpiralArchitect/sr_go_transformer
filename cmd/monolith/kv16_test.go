@@ -261,3 +261,55 @@ func TestKV16FailedProbeRetainsProgress(t *testing.T) {
 		t.Fatal("failed probe claimed completed report", err)
 	}
 }
+
+func TestKV16DeepMixedSessions(t *testing.T) {
+	for _, layers := range []int{32, 64} {
+		t.Run(fmt.Sprintf("layers%d", layers), func(t *testing.T) {
+			config := Config{Vocab: 258, Dim: 66, Hidden: 129, Heads: 3, KVHeads: 1, Layers: layers, Context: 128, RopeTheta: 10000, NormEps: 1e-5}
+			m, err := NewModel(config, 19)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, p := range m.Params {
+				if p.Rows > 1 {
+					q := quantizeQ4TestParam(t, p)
+					*p = *q
+				}
+			}
+			compact := kv16ModelView(m, "bf16")
+			a, b := make([]*KVCache, 3), make([]*KVCache, 3)
+			for i := range a {
+				a[i], b[i] = compact.NewCache(), m.NewCache()
+				defer a[i].Close()
+				defer b[i].Close()
+			}
+			e := newKernelExecutor(4)
+			defer e.close()
+			var w decodeWorkspace
+			for step, sizes := range [][3]int{{21, 3, 1}, {17, 31, 7}, {1, 1, 1}} {
+				chunks := make([][]int, 3)
+				for i, n := range sizes {
+					chunks[i] = prefillTokens(n, i+step+1)
+				}
+				want := bf16WidenedPrefillReference(m, b, chunks, e)
+				got, err := compact.prefillBorrowed(context.Background(), a, chunks, e, &w)
+				if err != nil {
+					t.Fatal(err)
+				}
+				exactWorkerFloats(t, got, want)
+				for i := range a {
+					for j, page := range a[i].Pages {
+						for k, v := range page.BF16 {
+							if math.Float32bits(fromBF16(v)) != math.Float32bits(b[i].Pages[j].Data[k]) {
+								t.Fatal("deep KV mismatch", i, j, k)
+							}
+						}
+					}
+				}
+			}
+			if w.attentionFn == nil {
+				t.Fatal("mixed-session attention did not dispatch")
+			}
+		})
+	}
+}
