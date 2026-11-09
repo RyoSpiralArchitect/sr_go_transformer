@@ -14,12 +14,12 @@ import (
 	"testing"
 )
 
-func TestBF16Conversion(t *testing.T) {
+func TestF16Conversion(t *testing.T) {
 	for b := 0; b < 65536; b++ {
-		x := fromBF16(uint16(b))
-		got := toBF16(x)
+		x := fromF16(uint16(b))
+		got := toF16(x)
 		if math.IsNaN(float64(x)) {
-			if !math.IsNaN(float64(fromBF16(got))) {
+			if !math.IsNaN(float64(fromF16(got))) {
 				t.Fatal("NaN lost", b)
 			}
 			continue
@@ -32,12 +32,14 @@ func TestBF16Conversion(t *testing.T) {
 		bits uint32
 		want uint16
 	}{
-		{0x3f807fff, 0x3f80}, {0x3f808000, 0x3f80}, {0x3f808001, 0x3f81},
-		{0x3f818000, 0x3f82}, {0xbf808000, 0xbf80}, {0xbf818000, 0xbf82},
-		{0x00008000, 0}, {0x00008001, 1}, {0x80000000, 0x8000},
-		{0x7f800000, 0x7f80}, {0xff800000, 0xff80},
+		{0x3f800fff, 0x3c00}, {0x3f801000, 0x3c00}, {0x3f801001, 0x3c01},
+		{0x3f803000, 0x3c02}, {0xbf801000, 0xbc00}, {0xbf803000, 0xbc02},
+		{0x33000000, 0}, {0x33000001, 1}, {0x33800000, 1},
+		{0x38800000, 0x0400}, {0x387fe000, 0x0400}, {0x387fdfff, 0x03ff},
+		{0x477fe000, 0x7bff}, {0x477fefff, 0x7bff}, {0x477ff000, 0x7c00},
+		{0x7f800000, 0x7c00}, {0xff800000, 0xfc00}, {0x80000000, 0x8000},
 	} {
-		if got := toBF16(math.Float32frombits(tc.bits)); got != tc.want {
+		if got := toF16(math.Float32frombits(tc.bits)); got != tc.want {
 			t.Fatalf("%x: %x != %x", tc.bits, got, tc.want)
 		}
 	}
@@ -58,7 +60,7 @@ func TestKV16ReferenceAndDefault(t *testing.T) {
 					// Exact reference is the original FP32 path with only stored values rounded.
 					ref := m.NewCache()
 					defer ref.Close()
-					m16 := kv16ModelView(m, "bf16")
+					m16 := kv16ModelView(m, "f16")
 					a := m16.NewCache()
 					defer a.Close()
 					var w decodeWorkspace
@@ -67,18 +69,18 @@ func TestKV16ReferenceAndDefault(t *testing.T) {
 						for j := range ids {
 							ids[j] %= m.Config.Vocab
 						}
-						want := bf16WidenedPrefillReference(m, []*KVCache{ref}, [][]int{ids}, e)
+						want := f16WidenedPrefillReference(m, []*KVCache{ref}, [][]int{ids}, e)
 						got, err := m16.prefillBorrowed(ctx, []*KVCache{a}, [][]int{ids}, e, &w)
 						if err != nil {
 							t.Fatal(err)
 						}
 						exactWorkerFloats(t, got, want)
 						for i, p := range a.Pages {
-							if len(p.Data) != 0 || len(p.BF16) != len(ref.Pages[i].Data) {
+							if len(p.Data) != 0 || len(p.F16) != len(ref.Pages[i].Data) {
 								t.Fatal("not compact")
 							}
-							for j, b := range p.BF16 {
-								if math.Float32bits(fromBF16(b)) != math.Float32bits(ref.Pages[i].Data[j]) {
+							for j, b := range p.F16 {
+								if math.Float32bits(fromF16(b)) != math.Float32bits(ref.Pages[i].Data[j]) {
 									t.Fatal("KV mismatch", i, j)
 								}
 							}
@@ -113,17 +115,17 @@ func TestKV16ReferenceAndDefault(t *testing.T) {
 
 func TestKV16BudgetAndMalformedStorage(t *testing.T) {
 	m := workerTestModel(t, 2)
-	m.kvFormat = "bf16"
+	m.kvFormat = "f16"
 	for _, pos := range []int{1, 31, 32, 33, 128} {
 		a, err := planInferenceKV(m.Config, pos, 512<<20)
 		if err != nil {
 			t.Fatal(err)
 		}
-		b, err := planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2, "bf16")
+		b, err := planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2, "f16")
 		if err != nil || !b.FitsBudget || b.RequiredBytes*2 != a.RequiredBytes {
 			t.Fatal(a, b, err)
 		}
-		b, err = planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2-1, "bf16")
+		b, err = planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2-1, "f16")
 		if err != nil || b.FitsBudget {
 			t.Fatal(b, err)
 		}
@@ -136,13 +138,13 @@ func TestKV16BudgetAndMalformedStorage(t *testing.T) {
 			c.Pos = 1
 			switch kind {
 			case "wrong-format":
-				c.Pages[0] = newKVPage(len(c.Pages[0].BF16), "f32")
+				c.Pages[0] = newKVPage(len(c.Pages[0].F16), "f32")
 			case "short":
-				c.Pages[0].BF16 = c.Pages[0].BF16[:1]
+				c.Pages[0].F16 = c.Pages[0].F16[:1]
 			case "both":
 				c.Pages[0].Data = []float32{0}
 			case "pool":
-				c.pool = &pagePool{PageElements: len(c.Pages[0].BF16), Limit: 1, Reserved: 1, Allocated: 1}
+				c.pool = &pagePool{PageElements: len(c.Pages[0].F16), Limit: 1, Reserved: 1, Allocated: 1}
 				c.reserved = 1
 			}
 			if _, err := m.DecodeBatch(context.Background(), []*KVCache{c}, []int{1}); err == nil {
@@ -157,7 +159,7 @@ func TestKV16BudgetAndMalformedStorage(t *testing.T) {
 		t.Fatal("unsupported format")
 	}
 	dir := kvMistralMetadata(t)
-	if _, _, err := loadHFModelKVFormat(context.Background(), dir, 4096, 8192, "q4-mixed", 512<<20, true, "bf16"); err == nil || strings.Contains(err.Error(), "KV budget") {
+	if _, _, err := loadHFModelKVFormat(context.Background(), dir, 4096, 8192, "q4-mixed", 512<<20, true, "f16"); err == nil || strings.Contains(err.Error(), "KV budget") {
 		t.Fatal("compact admission must reach missing shards", err)
 	}
 	if _, _, err := loadHFModelKVFormat(context.Background(), dir, 4096, 8192, "q4-mixed", 512<<20, true, "f32"); err == nil || !strings.Contains(err.Error(), "KV budget") {
@@ -189,7 +191,7 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 	original := os.Stdout
 	os.Stdout = out
 	defer func() { os.Stdout = original }()
-	if err := runInferLocal(context.Background(), []string{"-path", dir, "-context", "64", "check", "-kv-format", "bf16", "-json"}); err != nil {
+	if err := runInferLocal(context.Background(), []string{"-path", dir, "-context", "64", "check", "-kv-format", "f16", "-json"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := out.Seek(0, 0); err != nil {
@@ -199,7 +201,7 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 	if err := json.NewDecoder(out).Decode(&report); err != nil {
 		t.Fatal(err)
 	}
-	if report.KVPlan == nil || report.KVPlan.Format != "bf16" || report.KVPageAlignedBytes*2 != 64*report.Weights.KVBytesPerToken {
+	if report.KVPlan == nil || report.KVPlan.Format != "f16" || report.KVPageAlignedBytes*2 != 64*report.Weights.KVBytesPerToken {
 		t.Fatal(report)
 	}
 	for _, action := range []string{"generate", "chat", "serve"} {
@@ -207,7 +209,7 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 		hfFlags(f)
 		kvFormatFlag(f)
 		f.Int64("kv-mib", 1, "")
-		if err := f.Parse([]string{"-kv-format", "bf16"}); err != nil {
+		if err := f.Parse([]string{"-kv-format", "f16"}); err != nil {
 			t.Fatal(err)
 		}
 		m, tok, err := loadInference(context.Background(), f, "", dir, 64, 8, "f32")
@@ -216,7 +218,7 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 		}
 		c := m.NewCache()
 		c.ensurePages(1)
-		if len(c.Pages[0].Data) != 0 || len(c.Pages[0].BF16) == 0 {
+		if len(c.Pages[0].Data) != 0 || len(c.Pages[0].F16) == 0 {
 			t.Fatal("loader ignored format", action)
 		}
 		c.Close()
@@ -224,7 +226,7 @@ func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if e.pool.Format != "bf16" {
+		if e.pool.Format != "f16" {
 			t.Fatal("engine ignored format", action)
 		}
 		e.cancel()
@@ -276,7 +278,7 @@ func TestKV16DeepMixedSessions(t *testing.T) {
 					*p = *q
 				}
 			}
-			compact := kv16ModelView(m, "bf16")
+			compact := kv16ModelView(m, "f16")
 			a, b := make([]*KVCache, 3), make([]*KVCache, 3)
 			for i := range a {
 				a[i], b[i] = compact.NewCache(), m.NewCache()
@@ -291,7 +293,7 @@ func TestKV16DeepMixedSessions(t *testing.T) {
 				for i, n := range sizes {
 					chunks[i] = prefillTokens(n, i+step+1)
 				}
-				want := bf16WidenedPrefillReference(m, b, chunks, e)
+				want := f16WidenedPrefillReference(m, b, chunks, e)
 				got, err := compact.prefillBorrowed(context.Background(), a, chunks, e, &w)
 				if err != nil {
 					t.Fatal(err)
@@ -299,8 +301,8 @@ func TestKV16DeepMixedSessions(t *testing.T) {
 				exactWorkerFloats(t, got, want)
 				for i := range a {
 					for j, page := range a[i].Pages {
-						for k, v := range page.BF16 {
-							if math.Float32bits(fromBF16(v)) != math.Float32bits(b[i].Pages[j].Data[k]) {
+						for k, v := range page.F16 {
+							if math.Float32bits(fromF16(v)) != math.Float32bits(b[i].Pages[j].Data[k]) {
 								t.Fatal("deep KV mismatch", i, j, k)
 							}
 						}
@@ -311,5 +313,108 @@ func TestKV16DeepMixedSessions(t *testing.T) {
 				t.Fatal("mixed-session attention did not dispatch")
 			}
 		})
+	}
+}
+
+func TestF16RangeRejectionIsAtomic(t *testing.T) {
+	m := workerTestModel(t, 2)
+	m.kvFormat = "f16"
+	c := m.NewCache()
+	defer c.Close()
+	c.ensurePages(1)
+	kd := m.Config.KVDim()
+	keys, values := make([]float32, kd), make([]float32, kd)
+	for _, bits := range []uint32{0x477ff000, 0xc77ff000, 0x7f800000, 0xff800000, 0x7fc00000} {
+		for _, badKeys := range []bool{false, true} {
+			for i := range c.Pages[0].F16 {
+				c.Pages[0].F16[i] = 0x3555
+			}
+			clear(keys)
+			clear(values)
+			if badKeys {
+				keys[kd-1] = math.Float32frombits(bits)
+			} else {
+				values[kd-1] = math.Float32frombits(bits)
+			}
+			if err := c.store(0, 0, keys, values); err == nil || !strings.Contains(err.Error(), "use -kv-format f32") {
+				t.Fatal(err)
+			}
+			for _, v := range c.Pages[0].F16 {
+				if v != 0x3555 {
+					t.Fatal("partial row write")
+				}
+			}
+		}
+	}
+	clear(keys)
+	clear(values)
+	values[0] = 65504
+	if err := c.store(0, 0, keys, values); err != nil {
+		t.Fatal(err)
+	}
+	_, v := c.rowF16(0, 0)
+	if v[0] != 0x7bff {
+		t.Fatal(v[0])
+	}
+}
+
+func TestF16PrefillOverflowKeepsPositionsAndCanRecover(t *testing.T) {
+	m := workerTestModel(t, 2)
+	m.kvFormat = "f16"
+	a, b := m.NewCache(), m.NewCache()
+	defer a.Close()
+	defer b.Close()
+	if _, err := m.PrefillBatch(context.Background(), []*KVCache{a, b}, [][]int{{1}, {2}}); err != nil {
+		t.Fatal(err)
+	}
+	// A later layer fails after the earlier layer already stored future rows.
+	bias := &Param{Rows: 1, Cols: m.Config.KVDim(), Data: make([]float32, m.Config.KVDim())}
+	bias.Data[0] = 70000
+	m.Blocks[1].VB = bias
+	chunks := [][]int{{3, 4}, {5}}
+	if _, err := m.PrefillBatch(context.Background(), []*KVCache{a, b}, chunks); err == nil || !strings.Contains(err.Error(), "FP16 KV range") {
+		t.Fatal(err)
+	}
+	if a.Pos != 1 || b.Pos != 1 {
+		t.Fatal("failed batch committed", a.Pos, b.Pos)
+	}
+	// The same finite values remain supported by FP32.
+	f32 := kv16ModelView(m, "f32")
+	fc := f32.NewCache()
+	defer fc.Close()
+	logits, err := f32.PrefillBatch(context.Background(), []*KVCache{fc}, [][]int{{1, 3, 4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range logits {
+		if math.IsNaN(float64(x)) || math.IsInf(float64(x), 0) {
+			t.Fatal("nonfinite FP32 control")
+		}
+	}
+	m.Blocks[1].VB = nil
+	got, err := m.PrefillBatch(context.Background(), []*KVCache{a, b}, chunks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, y := m.NewCache(), m.NewCache()
+	defer x.Close()
+	defer y.Close()
+	if _, err = m.PrefillBatch(context.Background(), []*KVCache{x, y}, [][]int{{1}, {2}}); err != nil {
+		t.Fatal(err)
+	}
+	want, err := m.PrefillBatch(context.Background(), []*KVCache{x, y}, chunks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exactWorkerFloats(t, got, want)
+	for i, c := range []*KVCache{a, b} {
+		ref := []*KVCache{x, y}[i]
+		for j, p := range c.Pages {
+			for k, v := range p.F16 {
+				if v != ref.Pages[j].F16[k] {
+					t.Fatal("recovery KV differs")
+				}
+			}
+		}
 	}
 }

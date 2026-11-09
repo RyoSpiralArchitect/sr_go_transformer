@@ -10,7 +10,7 @@ A self-contained decoder-only Transformer written in Go, with training, text gen
 - Bounded token-shard preparation with document boundaries, checksums, and explicit training/validation splits.
 - Deterministic parallel dataset prefetch with leased buffers and exact checkpoint resume.
 - Continuous batching with bounded token budgets, chunked prefill, paged KV caches, and request cancellation.
-- [Experimental BF16 KV storage](docs/kv-cache-formats.md), with FP32 default and format-aware page budgets.
+- [Experimental FP16 KV storage](docs/kv-cache-formats.md), with FP32 default and format-aware page budgets.
 - SSE token streaming with bounded per-request buffers and slow-consumer isolation.
 - Engine-owned, fixed-size compute workers reused across inference kernels.
 - Greedy, temperature, top-k, and top-p sampling with repetition penalties.

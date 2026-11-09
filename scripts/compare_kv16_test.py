@@ -10,7 +10,7 @@ class ReportRetentionTests(unittest.TestCase):
     def test_partial_final_report_remains_available_without_parse_exception(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'quality.json'
-            raw = b'{"format":"monolith-kv16-quality-v1","rows":['
+            raw = b'{"format":"monolith-fp16-quality-v1","rows":['
             path.write_bytes(raw)
             report, error = read_quality_report(path)
             self.assertIsNone(report)
@@ -28,6 +28,6 @@ class ReportRetentionTests(unittest.TestCase):
     def test_complete_report_is_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'quality.json'
-            expected = {'format': 'monolith-kv16-quality-v1', 'rows': [], 'numerical_gates': {'mean_kl': False}}
+            expected = {'format': 'monolith-fp16-quality-v1', 'rows': [], 'numerical_gates': {'mean_kl': False}}
             path.write_text(json.dumps(expected))
             self.assertEqual(read_quality_report(path), (expected, None))

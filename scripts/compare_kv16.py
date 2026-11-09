@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 RyoSpiralArchitect
 # SPDX-License-Identifier: Apache-2.0
-"""Run the frozen offline BF16 KV screen with one immutable resident weight set."""
+"""Run the frozen offline FP16 KV screen with one immutable resident weight set."""
 import argparse
 import json
 from pathlib import Path
@@ -15,7 +15,7 @@ def read_quality_report(path):
     """Keep a missing/truncated final report from hiding durable progress."""
     try:
         report = json.loads(path.read_text())
-        if not isinstance(report, dict) or report.get('format') != 'monolith-kv16-quality-v1':
+        if not isinstance(report, dict) or report.get('format') != 'monolith-fp16-quality-v1':
             return None, 'Unexpected quality report format'
         return report, None
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -34,7 +34,7 @@ def main():
     for name, expected in source['files'].items():
         if sha(model/name) != expected:
             raise RuntimeError('Pinned source mismatch: '+name)
-    protocol = root/'validation/performance/kv16-protocol-20261110.json'
+    protocol = root/'validation/performance/fp16-kv-protocol-20261110.json'
     spec = json.loads(protocol.read_text())
     for name, expected in spec['input_sha256'].items():
         if sha(root/name) != expected:
@@ -71,7 +71,7 @@ def main():
     report, report_error = read_quality_report(output/'quality.json')
     progress_path = output/'quality.json.progress.jsonl'
     progress = dict(path=progress_path.name, sha256=sha(progress_path)) if progress_path.exists() else None
-    receipt = dict(format='monolith-kv16-screen-receipt-v1',model=source['repo'],revision=source['revision'],
+    receipt = dict(format='monolith-fp16-screen-receipt-v1',model=source['repo'],revision=source['revision'],
         files=source['files'],inputs_sha256=hashes,binary_sha256=binary_hash,identities_unchanged=unchanged,
         go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),
         failure=failure,report=report,report_error=report_error,progress=progress,resources=json.loads((output/'resources.json').read_text()),

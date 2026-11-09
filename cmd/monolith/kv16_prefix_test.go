@@ -12,9 +12,9 @@ import (
 	"testing"
 )
 
-func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
+func TestF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
 	m := promptPrefillTestModel(t, "q4")
-	m.kvFormat = "bf16"
+	m.kvFormat = "f16"
 	ctx := context.Background()
 	ids := prefillTokens(79, 5)
 	source := m.NewCache()
@@ -33,11 +33,11 @@ func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
 		query[n] = (query[n] + 1) % m.Config.Vocab
 		a, ref := m.NewCache(), m.NewCache()
 		// Recycle a marked page. An over-copy into unmatched rows will be visible.
-		private := newKVPage(len(p.pages[0].BF16), "bf16")
-		for i := range private.BF16 {
-			private.BF16[i] = 12345
+		private := newKVPage(len(p.pages[0].F16), "f16")
+		for i := range private.F16 {
+			private.F16[i] = 12345
 		}
-		pool := &pagePool{Format: "bf16", PageElements: len(private.BF16), Limit: 4, Reserved: 4, Allocated: 1, Free: []*kvPage{private}}
+		pool := &pagePool{Format: "f16", PageElements: len(private.F16), Limit: 4, Reserved: 4, Allocated: 1, Free: []*kvPage{private}}
 		a.pool, a.reserved = pool, 4
 		p.restore(a, query)
 		if a.Pos != n || a.sharedPages != n/pageTokens || (a.shared != nil) != (n >= pageTokens) {
@@ -52,8 +52,8 @@ func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
 			if a.Pages[n/pageTokens] != private {
 				t.Fatalf("tail at %d did not come from the reservation", n)
 			}
-			for plane := 0; plane < len(private.BF16); plane += pageTokens * kd {
-				for _, v := range private.BF16[plane+tail*kd : plane+pageTokens*kd] {
+			for plane := 0; plane < len(private.F16); plane += pageTokens * kd {
+				for _, v := range private.F16[plane+tail*kd : plane+pageTokens*kd] {
 					if v != 12345 {
 						t.Fatalf("copied an unmatched row at %d", n)
 					}
@@ -71,8 +71,8 @@ func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
 		exactWorkerFloats(t, got, want)
 		for pos := range query {
 			for layer := 0; layer < m.Config.Layers; layer++ {
-				ak, av := a.rowBF16(layer, pos)
-				bk, bv := ref.rowBF16(layer, pos)
+				ak, av := a.rowF16(layer, pos)
+				bk, bv := ref.rowF16(layer, pos)
 				if !slices.Equal(ak, bk) {
 					t.Fatal("keys changed")
 				}
@@ -99,9 +99,9 @@ func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
 	}
 }
 
-func TestBF16PrefixTailEngineSubpageHitAndReset(t *testing.T) {
+func TestF16PrefixTailEngineSubpageHitAndReset(t *testing.T) {
 	m := promptPrefillTestModel(t, "q4")
-	m.kvFormat = "bf16"
+	m.kvFormat = "f16"
 	cfg := prefixEngineConfig(m)
 	cfg.PrefixCacheTail = true
 	e, err := NewEngine(m, fixedStepGenerateTokenizer{}, cfg)
@@ -137,9 +137,9 @@ func TestBF16PrefixTailEngineSubpageHitAndReset(t *testing.T) {
 
 // Both requests borrow a complete page and own a different copy of the 17-row
 // tail. Cancel one and invalidate the snapshot while the other's batch is live.
-func TestBF16PrefixTailTwoReadersCancelAndClear(t *testing.T) {
+func TestF16PrefixTailTwoReadersCancelAndClear(t *testing.T) {
 	m := promptPrefillTestModel(t, "q4")
-	m.kvFormat = "bf16"
+	m.kvFormat = "f16"
 	cfg := prefixEngineConfig(m)
 	cfg.PrefixCacheTail = true
 	cfg.PrefillChunk = 8 // The first tick stays inside each copied page.

@@ -5,7 +5,7 @@ package main
 import "math"
 
 // Independent storage reference: widened rounded KV in legacy FP32 pages and attention.
-func bf16WidenedPrefillReference(m *Model, caches []*KVCache, chunks [][]int, e *kernelExecutor) []float32 {
+func f16WidenedPrefillReference(m *Model, caches []*KVCache, chunks [][]int, e *kernelExecutor) []float32 {
 	c := m.Config
 	n, maxPos := 0, 0
 	for i, cache := range caches {
@@ -48,7 +48,7 @@ func bf16WidenedPrefillReference(m *Model, caches []*KVCache, chunks [][]int, e 
 			copy(k, w.K[i*kd:(i+1)*kd])
 			copy(v, w.V[i*kd:(i+1)*kd])
 			for j := range k {
-				k[j], v[j] = fromBF16(toBF16(k[j])), fromBF16(toBF16(v[j]))
+				k[j], v[j] = fromF16(toF16(k[j])), fromF16(toF16(v[j]))
 			}
 		}
 		w.attend(e, c, l, n, plan)

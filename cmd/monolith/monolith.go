@@ -920,7 +920,7 @@ func (a *hfArchive) readTensorValues(ctx context.Context, name string, count int
 }
 
 func kvFormatFlag(f *flag.FlagSet) {
-	f.String("kv-format", "f32", "KV cache payload: f32 (default) or bf16 (experimental)")
+	f.String("kv-format", "f32", "KV cache payload: f32 (default) or f16 (experimental)")
 }
 func selectedKVFormat(f *flag.FlagSet) string {
 	if v := f.Lookup("kv-format"); v != nil {
@@ -5878,8 +5878,8 @@ func attendSingleExp(q, out, scores []float32, length int, kv func(int) ([]float
 	return lse
 }
 
-// BF16 storage follows the FP32 attention reduction order, widening only each value read.
-func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []uint16)) float64 {
+// FP16 storage follows the FP32 attention reduction order, widening only each value read.
+func attendF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []uint16)) float64 {
 	hd := len(q)
 	scale := float32(1 / math.Sqrt(float64(hd)))
 	maxScore := float32(-math.MaxFloat32)
@@ -5896,14 +5896,14 @@ func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []
 		k7, _ := kv(s + 7)
 		var d0, d1, d2, d3, d4, d5, d6, d7 float32
 		for j, v := range q {
-			d0 += v * fromBF16(k0[j])
-			d1 += v * fromBF16(k1[j])
-			d2 += v * fromBF16(k2[j])
-			d3 += v * fromBF16(k3[j])
-			d4 += v * fromBF16(k4[j])
-			d5 += v * fromBF16(k5[j])
-			d6 += v * fromBF16(k6[j])
-			d7 += v * fromBF16(k7[j])
+			d0 += v * fromF16(k0[j])
+			d1 += v * fromF16(k1[j])
+			d2 += v * fromF16(k2[j])
+			d3 += v * fromF16(k3[j])
+			d4 += v * fromF16(k4[j])
+			d5 += v * fromF16(k5[j])
+			d6 += v * fromF16(k6[j])
+			d7 += v * fromF16(k7[j])
 		}
 		scores[s] = d0 * scale
 		scores[s+1] = d1 * scale
@@ -5926,10 +5926,10 @@ func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []
 		k3, _ := kv(s + 3)
 		var d0, d1, d2, d3 float32
 		for j, v := range q {
-			d0 += v * fromBF16(k0[j])
-			d1 += v * fromBF16(k1[j])
-			d2 += v * fromBF16(k2[j])
-			d3 += v * fromBF16(k3[j])
+			d0 += v * fromF16(k0[j])
+			d1 += v * fromF16(k1[j])
+			d2 += v * fromF16(k2[j])
+			d3 += v * fromF16(k3[j])
 		}
 		scores[s] = d0 * scale
 		scores[s+1] = d1 * scale
@@ -5952,7 +5952,7 @@ func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []
 		k, _ := kv(s)
 		var dot float32
 		for j, v := range q {
-			dot += v * fromBF16(k[j])
+			dot += v * fromF16(k[j])
 		}
 		scores[s] = dot * scale
 		if scores[s] > maxScore {
@@ -5972,13 +5972,13 @@ func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []
 		_, v := kv(s)
 		j := 0
 		for ; j+3 < hd; j += 4 {
-			out[j] += p * fromBF16(v[j])
-			out[j+1] += p * fromBF16(v[j+1])
-			out[j+2] += p * fromBF16(v[j+2])
-			out[j+3] += p * fromBF16(v[j+3])
+			out[j] += p * fromF16(v[j])
+			out[j+1] += p * fromF16(v[j+1])
+			out[j+2] += p * fromF16(v[j+2])
+			out[j+3] += p * fromF16(v[j+3])
 		}
 		for ; j < hd; j++ {
-			out[j] += p * fromBF16(v[j])
+			out[j] += p * fromF16(v[j])
 		}
 	}
 	return lse
@@ -6480,19 +6480,19 @@ const pageTokens = 32
 
 type kvPage struct {
 	Data []float32
-	BF16 []uint16
+	F16  []uint16
 }
 
-func validKVFormat(format string) bool { return format == "" || format == "f32" || format == "bf16" }
+func validKVFormat(format string) bool { return format == "" || format == "f32" || format == "f16" }
 func kvElementBytes(format string) int {
-	if format == "bf16" {
+	if format == "f16" {
 		return 2
 	}
 	return 4
 }
 func newKVPage(elements int, format string) *kvPage {
-	if format == "bf16" {
-		return &kvPage{BF16: make([]uint16, elements)}
+	if format == "f16" {
+		return &kvPage{F16: make([]uint16, elements)}
 	}
 	return &kvPage{Data: make([]float32, elements)}
 }
@@ -6500,21 +6500,38 @@ func (p *kvPage) valid(elements int, format string) bool {
 	if p == nil {
 		return false
 	}
-	if format == "bf16" {
-		return len(p.BF16) == elements && len(p.Data) == 0
+	if format == "f16" {
+		return len(p.F16) == elements && len(p.Data) == 0
 	}
-	return len(p.Data) == elements && len(p.BF16) == 0
+	return len(p.Data) == elements && len(p.F16) == 0
 }
 
-// Round to nearest, ties to even; preserve NaNs rather than rounding to infinity.
-func toBF16(x float32) uint16 {
+// Round binary32 to binary16, nearest with ties to even. Preserve NaN class.
+// Cache stores separately reject overflow and non-finite inputs before writing.
+func toF16(x float32) uint16 {
 	b := math.Float32bits(x)
-	if b&0x7fffffff > 0x7f800000 {
-		return uint16(b>>16) | 0x40
+	sign, a := uint16(b>>16)&0x8000, b&0x7fffffff
+	if a > 0x7f800000 {
+		return sign | 0x7c00 | uint16(a>>13)&0x3ff | 0x200
 	}
-	return uint16((b + 0x7fff + ((b >> 16) & 1)) >> 16)
+	if a >= 0x477ff000 {
+		return sign | 0x7c00
+	}
+	if a >= 0x38800000 {
+		return sign | uint16((a+0xfff+((a>>13)&1)-0x38000000)>>13)
+	}
+	if a < 0x33000000 {
+		return sign
+	}
+	shift := uint(126 - int(a>>23))
+	mantissa := (a & 0x7fffff) | 0x800000
+	q, rem, midpoint := mantissa>>shift, mantissa&((1<<shift)-1), uint32(1)<<(shift-1)
+	if rem > midpoint || (rem == midpoint && q&1 != 0) {
+		q++
+	}
+	return sign | uint16(q)
 }
-func fromBF16(x uint16) float32 { return math.Float32frombits(uint32(x) << 16) }
+func fromF16(x uint16) float32 { return halfFloat(x) }
 
 type pagePool struct {
 	Format                                   string
@@ -6575,10 +6592,10 @@ func (p *prefixSnapshot) restore(c *KVCache, ids []int) {
 
 // Each layer stores separate contiguous key and value planes of 32 rows.
 func copyKVPrefixRows(dst, src *kvPage, kvDim, rows int) {
-	if len(src.BF16) > 0 {
-		for offset := 0; offset < len(src.BF16); offset += pageTokens * kvDim {
+	if len(src.F16) > 0 {
+		for offset := 0; offset < len(src.F16); offset += pageTokens * kvDim {
 			end := offset + rows*kvDim
-			copy(dst.BF16[offset:end], src.BF16[offset:end])
+			copy(dst.F16[offset:end], src.F16[offset:end])
 		}
 		return
 	}
@@ -6666,7 +6683,7 @@ func planInferenceKVFormat(c Config, positions int, budget int64, format string)
 	}
 	p := KVMemoryPlan{Positions: positions, BudgetBytes: budget, Format: format}
 	if !validKVFormat(format) {
-		return p, errors.New("KV format must be f32 or bf16")
+		return p, errors.New("KV format must be f32 or f16")
 	}
 	if err := c.validateShapeLimits(maxHFVocab, math.MaxInt64); err != nil {
 		return p, err
@@ -6731,23 +6748,31 @@ func (c *KVCache) row(layer, pos int) ([]float32, []float32) {
 	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
 	return p.Data[base : base+kd], p.Data[base+pageTokens*kd : base+pageTokens*kd+kd]
 }
-func (c *KVCache) rowBF16(layer, pos int) ([]uint16, []uint16) {
+func (c *KVCache) rowF16(layer, pos int) ([]uint16, []uint16) {
 	kd := c.Model.Config.KVDim()
 	p := c.Pages[pos/pageTokens]
 	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
-	return p.BF16[base : base+kd], p.BF16[base+pageTokens*kd : base+pageTokens*kd+kd]
+	return p.F16[base : base+kd], p.F16[base+pageTokens*kd : base+pageTokens*kd+kd]
 }
-func (c *KVCache) store(layer, pos int, keys, values []float32) {
-	if c.format == "bf16" {
-		k, v := c.rowBF16(layer, pos)
+func (c *KVCache) store(layer, pos int, keys, values []float32) error {
+	if c.format == "f16" {
+		// Validate the whole row before changing either plane. No silent overflow
+		// or automatic FP32 fallback beyond the admitted payload budget.
+		for i := range keys {
+			if math.Float32bits(keys[i])&0x7fffffff >= 0x477ff000 || math.Float32bits(values[i])&0x7fffffff >= 0x477ff000 {
+				return fmt.Errorf("FP16 KV range exceeded at layer %d position %d element %d; use -kv-format f32", layer, pos, i)
+			}
+		}
+		k, v := c.rowF16(layer, pos)
 		for i := range k {
-			k[i], v[i] = toBF16(keys[i]), toBF16(values[i])
+			k[i], v[i] = toF16(keys[i]), toF16(values[i])
 		}
 	} else {
 		k, v := c.row(layer, pos)
 		copy(k, keys)
 		copy(v, values)
 	}
+	return nil
 }
 func (c *KVCache) Close() {
 	if c.released {
@@ -6845,12 +6870,12 @@ func attentionRange(job *attentionKernel, lo, hi int) {
 			i, h := task/job.heads, task%job.heads
 			cache := w.rowCaches[i]
 			kh, qi := h/group, i*d+h*hd
-			if cache.format == "bf16" {
+			if cache.format == "f16" {
 				kv := func(pos int) ([]uint16, []uint16) {
-					k, v := cache.rowBF16(layer, pos)
+					k, v := cache.rowF16(layer, pos)
 					return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
 				}
-				attendBF16(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
+				attendF16(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
 				continue
 			}
 			kv := func(pos int) ([]float32, []float32) {
@@ -7105,7 +7130,10 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 				m.rope(w.Q[i*d:(i+1)*d], 1, 1, c.Heads, positions[i], false)
 				m.rope(w.K[i*kd:(i+1)*kd], 1, 1, c.KVHeads, positions[i], false)
 			}
-			cache.store(l, positions[i], w.K[i*kd:(i+1)*kd], w.V[i*kd:(i+1)*kd])
+			if err := cache.store(l, positions[i], w.K[i*kd:(i+1)*kd], w.V[i*kd:(i+1)*kd]); err != nil {
+				region.End()
+				return nil, err
+			}
 		}
 		w.attend(executor, c, l, n, attention)
 		// Attention has joined every Q reader. Reuse Q for both residual
@@ -8745,7 +8773,7 @@ func newEngine(m *Model, tok inferenceTokenizer, c EngineConfig) (*Engine, error
 		return nil, errors.New("tokenizer/model mismatch")
 	}
 	if !validKVFormat(m.kvFormat) {
-		return nil, errors.New("KV format must be f32 or bf16")
+		return nil, errors.New("KV format must be f32 or f16")
 	}
 	elements := 2 * pageTokens * m.Config.KVDim() * m.Config.Layers
 	prefixLimit := int(c.PrefixCacheBytes / int64(elements*kvElementBytes(m.kvFormat)))
@@ -9464,7 +9492,7 @@ func parseInferenceAction(f *flag.FlagSet, args []string, validateOnly bool) err
 }
 func validateInferenceFlags(f *flag.FlagSet) error {
 	if !validKVFormat(selectedKVFormat(f)) {
-		return errors.New("kv-format must be f32 or bf16")
+		return errors.New("kv-format must be f32 or f16")
 	}
 	if v := f.Lookup("weight-format"); v != nil && !validHFWeightFormat(v.Value.String()) {
 		return errors.New("weight-format must be f32, q8, q4 or q4-mixed")

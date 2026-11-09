@@ -22,7 +22,7 @@ type kv16QualityRow struct {
 	Target   int     `json:"target"`
 	KL       float64 `json:"kl"`
 	F32NLL   float64 `json:"f32_nll"`
-	BF16NLL  float64 `json:"bf16_nll"`
+	F16NLL   float64 `json:"f16_nll"`
 }
 type kv16LongResult struct {
 	ID             string  `json:"id"`
@@ -73,7 +73,7 @@ func TestKV16QualityMetrics(t *testing.T) {
 func TestHFCache16Quality(t *testing.T) {
 	dir := os.Getenv("MONOLITH_KV16_MODEL")
 	if dir == "" {
-		t.Skip("manual offline BF16 KV screen")
+		t.Skip("manual offline F16 KV screen")
 	}
 	progress, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT")+".progress.jsonl", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
@@ -107,7 +107,7 @@ func TestHFCache16Quality(t *testing.T) {
 	if err != nil {
 		fail(err)
 	}
-	m16 := kv16ModelView(m, "bf16")
+	m16 := kv16ModelView(m, "f16")
 	tok, err := loadHFTokenizer(dir, *m.hf)
 	if err != nil {
 		fail(err)
@@ -209,7 +209,7 @@ func TestHFCache16Quality(t *testing.T) {
 			model := m
 			w := &w0
 			if (order+qi)%2 == 1 {
-				format = "bf16"
+				format = "f16"
 				model = m16
 				w = &w1
 			}
@@ -248,7 +248,7 @@ func TestHFCache16Quality(t *testing.T) {
 			}
 			bytes := 0
 			for _, page := range cache.Pages {
-				bytes += len(page.Data)*4 + len(page.BF16)*2
+				bytes += len(page.Data)*4 + len(page.F16)*2
 			}
 			item := kv16LongResult{q.ID, format, ids, output, tok.Decode(output), time.Since(started).Seconds(), bytes}
 			long = append(long, item)
@@ -267,7 +267,7 @@ func TestHFCache16Quality(t *testing.T) {
 		d := documents[r.Document]
 		d.Rows++
 		d.MeanKL += r.KL
-		d.MeanNLLDelta += r.BF16NLL - r.F32NLL
+		d.MeanNLLDelta += r.F16NLL - r.F32NLL
 		documents[r.Document] = d
 	}
 	for name, d := range documents {
@@ -279,7 +279,7 @@ func TestHFCache16Quality(t *testing.T) {
 	ks := make([]float64, len(rows))
 	for i, r := range rows {
 		meanKL += r.KL
-		delta += r.BF16NLL - r.F32NLL
+		delta += r.F16NLL - r.F32NLL
 		ks[i] = r.KL
 	}
 	meanKL /= float64(len(rows))
@@ -287,7 +287,7 @@ func TestHFCache16Quality(t *testing.T) {
 	sort.Float64s(ks)
 	p95 := ks[int(math.Ceil(.95*float64(len(ks))))-1]
 	gates := map[string]bool{"mean_kl": meanKL <= .001, "p95_kl": p95 <= .005, "mean_nll_increase": delta <= .01}
-	result := map[string]any{"format": "monolith-kv16-quality-v1", "plan": plan, "context": 1024, "workers": 4, "rows": rows, "documents": documents, "mean_kl": meanKL, "p95_kl": p95, "mean_nll_increase": delta, "numerical_gates": gates, "long_answers": long, "long_answer_review": "pending", "note": "One immutable weight set. No RSS-halving or timing improvement claim. Fixed-step continuations include EOS."}
+	result := map[string]any{"format": "monolith-fp16-quality-v1", "plan": plan, "context": 1024, "workers": 4, "rows": rows, "documents": documents, "mean_kl": meanKL, "p95_kl": p95, "mean_nll_increase": delta, "numerical_gates": gates, "long_answers": long, "long_answer_review": "pending", "note": "One immutable weight set. No RSS-halving or timing improvement claim. Fixed-step continuations include EOS."}
 	out, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		fail(err)
