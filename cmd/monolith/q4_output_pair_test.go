@@ -37,18 +37,20 @@ func BenchmarkQ4OutputPairCandidate(b *testing.B) {
 			e := newKernelExecutor(4)
 			tasks := ((rows + 3) / 4) * ((size[1] + 31) / 32)
 			job := fp32Kernel{x: x, y: y, w: q, n: rows}
-			for _, candidate := range []bool{false, true} {
-				name := fmt.Sprintf("rows%d/in%d/out%d/candidate%v", rows, size[0], size[1], candidate)
-				fn := func(lo, hi int) { baselineQ4OutputRange(&job, lo, hi) }
-				if candidate {
-					fn = func(lo, hi int) { linearQ4Range(&job, lo, hi) }
-				}
-				b.Run(name, func(b *testing.B) {
-					b.ReportAllocs()
-					for i := 0; i < b.N; i++ {
-						e.parallel(tasks, rows*size[0]*size[1], fn)
+			for order, candidates := range [][]bool{{false, true}, {true, false}} {
+				for _, candidate := range candidates {
+					name := fmt.Sprintf("rows%d/in%d/out%d/order%d/candidate%v", rows, size[0], size[1], order, candidate)
+					fn := func(lo, hi int) { baselineQ4OutputRange(&job, lo, hi) }
+					if candidate {
+						fn = func(lo, hi int) { linearQ4Range(&job, lo, hi) }
 					}
-				})
+					b.Run(name, func(b *testing.B) {
+						b.ReportAllocs()
+						for i := 0; i < b.N; i++ {
+							e.parallel(tasks, rows*size[0]*size[1], fn)
+						}
+					})
+				}
 			}
 			e.close()
 		}
@@ -69,4 +71,24 @@ func TestQ4OutputPairEveryCodeAndColumn(t *testing.T) {
 			x[col] = 0
 		}
 	}
+}
+
+func TestQ4OutputPairParallelOddTile(t *testing.T) {
+	e := newKernelExecutor(4)
+	defer e.close()
+	x, p, _ := linearFixture(1, 2048, 65)
+	q := quantizeQ4TestParam(t, p)
+	want := make([]float32, 65)
+	guarded := make([]float32, 67)
+	guarded[0], guarded[66] = 123, 456
+	baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: 1}, 0, 3)
+	linearQ4Into(e, guarded[1:66], x, q, 1)
+	if e.q4Fn == nil {
+		t.Fatal("fixture did not dispatch parallel Q4")
+	}
+	exactWorkerFloats(t, guarded[1:66], want)
+	if guarded[0] != 123 || guarded[66] != 456 {
+		t.Fatal("output overrun")
+	}
+	assertQ4InvocationCleared(t, e)
 }
