@@ -1,0 +1,11 @@
+{
+  "baseline": "aeb74a5bedf54b14921374b8894e72638da456c4",
+  "candidate": "two Q4 outputs share activations for single-row complete 64-column blocks",
+  "acceptance": {
+    "exact_logits_kv_ids": true,
+    "independent_ABBA_comparisons": 2,
+    "target_single_decode_ratio_max": 0.95,
+    "control_prefill_and_two_session_ratio_max": 1.05
+  },
+  "scope": "Existing local Mistral-7B-v0.3 Q4-mixed; no new downloads. Record all trials, investigate instability instead of retrying for green. Microbenchmarks alone cannot authorize adoption."
+}
