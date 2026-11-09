@@ -1,0 +1,1944 @@
+diff --git a/README.md b/README.md
+index 409e755..d30d1a3 100644
+--- a/README.md
++++ b/README.md
+@@ -10,6 +10,7 @@ A self-contained decoder-only Transformer written in Go, with training, text gen
+ - Bounded token-shard preparation with document boundaries, checksums, and explicit training/validation splits.
+ - Deterministic parallel dataset prefetch with leased buffers and exact checkpoint resume.
+ - Continuous batching with bounded token budgets, chunked prefill, paged KV caches, and request cancellation.
++- [Experimental BF16 KV storage](docs/kv-cache-formats.md), with FP32 default and format-aware page budgets.
+ - SSE token streaming with bounded per-request buffers and slow-consumer isolation.
+ - Engine-owned, fixed-size compute workers reused across inference kernels.
+ - Greedy, temperature, top-k, and top-p sampling with repetition penalties.
+diff --git a/cmd/monolith/kv16_prefix_test.go b/cmd/monolith/kv16_prefix_test.go
+new file mode 100644
+index 0000000..887311b
+--- /dev/null
++++ b/cmd/monolith/kv16_prefix_test.go
+@@ -0,0 +1,208 @@
++// Copyright 2026 RyoSpiralArchitect
++// SPDX-License-Identifier: Apache-2.0
++
++package main
++
++import (
++	"context"
++	"errors"
++	"reflect"
++	"slices"
++	"strings"
++	"testing"
++)
++
++func TestBF16PrefixTailDivergenceAndPrivatePage(t *testing.T) {
++	m := promptPrefillTestModel(t, "q4")
++	m.kvFormat = "bf16"
++	ctx := context.Background()
++	ids := prefillTokens(79, 5)
++	source := m.NewCache()
++	defer source.Close()
++	if _, err := m.PrefillBatch(ctx, []*KVCache{source}, [][]int{ids[:75]}); err != nil {
++		t.Fatal(err)
++	}
++	p := prefixSnapshot{includeTail: true}
++	p.capture(m, source, ids, 3)
++	if !slices.Equal(p.ids, ids[:75]) || len(p.pages) != 3 {
++		t.Fatal("snapshot must stop at the committed KV position")
++	}
++	kd := m.Config.KVDim()
++	for _, n := range []int{0, 1, 17, 31, 32, 33, 63, 64, 74, 75} {
++		query := slices.Clone(ids[:n+2])
++		query[n] = (query[n] + 1) % m.Config.Vocab
++		a, ref := m.NewCache(), m.NewCache()
++		// Recycle a marked page. An over-copy into unmatched rows will be visible.
++		private := newKVPage(len(p.pages[0].BF16), "bf16")
++		for i := range private.BF16 {
++			private.BF16[i] = 12345
++		}
++		pool := &pagePool{Format: "bf16", PageElements: len(private.BF16), Limit: 4, Reserved: 4, Allocated: 1, Free: []*kvPage{private}}
++		a.pool, a.reserved = pool, 4
++		p.restore(a, query)
++		if a.Pos != n || a.sharedPages != n/pageTokens || (a.shared != nil) != (n >= pageTokens) {
++			t.Fatalf("bad match or ownership at %d", n)
++		}
++		for i := 0; i < a.sharedPages; i++ {
++			if a.Pages[i] != p.pages[i] {
++				t.Fatalf("complete page %d was copied at %d", i, n)
++			}
++		}
++		if tail := n % pageTokens; tail > 0 {
++			if a.Pages[n/pageTokens] != private {
++				t.Fatalf("tail at %d did not come from the reservation", n)
++			}
++			for plane := 0; plane < len(private.BF16); plane += pageTokens * kd {
++				for _, v := range private.BF16[plane+tail*kd : plane+pageTokens*kd] {
++					if v != 12345 {
++						t.Fatalf("copied an unmatched row at %d", n)
++					}
++				}
++			}
++		}
++		want, err := m.PrefillBatch(ctx, []*KVCache{ref}, [][]int{query})
++		if err != nil {
++			t.Fatal(err)
++		}
++		got, err := m.PrefillBatch(ctx, []*KVCache{a}, [][]int{query[n:]})
++		if err != nil {
++			t.Fatal(err)
++		}
++		exactWorkerFloats(t, got, want)
++		for pos := range query {
++			for layer := 0; layer < m.Config.Layers; layer++ {
++				ak, av := a.rowBF16(layer, pos)
++				bk, bv := ref.rowBF16(layer, pos)
++				if !slices.Equal(ak, bk) {
++					t.Fatal("keys changed")
++				}
++				if !slices.Equal(av, bv) {
++					t.Fatal("values changed")
++				}
++			}
++		}
++		a.Close()
++		ref.Close()
++		if pool.Reserved != 0 || p.borrowers != 0 || len(pool.Free) != pool.Allocated {
++			t.Fatal("reservation or reader survived release", n)
++		}
++		for _, page := range pool.Free {
++			if slices.Contains(p.pages, page) {
++				t.Fatalf("shared page in mutable pool at %d", n)
++			}
++		}
++	}
++	// The cap also applies when the last committed page is partial.
++	p.capture(m, source, ids, 2)
++	if len(p.ids) != 64 || len(p.pages) != 3 {
++		t.Fatal("cap must limit searchable IDs and keep spare storage accounted")
++	}
++}
++
++func TestBF16PrefixTailEngineSubpageHitAndReset(t *testing.T) {
++	m := promptPrefillTestModel(t, "q4")
++	m.kvFormat = "bf16"
++	cfg := prefixEngineConfig(m)
++	cfg.PrefixCacheTail = true
++	e, err := NewEngine(m, fixedStepGenerateTokenizer{}, cfg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer e.Close()
++	ctx := streamTestContext(t)
++	s := prefixSampling()
++	s.MaxTokens = 1 // No output token has a KV row.
++	for i, prompt := range []string{strings.Repeat("a", 30), strings.Repeat("a", 30), strings.Repeat("a", 31)} {
++		want, err := Generate(ctx, m, fixedStepGenerateTokenizer{}, prompt, s)
++		if err != nil {
++			t.Fatal(err)
++		}
++		got, err := e.Generate(ctx, prompt, s)
++		if err != nil || !reflect.DeepEqual(want, got) {
++			t.Fatal("tail changed completion", got, want, err)
++		}
++		stats := e.Stats()
++		if stats.PrefixTokens != []int64{0, 30, 61}[i] || stats.PrefixHits != int64(i) ||
++			stats.PrefixBytes != cfg.PrefixCacheBytes/8 || stats.KVReservedBytes != 0 || stats.KVAllocatedBytes > cfg.CacheBytes {
++			t.Fatal("unexpected sub-page accounting", i, stats)
++		}
++	}
++	if err := e.ClearPrefix(ctx); err != nil {
++		t.Fatal(err)
++	}
++	if e.Stats().PrefixBytes != 0 {
++		t.Fatal("reset left a partial page")
++	}
++}
++
++// Both requests borrow a complete page and own a different copy of the 17-row
++// tail. Cancel one and invalidate the snapshot while the other's batch is live.
++func TestBF16PrefixTailTwoReadersCancelAndClear(t *testing.T) {
++	m := promptPrefillTestModel(t, "q4")
++	m.kvFormat = "bf16"
++	cfg := prefixEngineConfig(m)
++	cfg.PrefixCacheTail = true
++	cfg.PrefillChunk = 8 // The first tick stays inside each copied page.
++	tok := fixedStepGenerateTokenizer{}
++	e, err := newEngine(m, tok, cfg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	e.clearPrefix = make(chan chan struct{}, 1)
++	common := strings.Repeat("a", 48)
++	ids := tok.Encode(common, true, false)
++	source := m.NewCache()
++	defer source.Close()
++	if _, err := m.PrefillBatch(context.Background(), []*KVCache{source}, [][]int{ids}); err != nil {
++		t.Fatal(err)
++	}
++	e.prefix.capture(m, source, ids, e.prefixLimit)
++	kept := slices.Clone(e.prefix.pages)
++	ctx := streamTestContext(t)
++	cancelCtx, cancel := context.WithCancel(ctx)
++	defer cancel()
++	s := prefixSampling()
++	canceled, err := e.Stream(cancelCtx, common+strings.Repeat("x", 40), s)
++	if err != nil {
++		t.Fatal(err)
++	}
++	prompt := common + strings.Repeat("y", 40)
++	live, err := e.Stream(ctx, prompt, s)
++	if err != nil {
++		t.Fatal(err)
++	}
++	gate := startGatedEngine(t, e)
++	if stats := e.Stats(); stats.PrefixTokens != 2*49 || stats.Computing != 2 || e.prefix.borrowers != 2 || e.pool.Allocated != 2 {
++		t.Fatal("expected two readers and two allocated private pages", stats)
++	}
++	cancel()
++	done := make(chan struct{})
++	e.clearPrefix <- done
++	gate.open()
++	waitLifecycle(t, done)
++	if _, err = canceled.Wait(); !errors.Is(err, context.Canceled) {
++		t.Fatal("expected cancellation", err)
++	}
++	waitLifecycle(t, canceled.Released())
++	got, err := live.Wait()
++	waitLifecycle(t, live.Released())
++	if stats := e.Stats(); stats.PrefixBytes != 0 || stats.KVReservedBytes != 0 {
++		t.Fatal("last reader retained the invalidated prefix or reservation", stats)
++	}
++	if err != nil {
++		t.Fatal(err)
++	}
++	want, err := Generate(ctx, m, tok, prompt, s)
++	if err != nil || !reflect.DeepEqual(got, want) {
++		t.Fatal("surviving reader diverged", got, want, err)
++	}
++	e.Close()
++	if e.prefix.borrowers != 0 || len(e.prefix.pages) != 0 || e.Stats().KVReservedBytes != 0 || len(e.pool.Free) != e.pool.Allocated {
++		t.Fatal("leaked prefix or request pages", e.Stats())
++	}
++	for _, page := range kept {
++		if slices.Contains(e.pool.Free, page) {
++			t.Fatal("invalidated shared page entered the private pool")
++		}
++	}
++}
+diff --git a/cmd/monolith/kv16_quality_test.go b/cmd/monolith/kv16_quality_test.go
+new file mode 100644
+index 0000000..585457d
+--- /dev/null
++++ b/cmd/monolith/kv16_quality_test.go
+@@ -0,0 +1,314 @@
++// Copyright 2026 RyoSpiralArchitect
++// SPDX-License-Identifier: Apache-2.0
++package main
++
++// Standalone opt-in offline screen. Timing is diagnostic, not an adoption gate.
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"math"
++	"os"
++	"runtime"
++	"sort"
++	"strings"
++	"testing"
++	"time"
++)
++
++type kv16QualityRow struct {
++	Document string  `json:"document"`
++	Position int     `json:"position"`
++	Target   int     `json:"target"`
++	KL       float64 `json:"kl"`
++	F32NLL   float64 `json:"f32_nll"`
++	BF16NLL  float64 `json:"bf16_nll"`
++}
++type kv16LongResult struct {
++	ID             string  `json:"id"`
++	Format         string  `json:"format"`
++	PromptIDs      []int   `json:"prompt_ids"`
++	OutputIDs      []int   `json:"output_ids"`
++	Text           string  `json:"text"`
++	Seconds        float64 `json:"seconds"`
++	KVPayloadBytes int     `json:"kv_payload_bytes"`
++}
++
++func kv16Metrics(a, b []float32, target int) (kl, na, nb float64, err error) {
++	if len(a) == 0 || len(a) != len(b) || target < 0 || target >= len(a) {
++		return 0, 0, 0, fmt.Errorf("invalid metric dimensions")
++	}
++	ma, mb := math.Inf(-1), math.Inf(-1)
++	for i := range a {
++		if !finite(float64(a[i])) || !finite(float64(b[i])) {
++			return 0, 0, 0, fmt.Errorf("nonfinite logits")
++		}
++		ma = math.Max(ma, float64(a[i]))
++		mb = math.Max(mb, float64(b[i]))
++	}
++	za, zb := 0., 0.
++	for i := range a {
++		za += math.Exp(float64(a[i]) - ma)
++		zb += math.Exp(float64(b[i]) - mb)
++	}
++	la, lb := ma+math.Log(za), mb+math.Log(zb)
++	for i := range a {
++		x, y := float64(a[i])-la, float64(b[i])-lb
++		kl += math.Exp(x) * (x - y)
++	}
++	return kl, la - float64(a[target]), lb - float64(b[target]), nil
++}
++
++func TestKV16QualityMetrics(t *testing.T) {
++	a, b := []float32{float32(math.Log(.75)), float32(math.Log(.25))}, []float32{0, 0}
++	kl, na, nb, err := kv16Metrics(a, b, 0)
++	if err != nil || math.Abs(kl-(.75*math.Log(1.5)+.25*math.Log(.5))) > 1e-7 || math.Abs(na+math.Log(.75)) > 1e-7 || math.Abs(nb-math.Log(2)) > 1e-7 {
++		t.Fatal(kl, na, nb, err)
++	}
++	if _, _, _, err := kv16Metrics([]float32{float32(math.NaN())}, []float32{0}, 0); err == nil {
++		t.Fatal("nonfinite accepted")
++	}
++}
++
++func TestHFCache16Quality(t *testing.T) {
++	dir := os.Getenv("MONOLITH_KV16_MODEL")
++	if dir == "" {
++		t.Skip("manual offline BF16 KV screen")
++	}
++	progress, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT")+".progress.jsonl", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { progress.Close() })
++	phase := "startup"
++	record := func(value any) {
++		t.Helper()
++		if err := json.NewEncoder(progress).Encode(value); err != nil {
++			t.Fatal(err)
++		}
++		if err := progress.Sync(); err != nil {
++			t.Fatal(err)
++		}
++	}
++	fail := func(args ...any) {
++		t.Helper()
++		record(map[string]any{"event": "failure", "phase": phase, "error": fmt.Sprint(args...)})
++		t.Fatal(args...)
++	}
++	record(map[string]any{"event": "start", "phase": phase})
++	if runtime.GOMAXPROCS(0) != 4 {
++		fail("requires GOMAXPROCS=4")
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
++	defer cancel()
++	phase = "model_load"
++	record(map[string]any{"event": "phase", "phase": phase})
++	m, plan, err := loadHFModelFormat(ctx, dir, 1024, 8192, "q4-mixed")
++	if err != nil {
++		fail(err)
++	}
++	m16 := kv16ModelView(m, "bf16")
++	tok, err := loadHFTokenizer(dir, *m.hf)
++	if err != nil {
++		fail(err)
++	}
++	var corpus struct {
++		Documents []struct {
++			ID   string `json:"id"`
++			Text string `json:"text"`
++		} `json:"evaluation_documents"`
++	}
++	raw, err := os.ReadFile(os.Getenv("MONOLITH_KV16_CORPUS"))
++	if err != nil {
++		fail(err)
++	}
++	if err = json.Unmarshal(raw, &corpus); err != nil || len(corpus.Documents) != 6 {
++		fail("six documents required", err)
++	}
++	e := newKernelExecutor(4)
++	defer e.close()
++	var w0, w1 decodeWorkspace
++	rows := []kv16QualityRow{}
++	for _, doc := range corpus.Documents {
++		ids, err := tok.encodePrompt(ctx, doc.Text, 1024)
++		if err != nil || len(ids) < 2 {
++			fail(doc.ID, err)
++		}
++		a, b := m.NewCache(), m16.NewCache()
++		for i := 0; i < min(48, len(ids)-1); i++ {
++			phase = fmt.Sprintf("teacher_force/%s/%d", doc.ID, i)
++			record(map[string]any{"event": "phase", "phase": phase})
++			var x, y []float32
++			forward := func(which int) {
++				var er error
++				if which == 0 {
++					x, er = m.prefillBorrowed(ctx, []*KVCache{a}, [][]int{{ids[i]}}, e, &w0)
++				} else {
++					y, er = m16.prefillBorrowed(ctx, []*KVCache{b}, [][]int{{ids[i]}}, e, &w1)
++				}
++				if er != nil {
++					fail(er)
++				}
++			}
++			forward(i % 2)
++			forward(1 - i%2)
++			kl, na, nb, err := kv16Metrics(x, y, ids[i+1])
++			if err != nil {
++				fail(err)
++			}
++			row := kv16QualityRow{doc.ID, i, ids[i+1], kl, na, nb}
++			rows = append(rows, row)
++			record(map[string]any{"event": "quality_row", "row": row})
++		}
++		a.Close()
++		b.Close()
++	}
++	var prompts struct {
++		Questions []struct {
++			ID       string `json:"id"`
++			Question string `json:"question"`
++		} `json:"questions"`
++	}
++	raw, err = os.ReadFile(os.Getenv("MONOLITH_KV16_PROMPTS"))
++	if err != nil {
++		fail(err)
++	}
++	if err = json.Unmarshal(raw, &prompts); err != nil || len(prompts.Questions) != 2 {
++		fail("two questions required", err)
++	}
++	texts := []string{}
++	for _, doc := range corpus.Documents {
++		texts = append(texts, doc.Text)
++	}
++	var prefix []int
++	for repeat := 1; repeat <= 16; repeat++ {
++		prefix, err = tok.encodePrompt(ctx, strings.Repeat(strings.Join(texts, "\n")+"\n", repeat), 1024)
++		if err != nil {
++			fail(err)
++		}
++		if len(prefix) >= 384 {
++			break
++		}
++	}
++	if len(prefix) < 384 {
++		fail("prefix too short")
++	}
++	prefix = prefix[:384]
++	long := []kv16LongResult{}
++	for qi, q := range prompts.Questions {
++		questionIDs, err := tok.encodeText(ctx, q.Question, 1024, false)
++		if err != nil {
++			fail(err)
++		}
++		ids := append(append([]int(nil), prefix...), questionIDs...)
++		if len(ids)+128 > 1024 {
++			fail("long context overflow")
++		}
++		for order := 0; order < 2; order++ {
++			format := "f32"
++			model := m
++			w := &w0
++			if (order+qi)%2 == 1 {
++				format = "bf16"
++				model = m16
++				w = &w1
++			}
++			phase = fmt.Sprintf("long/%s/%s/prefill", q.ID, format)
++			record(map[string]any{"event": "long_start", "phase": phase, "id": q.ID, "format": format, "prompt_ids": ids})
++			cache := model.NewCache()
++			var logits []float32
++			started := time.Now()
++			for lo := 0; lo < len(ids); lo += 16 {
++				logits, err = model.prefillBorrowed(ctx, []*KVCache{cache}, [][]int{ids[lo:min(lo+16, len(ids))]}, e, w)
++				if err != nil {
++					fail(err)
++				}
++			}
++			output := make([]int, 0, 128)
++			for step := 0; step < 128; step++ {
++				phase = fmt.Sprintf("long/%s/%s/token/%d", q.ID, format, step)
++				record(map[string]any{"event": "phase", "phase": phase})
++				best := 0
++				for j, v := range logits {
++					if !finite(float64(v)) {
++						fail("nonfinite generation")
++					}
++					if v > logits[best] {
++						best = j
++					}
++				}
++				output = append(output, best)
++				record(map[string]any{"event": "token", "id": q.ID, "format": format, "step": step, "token_id": best, "partial_text": tok.Decode(output)})
++				if step < 127 {
++					logits, err = model.prefillBorrowed(ctx, []*KVCache{cache}, [][]int{{best}}, e, w)
++					if err != nil {
++						fail(err)
++					}
++				}
++			}
++			bytes := 0
++			for _, page := range cache.Pages {
++				bytes += len(page.Data)*4 + len(page.BF16)*2
++			}
++			item := kv16LongResult{q.ID, format, ids, output, tok.Decode(output), time.Since(started).Seconds(), bytes}
++			long = append(long, item)
++			record(map[string]any{"event": "long_complete", "result": item})
++			cache.Close()
++		}
++	}
++	phase = "aggregation"
++	type docMean struct {
++		Rows         int     `json:"rows"`
++		MeanKL       float64 `json:"mean_kl"`
++		MeanNLLDelta float64 `json:"mean_nll_increase"`
++	}
++	documents := map[string]docMean{}
++	for _, r := range rows {
++		d := documents[r.Document]
++		d.Rows++
++		d.MeanKL += r.KL
++		d.MeanNLLDelta += r.BF16NLL - r.F32NLL
++		documents[r.Document] = d
++	}
++	for name, d := range documents {
++		d.MeanKL /= float64(d.Rows)
++		d.MeanNLLDelta /= float64(d.Rows)
++		documents[name] = d
++	}
++	meanKL, delta := 0., 0.
++	ks := make([]float64, len(rows))
++	for i, r := range rows {
++		meanKL += r.KL
++		delta += r.BF16NLL - r.F32NLL
++		ks[i] = r.KL
++	}
++	meanKL /= float64(len(rows))
++	delta /= float64(len(rows))
++	sort.Float64s(ks)
++	p95 := ks[int(math.Ceil(.95*float64(len(ks))))-1]
++	gates := map[string]bool{"mean_kl": meanKL <= .001, "p95_kl": p95 <= .005, "mean_nll_increase": delta <= .01}
++	result := map[string]any{"format": "monolith-kv16-quality-v1", "plan": plan, "context": 1024, "workers": 4, "rows": rows, "documents": documents, "mean_kl": meanKL, "p95_kl": p95, "mean_nll_increase": delta, "numerical_gates": gates, "long_answers": long, "long_answer_review": "pending", "note": "One immutable weight set. No RSS-halving or timing improvement claim. Fixed-step continuations include EOS."}
++	out, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
++	if err != nil {
++		fail(err)
++	}
++	enc := json.NewEncoder(out)
++	enc.SetIndent("", "  ")
++	err = enc.Encode(result)
++	closeErr := out.Close()
++	if err != nil || closeErr != nil {
++		fail(err, closeErr)
++	}
++	record(map[string]any{"event": "complete", "numerical_gates": gates})
++	// Keep the completed receipt even when gates fail.
++	for name, pass := range gates {
++		if !pass {
++			t.Errorf("numerical gate failed: %s", name)
++		}
++	}
++}
++
++// Share immutable parameters without copying sync.Pool or mutable cache state.
++func kv16ModelView(m *Model, format string) *Model {
++	return &Model{output: m.output, Config: m.Config, Emb: m.Emb, Final: m.Final, Position: m.Position, FinalBias: m.FinalBias, Blocks: m.Blocks, Params: m.Params, Cos: m.Cos, Sin: m.Sin, Revision: m.Revision, kvFormat: format, directKVBytes: m.directKVBytes, hf: m.hf}
++}
+diff --git a/cmd/monolith/kv16_reference_test.go b/cmd/monolith/kv16_reference_test.go
+new file mode 100644
+index 0000000..65fd809
+--- /dev/null
++++ b/cmd/monolith/kv16_reference_test.go
+@@ -0,0 +1,90 @@
++// Copyright 2026 RyoSpiralArchitect
++// SPDX-License-Identifier: Apache-2.0
++package main
++
++import "math"
++
++// Independent storage reference: widened rounded KV in legacy FP32 pages and attention.
++func bf16WidenedPrefillReference(m *Model, caches []*KVCache, chunks [][]int, e *kernelExecutor) []float32 {
++	c := m.Config
++	n, maxPos := 0, 0
++	for i, cache := range caches {
++		n += len(chunks[i])
++		maxPos = max(maxPos, cache.Pos+len(chunks[i]))
++		cache.ensurePages(cache.Pos + len(chunks[i]))
++	}
++	d, kd := c.Dim, c.KVDim()
++	alloc := func(width int) []float32 { return make([]float32, n*width) }
++	w := decodeWorkspace{X: alloc(d), N: alloc(d), Q: alloc(d), K: alloc(kd), V: alloc(kd), A: alloc(d), G: alloc(c.Hidden), U: alloc(c.Hidden)}
++	tmp, hidden := alloc(d), alloc(c.Hidden)
++	plan := planInferenceAttention(e, c, n, maxPos)
++	w.Scores = make([]float32, plan.lanes*plan.stride)
++	r := 0
++	for i, cache := range caches {
++		for j, token := range chunks[i] {
++			w.rowCaches[r], w.positions[r] = cache, cache.Pos+j
++			m.Emb.copyRow(w.X[r*d:(r+1)*d], token)
++			if m.Position != nil {
++				addInPlace(w.X[r*d:(r+1)*d], m.Position.Data[w.positions[r]*d:(w.positions[r]+1)*d])
++			}
++			r++
++		}
++		w.lastRows[i] = r - 1
++	}
++	for l, b := range m.Blocks {
++		inferenceNorm(w.N, w.X, b.N1, b.N1B, n, c.NormEps)
++		linearIntoWithExecutor(e, w.Q, w.N, b.Q, n)
++		linearIntoWithExecutor(e, w.K, w.N, b.K, n)
++		linearIntoWithExecutor(e, w.V, w.N, b.V, n)
++		addBias(w.Q, b.QB)
++		addBias(w.K, b.KB)
++		addBias(w.V, b.VB)
++		for i, cache := range w.rowCaches[:n] {
++			if m.Position == nil {
++				m.rope(w.Q[i*d:(i+1)*d], 1, 1, c.Heads, w.positions[i], false)
++				m.rope(w.K[i*kd:(i+1)*kd], 1, 1, c.KVHeads, w.positions[i], false)
++			}
++			k, v := cache.row(l, w.positions[i])
++			copy(k, w.K[i*kd:(i+1)*kd])
++			copy(v, w.V[i*kd:(i+1)*kd])
++			for j := range k {
++				k[j], v[j] = fromBF16(toBF16(k[j])), fromBF16(toBF16(v[j]))
++			}
++		}
++		w.attend(e, c, l, n, plan)
++		linearIntoWithExecutor(e, tmp, w.A, b.O, n)
++		addBias(tmp, b.OB)
++		addInPlace(w.X, tmp)
++		inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
++		linearIntoWithExecutor(e, w.G, w.N, b.Gate, n)
++		if m.Position != nil {
++			addBias(w.G, b.GateB)
++			for i, v := range w.G {
++				x := float64(v)
++				hidden[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
++			}
++		} else {
++			linearIntoWithExecutor(e, w.U, w.N, b.Up, n)
++			for i, v := range w.G {
++				hidden[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
++			}
++		}
++		linearIntoWithExecutor(e, tmp, hidden, b.Down, n)
++		addBias(tmp, b.DownB)
++		addInPlace(w.X, tmp)
++	}
++	for i, row := range w.lastRows[:len(caches)] {
++		copy(tmp[i*d:(i+1)*d], w.X[row*d:(row+1)*d])
++	}
++	inferenceNorm(w.N[:len(caches)*d], tmp[:len(caches)*d], m.Final, m.FinalBias, len(caches), c.NormEps)
++	head := m.Emb
++	if m.output != nil {
++		head = m.output
++	}
++	logits := make([]float32, len(caches)*c.Vocab)
++	linearIntoWithExecutor(e, logits, w.N[:len(caches)*d], head, len(caches))
++	for i, cache := range caches {
++		cache.Pos += len(chunks[i])
++	}
++	return logits
++}
+diff --git a/cmd/monolith/kv16_test.go b/cmd/monolith/kv16_test.go
+new file mode 100644
+index 0000000..c8823a5
+--- /dev/null
++++ b/cmd/monolith/kv16_test.go
+@@ -0,0 +1,315 @@
++// Copyright 2026 RyoSpiralArchitect
++// SPDX-License-Identifier: Apache-2.0
++package main
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"math"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func TestBF16Conversion(t *testing.T) {
++	for b := 0; b < 65536; b++ {
++		x := fromBF16(uint16(b))
++		got := toBF16(x)
++		if math.IsNaN(float64(x)) {
++			if !math.IsNaN(float64(fromBF16(got))) {
++				t.Fatal("NaN lost", b)
++			}
++			continue
++		}
++		if got != uint16(b) {
++			t.Fatal("roundtrip", b, got)
++		}
++	}
++	for _, tc := range []struct {
++		bits uint32
++		want uint16
++	}{
++		{0x3f807fff, 0x3f80}, {0x3f808000, 0x3f80}, {0x3f808001, 0x3f81},
++		{0x3f818000, 0x3f82}, {0xbf808000, 0xbf80}, {0xbf818000, 0xbf82},
++		{0x00008000, 0}, {0x00008001, 1}, {0x80000000, 0x8000},
++		{0x7f800000, 0x7f80}, {0xff800000, 0xff80},
++	} {
++		if got := toBF16(math.Float32frombits(tc.bits)); got != tc.want {
++			t.Fatalf("%x: %x != %x", tc.bits, got, tc.want)
++		}
++	}
++}
++
++func TestKV16ReferenceAndDefault(t *testing.T) {
++	for _, profile := range []string{"hf-gpt2/legacy-f32", "hf-qwen2/untied-bf16", "hf-llama3/f32", "hf-mistral/bf16"} {
++		for _, weights := range []string{"f32", "q4-mixed"} {
++			for _, workers := range []int{1, 4} {
++				t.Run(fmt.Sprintf("%s/%s/%d", profile, weights, workers), func(t *testing.T) {
++					ctx := context.Background()
++					m, _, err := loadHFModelFormat(ctx, "testdata/"+profile, 64, 8, weights)
++					if err != nil {
++						t.Fatal(err)
++					}
++					e := newKernelExecutor(workers)
++					defer e.close()
++					// Exact reference is the original FP32 path with only stored values rounded.
++					ref := m.NewCache()
++					defer ref.Close()
++					m16 := kv16ModelView(m, "bf16")
++					a := m16.NewCache()
++					defer a.Close()
++					var w decodeWorkspace
++					for step, n := range []int{17, 1, 17, 1, 7} {
++						ids := prefillTokens(n, step+1)
++						for j := range ids {
++							ids[j] %= m.Config.Vocab
++						}
++						want := bf16WidenedPrefillReference(m, []*KVCache{ref}, [][]int{ids}, e)
++						got, err := m16.prefillBorrowed(ctx, []*KVCache{a}, [][]int{ids}, e, &w)
++						if err != nil {
++							t.Fatal(err)
++						}
++						exactWorkerFloats(t, got, want)
++						for i, p := range a.Pages {
++							if len(p.Data) != 0 || len(p.BF16) != len(ref.Pages[i].Data) {
++								t.Fatal("not compact")
++							}
++							for j, b := range p.BF16 {
++								if math.Float32bits(fromBF16(b)) != math.Float32bits(ref.Pages[i].Data[j]) {
++									t.Fatal("KV mismatch", i, j)
++								}
++							}
++						}
++					}
++					// Explicit f32 and omitted selection preserve all original output bits.
++					explicit := kv16ModelView(m, "f32")
++					b, c := m.NewCache(), explicit.NewCache()
++					defer b.Close()
++					defer c.Close()
++					ids := prefillTokens(11, 3)
++					for j := range ids {
++						ids[j] %= m.Config.Vocab
++					}
++					x, err := m.PrefillBatch(ctx, []*KVCache{b}, [][]int{ids})
++					if err != nil {
++						t.Fatal(err)
++					}
++					y, err := explicit.PrefillBatch(ctx, []*KVCache{c}, [][]int{ids})
++					if err != nil {
++						t.Fatal(err)
++					}
++					exactWorkerFloats(t, x, y)
++					for i := range b.Pages {
++						exactWorkerFloats(t, b.Pages[i].Data, c.Pages[i].Data)
++					}
++				})
++			}
++		}
++	}
++}
++
++func TestKV16BudgetAndMalformedStorage(t *testing.T) {
++	m := workerTestModel(t, 2)
++	m.kvFormat = "bf16"
++	for _, pos := range []int{1, 31, 32, 33, 128} {
++		a, err := planInferenceKV(m.Config, pos, 512<<20)
++		if err != nil {
++			t.Fatal(err)
++		}
++		b, err := planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2, "bf16")
++		if err != nil || !b.FitsBudget || b.RequiredBytes*2 != a.RequiredBytes {
++			t.Fatal(a, b, err)
++		}
++		b, err = planInferenceKVFormat(m.Config, pos, a.RequiredBytes/2-1, "bf16")
++		if err != nil || b.FitsBudget {
++			t.Fatal(b, err)
++		}
++	}
++	for _, kind := range []string{"wrong-format", "short", "both", "pool"} {
++		t.Run(kind, func(t *testing.T) {
++			c := m.NewCache()
++			defer c.Close()
++			c.ensurePages(1)
++			c.Pos = 1
++			switch kind {
++			case "wrong-format":
++				c.Pages[0] = newKVPage(len(c.Pages[0].BF16), "f32")
++			case "short":
++				c.Pages[0].BF16 = c.Pages[0].BF16[:1]
++			case "both":
++				c.Pages[0].Data = []float32{0}
++			case "pool":
++				c.pool = &pagePool{PageElements: len(c.Pages[0].BF16), Limit: 1, Reserved: 1, Allocated: 1}
++				c.reserved = 1
++			}
++			if _, err := m.DecodeBatch(context.Background(), []*KVCache{c}, []int{1}); err == nil {
++				t.Fatal("malformed storage accepted")
++			}
++			if c.Pos != 1 {
++				t.Fatal("mutation on reject")
++			}
++		})
++	}
++	if _, err := planInferenceKVFormat(m.Config, 1, 512<<20, "fp16"); err == nil {
++		t.Fatal("unsupported format")
++	}
++	dir := kvMistralMetadata(t)
++	if _, _, err := loadHFModelKVFormat(context.Background(), dir, 4096, 8192, "q4-mixed", 512<<20, true, "bf16"); err == nil || strings.Contains(err.Error(), "KV budget") {
++		t.Fatal("compact admission must reach missing shards", err)
++	}
++	if _, _, err := loadHFModelKVFormat(context.Background(), dir, 4096, 8192, "q4-mixed", 512<<20, true, "f32"); err == nil || !strings.Contains(err.Error(), "KV budget") {
++		t.Fatal(err)
++	}
++}
++
++func TestKV16CLIValidation(t *testing.T) {
++	for _, action := range []string{"check-hf", "infer-hf", "generate", "chat", "serve"} {
++		args := []string{"-kv-format", "invalid"}
++		if action == "infer-hf" {
++			args = append(args, "-ids", "1")
++		}
++		if err := runInferenceAction(context.Background(), action, args, true); err == nil || !strings.Contains(err.Error(), "kv-format") {
++			t.Fatal(action, err)
++		}
++	}
++}
++
++func TestKV16LocalCheckAndLoaderRouting(t *testing.T) {
++	dir := hfCLIFixture(t)
++	t.Setenv("HF_HUB_OFFLINE", "1")
++	denyHFNetwork(t)
++	out, err := os.CreateTemp(t.TempDir(), "check-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer out.Close()
++	original := os.Stdout
++	os.Stdout = out
++	defer func() { os.Stdout = original }()
++	if err := runInferLocal(context.Background(), []string{"-path", dir, "-context", "64", "check", "-kv-format", "bf16", "-json"}); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := out.Seek(0, 0); err != nil {
++		t.Fatal(err)
++	}
++	var report hfCheck
++	if err := json.NewDecoder(out).Decode(&report); err != nil {
++		t.Fatal(err)
++	}
++	if report.KVPlan == nil || report.KVPlan.Format != "bf16" || report.KVPageAlignedBytes*2 != 64*report.Weights.KVBytesPerToken {
++		t.Fatal(report)
++	}
++	for _, action := range []string{"generate", "chat", "serve"} {
++		f := flags(action)
++		hfFlags(f)
++		kvFormatFlag(f)
++		f.Int64("kv-mib", 1, "")
++		if err := f.Parse([]string{"-kv-format", "bf16"}); err != nil {
++			t.Fatal(err)
++		}
++		m, tok, err := loadInference(context.Background(), f, "", dir, 64, 8, "f32")
++		if err != nil {
++			t.Fatal(err)
++		}
++		c := m.NewCache()
++		c.ensurePages(1)
++		if len(c.Pages[0].Data) != 0 || len(c.Pages[0].BF16) == 0 {
++			t.Fatal("loader ignored format", action)
++		}
++		c.Close()
++		e, err := newEngine(m, tok, EngineConfig{MaxBatch: 1, Queue: 1, CacheBytes: 1 << 20})
++		if err != nil {
++			t.Fatal(err)
++		}
++		if e.pool.Format != "bf16" {
++			t.Fatal("engine ignored format", action)
++		}
++		e.cancel()
++	}
++}
++
++func TestKV16FailedProbeRetainsProgress(t *testing.T) {
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++	output := filepath.Join(t.TempDir(), "quality.json")
++	command := exec.Command(exe, "-test.run=^TestHFCache16Quality$", "-test.timeout=10s")
++	command.Env = append(os.Environ(), "GOMAXPROCS=4", "MONOLITH_KV16_MODEL="+t.TempDir(), "MONOLITH_KV16_OUTPUT="+output)
++	if log, err := command.CombinedOutput(); err == nil {
++		t.Fatal("missing model unexpectedly passed", string(log))
++	}
++	raw, err := os.ReadFile(output + ".progress.jsonl")
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
++	if len(lines) < 3 {
++		t.Fatal("missing durable phase/failure", string(raw))
++	}
++	var event struct{ Event, Phase, Error string }
++	if err := json.Unmarshal([]byte(lines[len(lines)-1]), &event); err != nil {
++		t.Fatal(err)
++	}
++	if event.Event != "failure" || event.Phase != "model_load" || event.Error == "" {
++		t.Fatal(event)
++	}
++	if _, err := os.Stat(output); !os.IsNotExist(err) {
++		t.Fatal("failed probe claimed completed report", err)
++	}
++}
++
++func TestKV16DeepMixedSessions(t *testing.T) {
++	for _, layers := range []int{32, 64} {
++		t.Run(fmt.Sprintf("layers%d", layers), func(t *testing.T) {
++			config := Config{Vocab: 258, Dim: 66, Hidden: 129, Heads: 3, KVHeads: 1, Layers: layers, Context: 128, RopeTheta: 10000, NormEps: 1e-5}
++			m, err := NewModel(config, 19)
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, p := range m.Params {
++				if p.Rows > 1 {
++					q := quantizeQ4TestParam(t, p)
++					*p = *q
++				}
++			}
++			compact := kv16ModelView(m, "bf16")
++			a, b := make([]*KVCache, 3), make([]*KVCache, 3)
++			for i := range a {
++				a[i], b[i] = compact.NewCache(), m.NewCache()
++				defer a[i].Close()
++				defer b[i].Close()
++			}
++			e := newKernelExecutor(4)
++			defer e.close()
++			var w decodeWorkspace
++			for step, sizes := range [][3]int{{21, 3, 1}, {17, 31, 7}, {1, 1, 1}} {
++				chunks := make([][]int, 3)
++				for i, n := range sizes {
++					chunks[i] = prefillTokens(n, i+step+1)
++				}
++				want := bf16WidenedPrefillReference(m, b, chunks, e)
++				got, err := compact.prefillBorrowed(context.Background(), a, chunks, e, &w)
++				if err != nil {
++					t.Fatal(err)
++				}
++				exactWorkerFloats(t, got, want)
++				for i := range a {
++					for j, page := range a[i].Pages {
++						for k, v := range page.BF16 {
++							if math.Float32bits(fromBF16(v)) != math.Float32bits(b[i].Pages[j].Data[k]) {
++								t.Fatal("deep KV mismatch", i, j, k)
++							}
++						}
++					}
++				}
++			}
++			if w.attentionFn == nil {
++				t.Fatal("mixed-session attention did not dispatch")
++			}
++		})
++	}
++}
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index 8e455c3..bc5253d 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -919,6 +919,15 @@ func (a *hfArchive) readTensorValues(ctx context.Context, name string, count int
+ 	return ctx.Err()
+ }
+ 
++func kvFormatFlag(f *flag.FlagSet) {
++	f.String("kv-format", "f32", "KV cache payload: f32 (default) or bf16 (experimental)")
++}
++func selectedKVFormat(f *flag.FlagSet) string {
++	if v := f.Lookup("kv-format"); v != nil {
++		return v.Value.String()
++	}
++	return ""
++}
+ func hfFlags(f *flag.FlagSet) (*string, *int, *int64, *string) {
+ 	dir := f.String("hf-model", "", "local Hugging Face model directory (supported Llama/Qwen2/GPT-2 profiles)")
+ 	limit := f.Int("context", 0, "HF context cap; 0 uses min(model maximum, 2048)")
+@@ -1002,6 +1011,7 @@ func checkHFFormat(dir string, limit int, budget int64, requireChat bool, format
+ 
+ func runCheckHF(args []string, validateOnly bool) error {
+ 	f := flags("check-hf")
++	kvFormatFlag(f)
+ 	dir, limit, budget, format := hfFlags(f)
+ 	kvMiB := f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
+ 	asJSON := f.Bool("json", false, "emit machine-readable preflight report")
+@@ -1016,11 +1026,12 @@ func runCheckHF(args []string, validateOnly bool) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	kvPlan, err := planInferenceKV(report.Weights.Config, report.Weights.Config.Context, *kvMiB<<20)
++	kvPlan, err := planInferenceKVFormat(report.Weights.Config, report.Weights.Config.Context, *kvMiB<<20, selectedKVFormat(f))
+ 	if err != nil {
+ 		return err
+ 	}
+ 	report.KVPlan = &kvPlan
++	report.KVPageAlignedBytes = kvPlan.RequiredBytes
+ 	if !kvPlan.FitsBudget {
+ 		return kvPlan.budgetError()
+ 	}
+@@ -1192,7 +1203,7 @@ func inferHFIDs(ctx context.Context, m *Model, ids []int, count, chunk int, logi
+ 			return out, errors.New("HF token ID outside vocabulary")
+ 		}
+ 	}
+-	plan, err := planInferenceKV(m.Config, len(ids)+count, m.directKVBudget())
++	plan, err := planInferenceKVFormat(m.Config, len(ids)+count, m.directKVBudget(), m.kvFormat)
+ 	if err != nil {
+ 		return out, err
+ 	}
+@@ -1240,6 +1251,7 @@ func inferHFIDs(ctx context.Context, m *Model, ids []int, count, chunk int, logi
+ }
+ func runInferHF(ctx context.Context, args []string, validateOnly bool) error {
+ 	f := flags("infer-hf")
++	kvFormatFlag(f)
+ 	dir, limit, budget, format := hfFlags(f)
+ 	kvMiB := f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
+ 	input := f.String("ids", "", "comma-separated token IDs, already framed")
+@@ -1273,7 +1285,7 @@ func runInferHF(ctx context.Context, args []string, validateOnly bool) error {
+ 	if err := setThreads(*threads); err != nil {
+ 		return err
+ 	}
+-	m, _, err := loadHFModelFormatKV(ctx, *dir, *limit, *budget, *format, *kvMiB<<20, true)
++	m, _, err := loadHFModelKVFormat(ctx, *dir, *limit, *budget, *format, *kvMiB<<20, true, selectedKVFormat(f))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -1314,7 +1326,7 @@ func loadInference(ctx context.Context, f *flag.FlagSet, model, dir string, limi
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+-		m, _, err := loadHFModelFormatKV(ctx, dir, limit, budget, format, kvBytes, f.Name() != "chat" && f.Name() != "serve")
++		m, _, err := loadHFModelKVFormat(ctx, dir, limit, budget, format, kvBytes, f.Name() != "chat" && f.Name() != "serve", selectedKVFormat(f))
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+@@ -1328,7 +1340,7 @@ func loadInference(ctx context.Context, f *flag.FlagSet, model, dir string, limi
+ 	}
+ 	m, tok, _, err := LoadCheckpoint(model)
+ 	if m != nil {
+-		m.directKVBytes = kvBytes
++		m.directKVBytes, m.kvFormat = kvBytes, selectedKVFormat(f)
+ 	}
+ 	return m, tok, err
+ }
+@@ -5300,7 +5312,8 @@ type Model struct {
+ 	Params              []*Param
+ 	Cos, Sin            []float32
+ 	Revision            uint64
+-	directKVBytes       int64 // Immutable after load; zero selects the 512 MiB default.
++	kvFormat            string // Immutable after load; empty selects f32.
++	directKVBytes       int64  // Immutable after load; zero selects the 512 MiB default.
+ 	decodePool          sync.Pool
+ 	hf                  *hfConfig // Non-nil marks imported, inference-only model semantics.
+ }
+@@ -5343,6 +5356,9 @@ func loadHFModelFormat(ctx context.Context, dir string, limit int, mib int64, fo
+ // Direct loaders reserve the full selected context before reading weights.
+ // Engine loaders use their existing request/page-pool reservations instead.
+ func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64, format string, kvBytes int64, fullContext bool) (*Model, HFPlan, error) {
++	return loadHFModelKVFormat(ctx, dir, limit, mib, format, kvBytes, fullContext, "")
++}
++func loadHFModelKVFormat(ctx context.Context, dir string, limit int, mib int64, format string, kvBytes int64, fullContext bool, kvFormat string) (*Model, HFPlan, error) {
+ 	if err := ctx.Err(); err != nil {
+ 		return nil, HFPlan{}, err
+ 	}
+@@ -5350,7 +5366,7 @@ func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64,
+ 	if err != nil {
+ 		return nil, HFPlan{}, err
+ 	}
+-	plan, err := planInferenceKV(config, config.Context, kvBytes)
++	plan, err := planInferenceKVFormat(config, config.Context, kvBytes, kvFormat)
+ 	if err != nil {
+ 		return nil, HFPlan{}, err
+ 	}
+@@ -5368,13 +5384,13 @@ func loadHFModelFormatKV(ctx context.Context, dir string, limit int, mib int64,
+ 	if a.Config.ModelType == "gpt2" {
+ 		m, err := loadGPT2(ctx, a)
+ 		if m != nil {
+-			m.directKVBytes = kvBytes
++			m.directKVBytes, m.kvFormat = kvBytes, kvFormat
+ 		}
+ 		return m, a.Plan, err
+ 	}
+ 	m := allocateModelStorageFormat(a.Plan.Config, nil, format)
+ 	m.hf = &a.Config
+-	m.directKVBytes = kvBytes
++	m.directKVBytes, m.kvFormat = kvBytes, kvFormat
+ 	makeExtra := func(name string, rows, cols int) *Param {
+ 		p := newInferenceParamFormat(name, rows, cols, name == "output", format)
+ 		m.Params = append(m.Params, p)
+@@ -5861,6 +5877,112 @@ func attendSingleExp(q, out, scores []float32, length int, kv func(int) ([]float
+ 	}
+ 	return lse
+ }
++
++// BF16 storage follows the FP32 attention reduction order, widening only each value read.
++func attendBF16(q, out, scores []float32, length int, kv func(int) ([]uint16, []uint16)) float64 {
++	hd := len(q)
++	scale := float32(1 / math.Sqrt(float64(hd)))
++	maxScore := float32(-math.MaxFloat32)
++	clear(out)
++	s := 0
++	for ; s+7 < length; s += 8 {
++		k0, _ := kv(s)
++		k1, _ := kv(s + 1)
++		k2, _ := kv(s + 2)
++		k3, _ := kv(s + 3)
++		k4, _ := kv(s + 4)
++		k5, _ := kv(s + 5)
++		k6, _ := kv(s + 6)
++		k7, _ := kv(s + 7)
++		var d0, d1, d2, d3, d4, d5, d6, d7 float32
++		for j, v := range q {
++			d0 += v * fromBF16(k0[j])
++			d1 += v * fromBF16(k1[j])
++			d2 += v * fromBF16(k2[j])
++			d3 += v * fromBF16(k3[j])
++			d4 += v * fromBF16(k4[j])
++			d5 += v * fromBF16(k5[j])
++			d6 += v * fromBF16(k6[j])
++			d7 += v * fromBF16(k7[j])
++		}
++		scores[s] = d0 * scale
++		scores[s+1] = d1 * scale
++		scores[s+2] = d2 * scale
++		scores[s+3] = d3 * scale
++		scores[s+4] = d4 * scale
++		scores[s+5] = d5 * scale
++		scores[s+6] = d6 * scale
++		scores[s+7] = d7 * scale
++		for t := s; t < s+8; t++ {
++			if scores[t] > maxScore {
++				maxScore = scores[t]
++			}
++		}
++	}
++	for ; s+3 < length; s += 4 {
++		k0, _ := kv(s)
++		k1, _ := kv(s + 1)
++		k2, _ := kv(s + 2)
++		k3, _ := kv(s + 3)
++		var d0, d1, d2, d3 float32
++		for j, v := range q {
++			d0 += v * fromBF16(k0[j])
++			d1 += v * fromBF16(k1[j])
++			d2 += v * fromBF16(k2[j])
++			d3 += v * fromBF16(k3[j])
++		}
++		scores[s] = d0 * scale
++		scores[s+1] = d1 * scale
++		scores[s+2] = d2 * scale
++		scores[s+3] = d3 * scale
++		if scores[s] > maxScore {
++			maxScore = scores[s]
++		}
++		if scores[s+1] > maxScore {
++			maxScore = scores[s+1]
++		}
++		if scores[s+2] > maxScore {
++			maxScore = scores[s+2]
++		}
++		if scores[s+3] > maxScore {
++			maxScore = scores[s+3]
++		}
++	}
++	for ; s < length; s++ {
++		k, _ := kv(s)
++		var dot float32
++		for j, v := range q {
++			dot += v * fromBF16(k[j])
++		}
++		scores[s] = dot * scale
++		if scores[s] > maxScore {
++			maxScore = scores[s]
++		}
++	}
++	var sum float64
++	for s := 0; s < length; s++ {
++		e := math.Exp(float64(scores[s]) - float64(maxScore))
++		scores[s] = float32(e)
++		sum += e
++	}
++	lse := float64(maxScore) + math.Log(sum)
++	inv := float32(1 / sum)
++	for s := 0; s < length; s++ {
++		p := scores[s] * inv
++		_, v := kv(s)
++		j := 0
++		for ; j+3 < hd; j += 4 {
++			out[j] += p * fromBF16(v[j])
++			out[j+1] += p * fromBF16(v[j+1])
++			out[j+2] += p * fromBF16(v[j+2])
++			out[j+3] += p * fromBF16(v[j+3])
++		}
++		for ; j < hd; j++ {
++			out[j] += p * fromBF16(v[j])
++		}
++	}
++	return lse
++}
+ func (m *Model) attention(q, k, v []float32, batch, seq int) ([]float32, []float64) {
+ 	c := m.Config
+ 	d, kd, hd := c.Dim, c.KVDim(), c.Dim/c.Heads
+@@ -6356,8 +6478,46 @@ func (m *Model) backwardInto(t *Tape, w *backwardWorkspace) {
+ // reservation of the full request budget prevents mid-generation pool deadlock.
+ const pageTokens = 32
+ 
+-type kvPage struct{ Data []float32 }
++type kvPage struct {
++	Data []float32
++	BF16 []uint16
++}
++
++func validKVFormat(format string) bool { return format == "" || format == "f32" || format == "bf16" }
++func kvElementBytes(format string) int {
++	if format == "bf16" {
++		return 2
++	}
++	return 4
++}
++func newKVPage(elements int, format string) *kvPage {
++	if format == "bf16" {
++		return &kvPage{BF16: make([]uint16, elements)}
++	}
++	return &kvPage{Data: make([]float32, elements)}
++}
++func (p *kvPage) valid(elements int, format string) bool {
++	if p == nil {
++		return false
++	}
++	if format == "bf16" {
++		return len(p.BF16) == elements && len(p.Data) == 0
++	}
++	return len(p.Data) == elements && len(p.BF16) == 0
++}
++
++// Round to nearest, ties to even; preserve NaNs rather than rounding to infinity.
++func toBF16(x float32) uint16 {
++	b := math.Float32bits(x)
++	if b&0x7fffffff > 0x7f800000 {
++		return uint16(b>>16) | 0x40
++	}
++	return uint16((b + 0x7fff + ((b >> 16) & 1)) >> 16)
++}
++func fromBF16(x uint16) float32 { return math.Float32frombits(uint32(x) << 16) }
++
+ type pagePool struct {
++	Format                                   string
+ 	PageElements, Limit, Reserved, Allocated int
+ 	Free                                     []*kvPage
+ }
+@@ -6373,7 +6533,7 @@ func (p *pagePool) acquire() *kvPage {
+ 		panic("KV reservation invariant violated")
+ 	}
+ 	p.Allocated++
+-	return &kvPage{make([]float32, p.PageElements)}
++	return newKVPage(p.PageElements, p.Format)
+ }
+ 
+ // A prefix snapshot is private to one engine actor. Its pages are immutable
+@@ -6385,12 +6545,13 @@ type prefixSnapshot struct {
+ 	pages       []*kvPage
+ 	borrowers   int
+ 	includeTail bool
++	kvFormat    string
+ }
+ 
+ // Restore the exact prefix into a newly admitted cache. The last prompt ID
+ // must run through the model because this snapshot stores no logits.
+ func (p *prefixSnapshot) restore(c *KVCache, ids []int) {
+-	if p.model != c.Model || p.revision != c.Revision || len(ids) < 2 {
++	if p.model != c.Model || p.revision != c.Revision || p.kvFormat != c.format || len(ids) < 2 {
+ 		return
+ 	}
+ 	n := min(len(p.ids), len(ids)-1)
+@@ -6414,6 +6575,13 @@ func (p *prefixSnapshot) restore(c *KVCache, ids []int) {
+ 
+ // Each layer stores separate contiguous key and value planes of 32 rows.
+ func copyKVPrefixRows(dst, src *kvPage, kvDim, rows int) {
++	if len(src.BF16) > 0 {
++		for offset := 0; offset < len(src.BF16); offset += pageTokens * kvDim {
++			end := offset + rows*kvDim
++			copy(dst.BF16[offset:end], src.BF16[offset:end])
++		}
++		return
++	}
+ 	if rows == pageTokens {
+ 		copy(dst.Data, src.Data)
+ 		return
+@@ -6437,7 +6605,7 @@ func (p *prefixSnapshot) clear() {
+ // borrowers prevent replacement. Prefix allocation stays in its own allowance.
+ func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
+ 	soleBorrower := c.shared == p && p.borrowers == 1 && p.model == m && p.revision == m.Revision
+-	if (p.borrowers != 0 && !soleBorrower) || c.Revision != m.Revision {
++	if (p.borrowers != 0 && !soleBorrower) || c.Revision != m.Revision || (len(p.pages) > 0 && p.kvFormat != c.format) {
+ 		return
+ 	}
+ 	positions := c.Pos
+@@ -6450,7 +6618,7 @@ func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
+ 		return
+ 	}
+ 	for len(p.pages) < n {
+-		p.pages = append(p.pages, &kvPage{Data: make([]float32, 2*pageTokens*m.Config.KVDim()*m.Config.Layers)})
++		p.pages = append(p.pages, newKVPage(2*pageTokens*m.Config.KVDim()*m.Config.Layers, c.format))
+ 	}
+ 	for i := 0; i < n; i++ {
+ 		if p.pages[i] != c.Pages[i] {
+@@ -6459,10 +6627,11 @@ func (p *prefixSnapshot) capture(m *Model, c *KVCache, ids []int, limit int) {
+ 	}
+ 	// Retained spare pages remain charged even when the new prefix is shorter.
+ 	p.ids = append(p.ids[:0], ids[:positions]...)
+-	p.model, p.revision = m, m.Revision
++	p.model, p.revision, p.kvFormat = m, m.Revision, c.format
+ }
+ 
+ type KVCache struct {
++	format      string // Frozen at construction; a page pool and its caches must agree.
+ 	Model       *Model
+ 	Revision    uint64
+ 	Pos         int
+@@ -6479,16 +6648,26 @@ const defaultInferenceKVBytes int64 = 512 << 20
+ const maxInferenceKVBytes int64 = 1 << 40
+ 
+ type KVMemoryPlan struct {
+-	Positions     int   `json:"positions"`
+-	Pages         int   `json:"pages"`
+-	PageBytes     int64 `json:"page_bytes"`
+-	RequiredBytes int64 `json:"required_bytes"`
+-	BudgetBytes   int64 `json:"budget_bytes"`
+-	FitsBudget    bool  `json:"fits_budget"`
++	Format        string `json:"format"`
++	Positions     int    `json:"positions"`
++	Pages         int    `json:"pages"`
++	PageBytes     int64  `json:"page_bytes"`
++	RequiredBytes int64  `json:"required_bytes"`
++	BudgetBytes   int64  `json:"budget_bytes"`
++	FitsBudget    bool   `json:"fits_budget"`
+ }
+ 
+ func planInferenceKV(c Config, positions int, budget int64) (KVMemoryPlan, error) {
+-	p := KVMemoryPlan{Positions: positions, BudgetBytes: budget}
++	return planInferenceKVFormat(c, positions, budget, "f32")
++}
++func planInferenceKVFormat(c Config, positions int, budget int64, format string) (KVMemoryPlan, error) {
++	if format == "" {
++		format = "f32"
++	}
++	p := KVMemoryPlan{Positions: positions, BudgetBytes: budget, Format: format}
++	if !validKVFormat(format) {
++		return p, errors.New("KV format must be f32 or bf16")
++	}
+ 	if err := c.validateShapeLimits(maxHFVocab, math.MaxInt64); err != nil {
+ 		return p, err
+ 	}
+@@ -6496,7 +6675,7 @@ func planInferenceKV(c Config, positions int, budget int64) (KVMemoryPlan, error
+ 		return p, errors.New("invalid KV positions or byte budget")
+ 	}
+ 	p.Pages = (positions + pageTokens - 1) / pageTokens
+-	p.PageBytes = int64(2*pageTokens) * int64(c.KVDim()) * int64(c.Layers) * 4
++	p.PageBytes = int64(2*pageTokens) * int64(c.KVDim()) * int64(c.Layers) * int64(kvElementBytes(format))
+ 	p.RequiredBytes = int64(p.Pages) * p.PageBytes
+ 	p.FitsBudget = p.RequiredBytes <= budget
+ 	return p, nil
+@@ -6511,7 +6690,7 @@ func (m *Model) directKVBudget() int64 {
+ 	return m.directKVBytes
+ }
+ func (m *Model) NewCache() *KVCache {
+-	return &KVCache{Model: m, Revision: m.Revision, budgetBytes: m.directKVBudget()}
++	return &KVCache{Model: m, Revision: m.Revision, format: m.kvFormat, budgetBytes: m.directKVBudget()}
+ }
+ 
+ // Explicit full-context admission for callers that own a direct KV cache.
+@@ -6519,14 +6698,14 @@ func (m *Model) NewCacheWithBudget(bytes int64) (*KVCache, error) {
+ 	if m == nil {
+ 		return nil, errors.New("nil cache model")
+ 	}
+-	p, err := planInferenceKV(m.Config, m.Config.Context, bytes)
++	p, err := planInferenceKVFormat(m.Config, m.Config.Context, bytes, m.kvFormat)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if !p.FitsBudget {
+ 		return nil, p.budgetError()
+ 	}
+-	return &KVCache{Model: m, Revision: m.Revision, budgetBytes: bytes}, nil
++	return &KVCache{Model: m, Revision: m.Revision, format: m.kvFormat, budgetBytes: bytes}, nil
+ }
+ func (c *KVCache) ensurePage() {
+ 	c.ensurePages(c.Pos + 1)
+@@ -6541,7 +6720,7 @@ func (c *KVCache) ensurePages(end int) {
+ 		if c.pool != nil {
+ 			p = c.pool.acquire()
+ 		} else {
+-			p = &kvPage{make([]float32, 2*pageTokens*c.Model.Config.KVDim()*c.Model.Config.Layers)}
++			p = newKVPage(2*pageTokens*c.Model.Config.KVDim()*c.Model.Config.Layers, c.format)
+ 		}
+ 		c.Pages = append(c.Pages, p)
+ 	}
+@@ -6552,6 +6731,24 @@ func (c *KVCache) row(layer, pos int) ([]float32, []float32) {
+ 	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
+ 	return p.Data[base : base+kd], p.Data[base+pageTokens*kd : base+pageTokens*kd+kd]
+ }
++func (c *KVCache) rowBF16(layer, pos int) ([]uint16, []uint16) {
++	kd := c.Model.Config.KVDim()
++	p := c.Pages[pos/pageTokens]
++	base := layer*2*pageTokens*kd + (pos%pageTokens)*kd
++	return p.BF16[base : base+kd], p.BF16[base+pageTokens*kd : base+pageTokens*kd+kd]
++}
++func (c *KVCache) store(layer, pos int, keys, values []float32) {
++	if c.format == "bf16" {
++		k, v := c.rowBF16(layer, pos)
++		for i := range k {
++			k[i], v[i] = toBF16(keys[i]), toBF16(values[i])
++		}
++	} else {
++		k, v := c.row(layer, pos)
++		copy(k, keys)
++		copy(v, values)
++	}
++}
+ func (c *KVCache) Close() {
+ 	if c.released {
+ 		return
+@@ -6648,6 +6845,14 @@ func attentionRange(job *attentionKernel, lo, hi int) {
+ 			i, h := task/job.heads, task%job.heads
+ 			cache := w.rowCaches[i]
+ 			kh, qi := h/group, i*d+h*hd
++			if cache.format == "bf16" {
++				kv := func(pos int) ([]uint16, []uint16) {
++					k, v := cache.rowBF16(layer, pos)
++					return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
++				}
++				attendBF16(w.Q[qi:qi+hd], w.A[qi:qi+hd], scores, w.positions[i]+1, kv)
++				continue
++			}
+ 			kv := func(pos int) ([]float32, []float32) {
+ 				k, v := cache.row(layer, pos)
+ 				return k[kh*hd : (kh+1)*hd], v[kh*hd : (kh+1)*hd]
+@@ -6776,7 +6981,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 	n, maxPos := 0, 0
+ 	pageElements := 2 * pageTokens * c.KVDim() * c.Layers
+ 	for i, cache := range caches {
+-		if cache == nil || cache.Model != m || cache.Revision != m.Revision || cache.released || seen[cache] {
++		if cache == nil || cache.Model != m || cache.Revision != m.Revision || cache.released || !validKVFormat(cache.format) || cache.format != m.kvFormat || seen[cache] {
+ 			return nil, errors.New("foreign, stale, released, or duplicate KV cache")
+ 		}
+ 		if cache.shared != nil && (cache.sharedPages < 1 || cache.sharedPages > len(cache.shared.pages) || cache.sharedPages > len(cache.Pages) || cache.Pos < cache.sharedPages*pageTokens) {
+@@ -6801,7 +7006,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 			if budget == 0 {
+ 				budget = m.directKVBudget()
+ 			}
+-			plan, err := planInferenceKV(c, end, budget)
++			plan, err := planInferenceKVFormat(c, end, budget, cache.format)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -6813,12 +7018,12 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 			return nil, errors.New("invalid KV page coverage")
+ 		}
+ 		for _, page := range cache.Pages {
+-			if page == nil || len(page.Data) != pageElements {
++			if !page.valid(pageElements, cache.format) {
+ 				return nil, errors.New("invalid KV page storage")
+ 			}
+ 		}
+ 		if p := cache.pool; p != nil {
+-			if p.PageElements != pageElements || p.Limit < 1 || p.Allocated < 0 || p.Allocated > p.Limit || len(p.Free) > p.Allocated || p.Reserved > p.Limit || cache.reserved < 1 || pages > cache.reserved || len(cache.Pages) > cache.reserved {
++			if p.Format != cache.format || p.PageElements != pageElements || p.Limit < 1 || p.Allocated < 0 || p.Allocated > p.Limit || len(p.Free) > p.Allocated || p.Reserved > p.Limit || cache.reserved < 1 || pages > cache.reserved || len(cache.Pages) > cache.reserved {
+ 				return nil, errors.New("invalid KV page reservation")
+ 			}
+ 			if pools == nil {
+@@ -6843,7 +7048,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 		// Validate only the free pages this call will actually acquire.
+ 		for j := 0; j < min(use.pages, len(p.Free)); j++ {
+ 			page := p.Free[len(p.Free)-1-j]
+-			if page == nil || len(page.Data) != pageElements {
++			if !page.valid(pageElements, p.Format) {
+ 				return nil, errors.New("invalid free KV page storage")
+ 			}
+ 		}
+@@ -6900,9 +7105,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 				m.rope(w.Q[i*d:(i+1)*d], 1, 1, c.Heads, positions[i], false)
+ 				m.rope(w.K[i*kd:(i+1)*kd], 1, 1, c.KVHeads, positions[i], false)
+ 			}
+-			k, v := cache.row(l, positions[i])
+-			copy(k, w.K[i*kd:(i+1)*kd])
+-			copy(v, w.V[i*kd:(i+1)*kd])
++			cache.store(l, positions[i], w.K[i*kd:(i+1)*kd], w.V[i*kd:(i+1)*kd])
+ 		}
+ 		w.attend(executor, c, l, n, attention)
+ 		// Attention has joined every Q reader. Reuse Q for both residual
+@@ -8082,7 +8285,7 @@ func generateInput(ctx context.Context, m *Model, tok inferenceTokenizer, prompt
+ 	if err != nil {
+ 		return Completion{}, err
+ 	}
+-	plan, err := planInferenceKV(m.Config, len(ids)+s.MaxTokens, m.directKVBudget())
++	plan, err := planInferenceKVFormat(m.Config, len(ids)+s.MaxTokens, m.directKVBudget(), m.kvFormat)
+ 	if err != nil {
+ 		return Completion{}, err
+ 	}
+@@ -8541,17 +8744,20 @@ func newEngine(m *Model, tok inferenceTokenizer, c EngineConfig) (*Engine, error
+ 	if tok.Vocab() != m.Config.Vocab {
+ 		return nil, errors.New("tokenizer/model mismatch")
+ 	}
++	if !validKVFormat(m.kvFormat) {
++		return nil, errors.New("KV format must be f32 or bf16")
++	}
+ 	elements := 2 * pageTokens * m.Config.KVDim() * m.Config.Layers
+-	prefixLimit := int(c.PrefixCacheBytes / int64(elements*4))
++	prefixLimit := int(c.PrefixCacheBytes / int64(elements*kvElementBytes(m.kvFormat)))
+ 	if c.PrefixCacheBytes != 0 && prefixLimit == 0 {
+ 		return nil, errors.New("prefix cache budget cannot hold one KV page")
+ 	}
+-	limit := int((c.CacheBytes - c.PrefixCacheBytes) / int64(elements*4))
++	limit := int((c.CacheBytes - c.PrefixCacheBytes) / int64(elements*kvElementBytes(m.kvFormat)))
+ 	if limit < 1 {
+ 		return nil, errors.New("cache budget cannot hold one KV page")
+ 	}
+ 	ctx, cancel := context.WithCancel(context.Background())
+-	e := &Engine{Model: m, Tokenizer: tok, Config: c, queue: make(chan *engineRequest, c.Queue), admission: make(chan struct{}, c.Queue+c.MaxBatch), httpSlots: make(chan struct{}, c.Queue+c.MaxBatch), ctx: ctx, cancel: cancel, done: make(chan struct{}), pool: pagePool{PageElements: elements, Limit: limit}, prefix: prefixSnapshot{includeTail: c.PrefixCacheTail}, prefixLimit: prefixLimit, clearPrefix: make(chan chan struct{}), pieces: tok.Pieces()}
++	e := &Engine{Model: m, Tokenizer: tok, Config: c, queue: make(chan *engineRequest, c.Queue), admission: make(chan struct{}, c.Queue+c.MaxBatch), httpSlots: make(chan struct{}, c.Queue+c.MaxBatch), ctx: ctx, cancel: cancel, done: make(chan struct{}), pool: pagePool{PageElements: elements, Limit: limit, Format: m.kvFormat}, prefix: prefixSnapshot{includeTail: c.PrefixCacheTail}, prefixLimit: prefixLimit, clearPrefix: make(chan chan struct{}), pieces: tok.Pieces()}
+ 	return e, nil
+ }
+ func (e *Engine) Stats() EngineStats {
+@@ -8742,9 +8948,9 @@ func (e *Engine) run() {
+ 	wantLogits := make([]bool, e.Config.MaxBatch)
+ 	rotation := 0
+ 	accounting := func() {
+-		prefixBytes := int64(len(e.prefix.pages) * e.pool.PageElements * 4)
+-		e.stats.Reserved.Store(int64(e.pool.Reserved * e.pool.PageElements * 4))
+-		e.stats.Allocated.Store(int64(e.pool.Allocated*e.pool.PageElements*4) + prefixBytes)
++		prefixBytes := int64(len(e.prefix.pages) * e.pool.PageElements * kvElementBytes(e.pool.Format))
++		e.stats.Reserved.Store(int64(e.pool.Reserved * e.pool.PageElements * kvElementBytes(e.pool.Format)))
++		e.stats.Allocated.Store(int64(e.pool.Allocated*e.pool.PageElements*kvElementBytes(e.pool.Format)) + prefixBytes)
+ 		e.stats.PrefixBytes.Store(prefixBytes)
+ 	}
+ 	clearPrefix := func(done chan struct{}) {
+@@ -9257,6 +9463,9 @@ func parseInferenceAction(f *flag.FlagSet, args []string, validateOnly bool) err
+ 	return validateInferenceFlags(f)
+ }
+ func validateInferenceFlags(f *flag.FlagSet) error {
++	if !validKVFormat(selectedKVFormat(f)) {
++		return errors.New("kv-format must be f32 or bf16")
++	}
+ 	if v := f.Lookup("weight-format"); v != nil && !validHFWeightFormat(v.Value.String()) {
+ 		return errors.New("weight-format must be f32, q8, q4 or q4-mixed")
+ 	}
+@@ -10065,6 +10274,7 @@ func runDemo(ctx context.Context, args []string) error {
+ }
+ func runGenerate(ctx context.Context, args []string, validateOnly bool) error {
+ 	f := flags("generate")
++	kvFormatFlag(f)
+ 	model := f.String("model", "runs/model.mglm", "checkpoint")
+ 	dir, limit, budget, format := hfFlags(f)
+ 	f.Int64("kv-mib", 512, "direct KV page budget in MiB; selected context must fit")
+@@ -10215,6 +10425,7 @@ func chatLoop(ctx context.Context, e *Engine, tok *hfTokenizer, system string, s
+ 
+ func runChat(ctx context.Context, args []string, validateOnly bool) error {
+ 	f := flags("chat")
++	kvFormatFlag(f)
+ 	dir, limit, budget, format := hfFlags(f)
+ 	system := f.String("system", "", "system message; empty uses the model template default")
+ 	memory := f.Int64("kv-mib", 256, "KV cache budget in MiB")
+@@ -10469,6 +10680,7 @@ func (t *inferenceTrace) close() error {
+ 
+ func runServe(ctx context.Context, args []string, validateOnly bool) (err error) {
+ 	f := flags("serve")
++	kvFormatFlag(f)
+ 	model := f.String("model", "runs/model.mglm", "checkpoint")
+ 	dir, limit, weightBudget, format := hfFlags(f)
+ 	addr := f.String("addr", "127.0.0.1:8080", "HTTP listen address")
+diff --git a/docs/kv-cache-formats.md b/docs/kv-cache-formats.md
+new file mode 100644
+index 0000000..3747349
+--- /dev/null
++++ b/docs/kv-cache-formats.md
+@@ -0,0 +1,35 @@
++# KV cache formats
++
++Inference keeps FP32 KV pages by default. The experimental `-kv-format bf16`
++option stores keys and values as BF16, separately from `-weight-format`.
++Attention widens values as it reads them and accumulates in FP32; it does not
++keep a second FP32 cache or allocate a conversion buffer per token.
++
++```sh
++./monolith infer local -path /path/to/mistral7b-instruct-v0.3 \
++  -weight-format q4-mixed -weight-mib 8192 -context 4096 \
++  generate -kv-format bf16 -kv-mib 512 -prompt "Explain Go channels."
++```
++
++`generate`, `infer-hf`, `chat`, `serve`, and `check-hf` accept `-kv-format`.
++For `infer local`, place it after the action, alongside `-kv-mib`. Training
++and HF remote inference do not use this cache option.
++
++Each numeric KV page takes half the FP32 payload bytes. The same format applies
++to private pages, recycled pages, and immutable prefix snapshots. Admission,
++prefix allowances, and engine KV metrics charge the selected payload width.
++Model weights, tokenizer, workspace, Go runtime overhead, and total RSS do not
++halve. `check-hf -json` reports the selected format in `kv_plan`; the embedded
++HF weight plan retains its original FP32 KV sizing reference.
++
++BF16 rounds stored K/V to nearest with ties to even. It can change logits and
++generated text. FP32 is the default and the comparison reference. Neither the
++format nor loaded model settings may be mutated after caches/engines are
++created.
++
++The frozen validation protocol is
++`validation/performance/kv16-protocol-20261110.json`. It measures held-out
++teacher-forced KL and next-token loss, retains two bounded long continuations
++per format, and tests page boundaries, prefix copy/share, cancellation, and
++pool reuse. A passing small screen is not a general language-quality guarantee.
++The candidate remains under evaluation until its receipt and review are added.
+diff --git a/scripts/check_probe_builds.py b/scripts/check_probe_builds.py
+index 092a599..05c1694 100644
+--- a/scripts/check_probe_builds.py
++++ b/scripts/check_probe_builds.py
+@@ -15,6 +15,7 @@ def main():
+     go = str(Path(goroot) / 'bin/go')
+     probes = {
+         'inference': ['inference_perf_test.go'],
++        'kv16-quality': ['kv16_quality_test.go'],
+         'long-generation': ['inference_perf_test.go', 'long_generation_perf_test.go'],
+         'prompt-prefill': ['prompt_prefill_perf_test.go'],
+         'prefix-chat': ['prefix_chat_perf_test.go'],
+diff --git a/scripts/compare_kv16.py b/scripts/compare_kv16.py
+new file mode 100644
+index 0000000..df909c4
+--- /dev/null
++++ b/scripts/compare_kv16.py
+@@ -0,0 +1,86 @@
++#!/usr/bin/env python3
++# Copyright 2026 RyoSpiralArchitect
++# SPDX-License-Identifier: Apache-2.0
++"""Run the frozen offline BF16 KV screen with one immutable resident weight set."""
++import argparse
++import json
++from pathlib import Path
++import subprocess
++
++from compare_inference import isolated_go_environment
++from quant_quality import sha, run_measured, source_path
++
++
++def read_quality_report(path):
++    """Keep a missing/truncated final report from hiding durable progress."""
++    try:
++        report = json.loads(path.read_text())
++        if not isinstance(report, dict) or report.get('format') != 'monolith-kv16-quality-v1':
++            return None, 'Unexpected quality report format'
++        return report, None
++    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
++        return None, str(exc)
++
++
++def main():
++    p = argparse.ArgumentParser(description=__doc__)
++    p.add_argument('--model', type=Path, required=True)
++    p.add_argument('--output-dir', type=Path, required=True)
++    a = p.parse_args()
++    root = Path(__file__).resolve().parents[1]
++    model, output = a.model.resolve(), a.output_dir.resolve()
++    catalog = root/'validation/hf/model-profiles.json'
++    source = next(x for x in json.loads(catalog.read_text())['models'] if x['id'] == 'mistral-7b-v03')
++    for name, expected in source['files'].items():
++        if sha(model/name) != expected:
++            raise RuntimeError('Pinned source mismatch: '+name)
++    protocol = root/'validation/performance/kv16-protocol-20261110.json'
++    spec = json.loads(protocol.read_text())
++    for name, expected in spec['input_sha256'].items():
++        if sha(root/name) != expected:
++            raise RuntimeError('Frozen input mismatch: '+name)
++    output.mkdir(parents=True, exist_ok=False)
++    names = ['monolith.go', 'kv16_quality_test.go', 'go.mod', 'go.sum']
++    paths = [source_path(root,n) for n in names] + [protocol, catalog, Path(__file__),
++        root/'scripts/quant_quality.py', root/'scripts/compare_inference.py',
++        root/'validation/quality/corpus.json', root/'validation/quality/kv16-long-prompts.json']
++    hashes = {str(p.relative_to(root)): sha(p) for p in paths}
++    build = output/'build'; build.mkdir()
++    for n in names:
++        (build/n).write_bytes(source_path(root,n).read_bytes())
++    env = isolated_go_environment()
++    goroot = subprocess.check_output([root/'scripts/go.sh','env','GOROOT'],cwd=root,env=env,text=True).strip()
++    go = str(Path(goroot)/'bin/go')
++    binary = build/'probe.test'
++    with (output/'build.log').open('w') as log:
++        subprocess.run([go,'test','-c','-trimpath','-o',binary,'.'],cwd=build,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=300)
++    binary_hash = sha(binary)
++    env.update(MONOLITH_KV16_MODEL=str(model),MONOLITH_KV16_CORPUS=str(root/'validation/quality/corpus.json'),
++        MONOLITH_KV16_PROMPTS=str(root/'validation/quality/kv16-long-prompts.json'),MONOLITH_KV16_OUTPUT=str(output/'quality.json'))
++    failure = None
++    with (output/'probe.log').open('w') as log:
++        try:
++            run_measured([str(binary),'-test.run=^TestHFCache16Quality$','-test.v','-test.timeout=32m'],
++                cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=1980,outcome_path=output/'resources.json')
++        except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as exc:
++            failure = str(exc)
++    # Preserve a failed gate or timeout alongside verified identities, never retry.
++    unchanged = hashes == {str(p.relative_to(root)):sha(p) for p in paths}
++    unchanged = unchanged and sha(binary) == binary_hash
++    unchanged = unchanged and all(sha(model/n)==v for n,v in source['files'].items())
++    report, report_error = read_quality_report(output/'quality.json')
++    progress_path = output/'quality.json.progress.jsonl'
++    progress = dict(path=progress_path.name, sha256=sha(progress_path)) if progress_path.exists() else None
++    receipt = dict(format='monolith-kv16-screen-receipt-v1',model=source['repo'],revision=source['revision'],
++        files=source['files'],inputs_sha256=hashes,binary_sha256=binary_hash,identities_unchanged=unchanged,
++        go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),
++        failure=failure,report=report,report_error=report_error,progress=progress,resources=json.loads((output/'resources.json').read_text()),
++        note='Long-answer review remains separate from numerical gates. All first results retained.')
++    with (output/'receipt.json').open('x') as f:
++        json.dump(receipt,f,indent=2,ensure_ascii=False,allow_nan=False);f.write('\n')
++    if not unchanged or failure or report_error:
++        raise RuntimeError('Screen incomplete or gate failed; retained receipt: '+str(output/'receipt.json'))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/scripts/compare_kv16_test.py b/scripts/compare_kv16_test.py
+new file mode 100644
+index 0000000..eead0b7
+--- /dev/null
++++ b/scripts/compare_kv16_test.py
+@@ -0,0 +1,33 @@
++import json
++from pathlib import Path
++import tempfile
++import unittest
++
++from compare_kv16 import read_quality_report
++
++
++class ReportRetentionTests(unittest.TestCase):
++    def test_partial_final_report_remains_available_without_parse_exception(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory)/'quality.json'
++            raw = b'{"format":"monolith-kv16-quality-v1","rows":['
++            path.write_bytes(raw)
++            report, error = read_quality_report(path)
++            self.assertIsNone(report)
++            self.assertTrue(error)
++            self.assertEqual(path.read_bytes(), raw)
++
++    def test_missing_and_wrong_format_are_report_errors(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory)/'quality.json'
++            self.assertIsNotNone(read_quality_report(path)[1])
++            for value in ([], {}, {'format': 'wrong'}):
++                path.write_text(json.dumps(value))
++                self.assertIsNotNone(read_quality_report(path)[1])
++
++    def test_complete_report_is_preserved(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory)/'quality.json'
++            expected = {'format': 'monolith-kv16-quality-v1', 'rows': [], 'numerical_gates': {'mean_kl': False}}
++            path.write_text(json.dumps(expected))
++            self.assertEqual(read_quality_report(path), (expected, None))
+diff --git a/scripts/verify_default_kv.py b/scripts/verify_default_kv.py
+new file mode 100644
+index 0000000..fbb8402
+--- /dev/null
++++ b/scripts/verify_default_kv.py
+@@ -0,0 +1,88 @@
++#!/usr/bin/env python3
++# Copyright 2026 RyoSpiralArchitect
++# SPDX-License-Identifier: Apache-2.0
++"""Verify current default KV against a retained, source-bound predecessor receipt.
++
++This replays the identical numerical workload once. It makes no timing claim.
++"""
++import argparse
++import hashlib
++import json
++import platform
++from pathlib import Path
++import subprocess
++
++from compare_inference import isolated_go_environment, numerical_signature, validate_case_order
++from quant_quality import git_source, run_measured, sha, source_path
++
++
++def reference_signature(receipt, runtime_hash, harness_hash):
++    if receipt.get('numerical_identity') is not True:
++        raise ValueError('Reference did not pass numerical identity')
++    inputs = receipt['builds']['after']['inputs_sha256']
++    if inputs['monolith.go'] != runtime_hash or inputs['inference_perf_test.go'] != harness_hash:
++        raise ValueError('Reference runtime or harness differs from selected predecessor')
++    candidates = [x['report'] for x in receipt['reports'] if x['variant'] == 'after']
++    if not candidates:
++        raise ValueError('Reference has no candidate reports')
++    signature = numerical_signature(candidates[0])
++    if any(numerical_signature(x) != signature for x in candidates):
++        raise ValueError('Reference candidate results disagree')
++    return signature
++
++
++def main():
++    p = argparse.ArgumentParser(description=__doc__)
++    p.add_argument('--model', type=Path, required=True)
++    p.add_argument('--baseline-ref', required=True)
++    p.add_argument('--reference-receipt', type=Path, required=True)
++    p.add_argument('--output-dir', type=Path, required=True)
++    a = p.parse_args()
++    root = Path(__file__).resolve().parents[1]
++    model, output = a.model.resolve(), a.output_dir.resolve()
++    ref_path = a.reference_receipt.resolve()
++    baseline = subprocess.check_output(['git','rev-parse','--verify','--end-of-options',a.baseline_ref+'^{commit}'],cwd=root,text=True).strip()
++    reference_hash = sha(ref_path)
++    previous = json.loads(ref_path.read_text())
++    runtime_hash = hashlib.sha256(git_source(root,baseline,'monolith.go')).hexdigest()
++    harness = source_path(root,'inference_perf_test.go')
++    expected = reference_signature(previous,runtime_hash,sha(harness))
++    catalog = root/'validation/hf/model-profiles.json'
++    source = next(x for x in json.loads(catalog.read_text())['models'] if x['id']=='mistral-7b-v03')
++    if previous['files'] != source['files'] or previous['revision'] != source['revision']:
++        raise ValueError('Model reference differs from catalog')
++    for name,digest in source['files'].items():
++        if sha(model/name) != digest:
++            raise ValueError('Pinned model mismatch: '+name)
++    corpus = root/'validation/quality/corpus.json'
++    if sha(corpus) != previous['source_inputs_sha256']['validation/quality/corpus.json']:
++        raise ValueError('Corpus differs from reference')
++    output.mkdir(parents=True,exist_ok=False)
++    names=['monolith.go','go.mod','go.sum','inference_perf_test.go']
++    paths=[source_path(root,n) for n in names]+[Path(__file__),root/'scripts/quant_quality.py',root/'scripts/compare_inference.py',catalog,corpus]
++    hashes={str(p.relative_to(root)):sha(p) for p in paths}
++    build=output/'build';build.mkdir()
++    for n in names:(build/n).write_bytes(source_path(root,n).read_bytes())
++    env=isolated_go_environment()
++    goroot=subprocess.check_output([root/'scripts/go.sh','env','GOROOT'],cwd=root,env=env,text=True).strip()
++    go=str(Path(goroot)/'bin/go');binary=build/'probe.test'
++    with (output/'build.log').open('w') as log:
++        subprocess.run([go,'test','-c','-trimpath','-o',binary,'.'],cwd=build,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=300)
++    binary_hash=sha(binary)
++    env.update(MONOLITH_PERF_MODEL=str(model),MONOLITH_PERF_CORPUS=str(corpus),MONOLITH_PERF_FORMAT='q4-mixed',MONOLITH_PERF_CASE_ORDER='1,2',MONOLITH_PERF_OUTPUT=str(output/'result.json'))
++    with (output/'probe.log').open('w') as log:
++        resources=run_measured([str(binary),'-test.run=^TestHFInferencePerformance$','-test.v','-test.timeout=11m'],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=700,outcome_path=output/'resources.json')
++    report=json.loads((output/'result.json').read_text());validate_case_order(report,[1,2])
++    same=numerical_signature(report)==expected
++    unchanged=hashes=={str(p.relative_to(root)):sha(p) for p in paths} and sha(binary)==binary_hash and sha(ref_path)==reference_hash
++    unchanged=unchanged and all(sha(model/n)==v for n,v in source['files'].items())
++    receipt=dict(format='monolith-default-kv-parity-v1',baseline_commit=baseline,baseline_runtime_sha256=runtime_hash,reference_receipt_sha256=reference_hash,
++        source_inputs_sha256=hashes,reference_model=source['repo'],revision=source['revision'],files=source['files'],binary_sha256=binary_hash,
++        identities_unchanged=unchanged,numerical_identity=same,report=report,resources=resources,
++        go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),host=platform.system()+'/'+platform.machine(),
++        note='One numerical replay of the identical 1/2-session workload. Reference after-runtime is bound to the selected Git predecessor. No speed claim.')
++    with (output/'receipt.json').open('x') as f:json.dump(receipt,f,indent=2,allow_nan=False);f.write('\n')
++    if not same or not unchanged:raise RuntimeError('Default parity failed; retained receipt')
++
++
++if __name__=='__main__':main()
+diff --git a/scripts/verify_default_kv_test.py b/scripts/verify_default_kv_test.py
+new file mode 100644
+index 0000000..a4717f7
+--- /dev/null
++++ b/scripts/verify_default_kv_test.py
+@@ -0,0 +1,23 @@
++import copy
++import unittest
++from verify_default_kv import reference_signature
++
++
++class PredecessorBindingTests(unittest.TestCase):
++    def fixture(self):
++        report=dict(plan={},threads=4,kernel_workers=4,context=128,prefill_tokens_per_session=8,
++            decode_steps=7,generated_ids_per_session=8,cases=[dict(sessions=1,prompt_ids=[[1]],trials=[dict(logits_sha256='a',kv_sha256='b',token_ids=[[2]])])])
++        return dict(numerical_identity=True,builds={'after':{'inputs_sha256':{'monolith.go':'runtime','inference_perf_test.go':'harness'}}},reports=[dict(variant='after',report=report)])
++
++    def test_wrong_source_cannot_supply_parity(self):
++        with self.assertRaises(ValueError):reference_signature(self.fixture(),'different','harness')
++        with self.assertRaises(ValueError):reference_signature(self.fixture(),'runtime','different')
++
++    def test_disagreement_and_failed_reference_rejected(self):
++        receipt=self.fixture();receipt['numerical_identity']=False
++        with self.assertRaises(ValueError):reference_signature(receipt,'runtime','harness')
++        receipt=self.fixture();other=copy.deepcopy(receipt['reports'][0]);other['report']['cases'][0]['trials'][0]['kv_sha256']='different';receipt['reports'].append(other)
++        with self.assertRaises(ValueError):reference_signature(receipt,'runtime','harness')
++
++    def test_bound_reference_returns_signature(self):
++        self.assertEqual(reference_signature(self.fixture(),'runtime','harness')['threads'],4)
+diff --git a/validation/performance/kv16-protocol-20261110.json b/validation/performance/kv16-protocol-20261110.json
+new file mode 100644
+index 0000000..64bd438
+--- /dev/null
++++ b/validation/performance/kv16-protocol-20261110.json
+@@ -0,0 +1,43 @@
++{
++  "format": "monolith-kv16-protocol-v1",
++  "scope": "Opt-in BF16 KV on existing pinned Mistral-7B-Instruct-v0.3 Q4-mixed, same immutable weights and FP32 compute. This is a bounded quality screen, not a general quality guarantee. FP32 remains the default.",
++  "context": 1024,
++  "workers": 4,
++  "payload_gate": "Every allocated KV and prefix page has exactly half the numeric payload bytes of FP32; planner, admission and telemetry agree. Runtime/weight/RSS memory is not claimed to halve.",
++  "default_gate": "Default and explicit FP32 logits, KV and IDs match the predecessor bit-for-bit; existing race/lifecycle/prefix/CLI tests pass.",
++  "quality": {
++    "corpus": "validation/quality/corpus.json",
++    "documents": "All six evaluation_documents, first up to 48 next-token targets per document, no selection prompts",
++    "comparison": "Paired teacher-forced contexts, same token IDs; KL(FP32 || BF16) and target NLL for every row. Record all per-row metrics and document means.",
++    "mean_kl_max": 0.001,
++    "p95_kl_max": 0.005,
++    "mean_nll_increase_max": 0.01,
++    "finite_required": true
++  },
++  "long_answers": {
++    "inputs": "validation/quality/kv16-long-prompts.json",
++    "prefix": "Repeat the six evaluation documents in order until at least 384 encoded tokens, keep the first 384, then append each fixed question using the HF tokenizer with post-processing/BOS disabled (encodeText(ctx,text,1024,false)).",
++    "outputs": 128,
++    "sampling": "Greedy, fixed 128 steps including EOS, context must fit. This bounded continuation probe is not a completed chat-answer claim.",
++    "comparison": "Save both complete token sequences and decoded continuations. Inspect both for new repeated loops, non-finite output or loss of the question's requested facts/language. Any new BF16-only failure holds adoption pending investigation; disagreement alone is reported rather than scored as failure. No regenerated answers or threshold relaxation."
++  },
++  "execution": "One resident set of immutable weights, separate model views/pools/caches for each format; same process teacher-forced pairs alternate FP32/BF16 order each token. Long-answer formats run FP32 then BF16 for English and reverse for Japanese. Keep all first results. Timing is diagnostic only, no speed claim from this probe.",
++  "adoption": "All numerical, memory, lifecycle and long-answer screen gates must pass. Otherwise preserve negative evidence and keep the candidate experimental/unadopted. No automatic default-format change.",
++  "input_sha256": {
++    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
++    "validation/quality/kv16-long-prompts.json": "feb640dfff5d14ea32c1e398ec24a2cbba74afffc482a9c45386aeb63013886b",
++    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b"
++  },
++  "execution_bound": {
++    "model_and_probe_context_minutes": 30,
++    "go_test_timeout_minutes": 32,
++    "process_timeout_seconds": 1980,
++    "reason": "Fixed workload includes six teacher-forced documents plus four 384+ token prefill / 128 output continuations; generous local bound fixed before first model screen."
++  },
++  "default_reference": {
++    "baseline_commit": "1a01515d44442060c6a3dc0354a00152532fffda",
++    "receipt": "validation/performance/q4-output-pair-mistral-20261110-run1.json",
++    "receipt_sha256": "d711c4cce5632e7530a6227a7645d897932194161654f4afedde360a42abce66",
++    "verification": "scripts/verify_default_kv.py checks predecessor source, harness, model and corpus identity before comparing all logits/KV/IDs. Timing is diagnostic only."
++  }
++}
+diff --git a/validation/quality/kv16-long-prompts.json b/validation/quality/kv16-long-prompts.json
+new file mode 100644
+index 0000000..4042a1c
+--- /dev/null
++++ b/validation/quality/kv16-long-prompts.json
+@@ -0,0 +1,7 @@
++{
++  "format": "monolith-kv16-long-prompts-v1",
++  "questions": [
++    {"id":"english", "question":"\n\nQuestion: Based on the passages above, explain three practical preparations people made before starting a task. Mention the bicycle, the cooking ingredients, and the carpenter. Answer in English using three numbered points.\nAnswer:", "checks":["English", "three preparations", "bicycle tires or packing", "cooking ingredients or mixing", "sorting screws"]},
++    {"id":"japanese", "question":"\n\n質問: 上の文章で、人々が作業の前に行った準備を日本語で説明してください。自転車、料理、大工の3つの例を番号付きで挙げ、それぞれ何を準備したかを書いてください。\n回答:", "checks":["Japanese", "three preparations", "bicycle tires or packing", "cooking ingredients or mixing", "sorting screws"]}
++  ]
++}
