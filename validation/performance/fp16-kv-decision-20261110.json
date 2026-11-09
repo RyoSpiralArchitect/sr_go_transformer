@@ -1,0 +1,39 @@
+{
+  "decision": "adopt as explicit opt-in f16; retain f32 default",
+  "candidate_source_commit": "c20f72d059e3e35da966b0d544dde5e703144473",
+  "protocol": "fp16-kv-protocol-20261110.json",
+  "quality_receipt_sha256": "78e7ba6de7a12f63e56f66c52ed3791b161cfe6faccfcb15becd2a52cc97cb56",
+  "default_fp32_exact": true,
+  "numerical_gates": {
+    "mean_kl": true,
+    "mean_nll_increase": true,
+    "p95_kl": true
+  },
+  "mean_kl": 9.397078658839217e-07,
+  "p95_kl": 1.901457787191241e-07,
+  "mean_nll_increase": -0.0002112406426122823,
+  "long_cases": {
+    "english": {
+      "same_prompt_ids": true,
+      "same_output_ids": true,
+      "same_text": true,
+      "f32_bytes": 150994944,
+      "f16_bytes": 75497472,
+      "half_payload": true,
+      "f32_matches_previous_bf16_experiment_control": true
+    },
+    "japanese": {
+      "same_prompt_ids": true,
+      "same_output_ids": true,
+      "same_text": true,
+      "f32_bytes": 167772160,
+      "f16_bytes": 83886080,
+      "half_payload": true,
+      "f32_matches_previous_bf16_experiment_control": true
+    }
+  },
+  "content_gate": "No new errors in the two label-blinded fixed continuation comparisons; texts and IDs are identical. Existing baseline defects are preserved.",
+  "limits": "235 English next-token targets and two 128-token continuation cases on one pinned Mistral Q4-mixed model. Not general quality, 4096-token quality, latency improvement, or RSS-halving evidence. Model-assisted review, not human validation.",
+  "bf16_candidate": "Rejected; retained separately, not offered by runtime.",
+  "postprocessing_note": "Initial exact aggregate assertion with Python 3.12 sum failed at 4e-22 KL difference because it uses improved summation. Recomputing sequential additions in Go row order exactly matches the retained result. No inference rerun or threshold change."
+}

@@ -32,7 +32,23 @@ The frozen validation protocol is
 teacher-forced KL and next-token loss, retains two bounded long continuations
 per format, and tests page boundaries, prefix copy/share, cancellation, and
 pool reuse. A passing small screen is not a general language-quality guarantee.
-The candidate remains under evaluation until its receipt and review are added.
+The first FP16 screen passed on pinned Mistral-7B-Instruct-v0.3 Q4-mixed:
+235 next-token targets across six documents gave mean KL 0.000000939708,
+p95 KL 0.000000190146, and mean target loss change -0.000211241 nats/token.
+This small loss change does not establish improved quality. Both English and
+Japanese 128-token output sequences and texts exactly matched FP32. Independent
+label-blinded model-assisted review found no new content errors, while retaining
+existing off-task English, weak Japanese and bounded truncation.
+
+Actual numeric KV payload was 144 to 72 MiB (English) and 160 to 80 MiB
+(Japanese). A separate capacity-only 4,096-position check fits 512 MiB in FP16;
+this is not a 4,096-token quality test. The default FP32 logits, KV and token IDs
+also exactly matched the predecessor on the fixed one/two-session replay.
+
+Full first results, source/model hashes, reviews and adoption decision are in
+`validation/performance/fp16-kv-*20261110*`. There is no latency-improvement or
+total-RSS-halving claim. Other models and longer contexts need their own quality
+checks; FP32 remains the comparison reference and default.
 
 FP16 values that would overflow to infinity, including non-finite K/V, cause an explicit inference error recommending FP32. The cache position is not committed. There is no silent memory-budget expansion.
 
