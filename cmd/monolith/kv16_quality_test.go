@@ -75,19 +75,42 @@ func TestHFCache16Quality(t *testing.T) {
 	if dir == "" {
 		t.Skip("manual offline BF16 KV screen")
 	}
+	progress, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT")+".progress.jsonl", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { progress.Close() })
+	phase := "startup"
+	record := func(value any) {
+		t.Helper()
+		if err := json.NewEncoder(progress).Encode(value); err != nil {
+			t.Fatal(err)
+		}
+		if err := progress.Sync(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fail := func(args ...any) {
+		t.Helper()
+		record(map[string]any{"event": "failure", "phase": phase, "error": fmt.Sprint(args...)})
+		t.Fatal(args...)
+	}
+	record(map[string]any{"event": "start", "phase": phase})
 	if runtime.GOMAXPROCS(0) != 4 {
-		t.Fatal("requires GOMAXPROCS=4")
+		fail("requires GOMAXPROCS=4")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
+	phase = "model_load"
+	record(map[string]any{"event": "phase", "phase": phase})
 	m, plan, err := loadHFModelFormat(ctx, dir, 1024, 8192, "q4-mixed")
 	if err != nil {
-		t.Fatal(err)
+		fail(err)
 	}
 	m16 := kv16ModelView(m, "bf16")
 	tok, err := loadHFTokenizer(dir, *m.hf)
 	if err != nil {
-		t.Fatal(err)
+		fail(err)
 	}
 	var corpus struct {
 		Documents []struct {
@@ -97,10 +120,10 @@ func TestHFCache16Quality(t *testing.T) {
 	}
 	raw, err := os.ReadFile(os.Getenv("MONOLITH_KV16_CORPUS"))
 	if err != nil {
-		t.Fatal(err)
+		fail(err)
 	}
 	if err = json.Unmarshal(raw, &corpus); err != nil || len(corpus.Documents) != 6 {
-		t.Fatal("six documents required", err)
+		fail("six documents required", err)
 	}
 	e := newKernelExecutor(4)
 	defer e.close()
@@ -109,10 +132,12 @@ func TestHFCache16Quality(t *testing.T) {
 	for _, doc := range corpus.Documents {
 		ids, err := tok.encodePrompt(ctx, doc.Text, 1024)
 		if err != nil || len(ids) < 2 {
-			t.Fatal(doc.ID, err)
+			fail(doc.ID, err)
 		}
 		a, b := m.NewCache(), m16.NewCache()
 		for i := 0; i < min(48, len(ids)-1); i++ {
+			phase = fmt.Sprintf("teacher_force/%s/%d", doc.ID, i)
+			record(map[string]any{"event": "phase", "phase": phase})
 			var x, y []float32
 			forward := func(which int) {
 				var er error
@@ -122,16 +147,18 @@ func TestHFCache16Quality(t *testing.T) {
 					y, er = m16.prefillBorrowed(ctx, []*KVCache{b}, [][]int{{ids[i]}}, e, &w1)
 				}
 				if er != nil {
-					t.Fatal(er)
+					fail(er)
 				}
 			}
 			forward(i % 2)
 			forward(1 - i%2)
 			kl, na, nb, err := kv16Metrics(x, y, ids[i+1])
 			if err != nil {
-				t.Fatal(err)
+				fail(err)
 			}
-			rows = append(rows, kv16QualityRow{doc.ID, i, ids[i+1], kl, na, nb})
+			row := kv16QualityRow{doc.ID, i, ids[i+1], kl, na, nb}
+			rows = append(rows, row)
+			record(map[string]any{"event": "quality_row", "row": row})
 		}
 		a.Close()
 		b.Close()
@@ -144,10 +171,10 @@ func TestHFCache16Quality(t *testing.T) {
 	}
 	raw, err = os.ReadFile(os.Getenv("MONOLITH_KV16_PROMPTS"))
 	if err != nil {
-		t.Fatal(err)
+		fail(err)
 	}
 	if err = json.Unmarshal(raw, &prompts); err != nil || len(prompts.Questions) != 2 {
-		t.Fatal("two questions required", err)
+		fail("two questions required", err)
 	}
 	texts := []string{}
 	for _, doc := range corpus.Documents {
@@ -157,21 +184,21 @@ func TestHFCache16Quality(t *testing.T) {
 	for repeat := 1; repeat <= 16; repeat++ {
 		prefix, err = tok.encodePrompt(ctx, strings.Repeat(strings.Join(texts, "\n")+"\n", repeat), 1024)
 		if err != nil {
-			t.Fatal(err)
+			fail(err)
 		}
 		if len(prefix) >= 384 {
 			break
 		}
 	}
 	if len(prefix) < 384 {
-		t.Fatal("prefix too short")
+		fail("prefix too short")
 	}
 	prefix = prefix[:384]
 	long := []kv16LongResult{}
 	for qi, q := range prompts.Questions {
 		ids := append(append([]int(nil), prefix...), tok.Encode(q.Question, false, false)...)
 		if len(ids)+128 > 1024 {
-			t.Fatal("long context overflow")
+			fail("long context overflow")
 		}
 		for order := 0; order < 2; order++ {
 			format := "f32"
@@ -182,31 +209,36 @@ func TestHFCache16Quality(t *testing.T) {
 				model = m16
 				w = &w1
 			}
+			phase = fmt.Sprintf("long/%s/%s/prefill", q.ID, format)
+			record(map[string]any{"event": "long_start", "phase": phase, "id": q.ID, "format": format, "prompt_ids": ids})
 			cache := model.NewCache()
 			var logits []float32
 			started := time.Now()
 			for lo := 0; lo < len(ids); lo += 16 {
 				logits, err = model.prefillBorrowed(ctx, []*KVCache{cache}, [][]int{ids[lo:min(lo+16, len(ids))]}, e, w)
 				if err != nil {
-					t.Fatal(err)
+					fail(err)
 				}
 			}
 			output := make([]int, 0, 128)
 			for step := 0; step < 128; step++ {
+				phase = fmt.Sprintf("long/%s/%s/token/%d", q.ID, format, step)
+				record(map[string]any{"event": "phase", "phase": phase})
 				best := 0
 				for j, v := range logits {
 					if !finite(float64(v)) {
-						t.Fatal("nonfinite generation")
+						fail("nonfinite generation")
 					}
 					if v > logits[best] {
 						best = j
 					}
 				}
 				output = append(output, best)
+				record(map[string]any{"event": "token", "id": q.ID, "format": format, "step": step, "token_id": best, "partial_text": tok.Decode(output)})
 				if step < 127 {
 					logits, err = model.prefillBorrowed(ctx, []*KVCache{cache}, [][]int{{best}}, e, w)
 					if err != nil {
-						t.Fatal(err)
+						fail(err)
 					}
 				}
 			}
@@ -214,9 +246,30 @@ func TestHFCache16Quality(t *testing.T) {
 			for _, page := range cache.Pages {
 				bytes += len(page.Data)*4 + len(page.BF16)*2
 			}
-			long = append(long, kv16LongResult{q.ID, format, ids, output, tok.Decode(output), time.Since(started).Seconds(), bytes})
+			item := kv16LongResult{q.ID, format, ids, output, tok.Decode(output), time.Since(started).Seconds(), bytes}
+			long = append(long, item)
+			record(map[string]any{"event": "long_complete", "result": item})
 			cache.Close()
 		}
+	}
+	phase = "aggregation"
+	type docMean struct {
+		Rows         int     `json:"rows"`
+		MeanKL       float64 `json:"mean_kl"`
+		MeanNLLDelta float64 `json:"mean_nll_increase"`
+	}
+	documents := map[string]docMean{}
+	for _, r := range rows {
+		d := documents[r.Document]
+		d.Rows++
+		d.MeanKL += r.KL
+		d.MeanNLLDelta += r.BF16NLL - r.F32NLL
+		documents[r.Document] = d
+	}
+	for name, d := range documents {
+		d.MeanKL /= float64(d.Rows)
+		d.MeanNLLDelta /= float64(d.Rows)
+		documents[name] = d
 	}
 	meanKL, delta := 0., 0.
 	ks := make([]float64, len(rows))
@@ -230,18 +283,19 @@ func TestHFCache16Quality(t *testing.T) {
 	sort.Float64s(ks)
 	p95 := ks[int(math.Ceil(.95*float64(len(ks))))-1]
 	gates := map[string]bool{"mean_kl": meanKL <= .001, "p95_kl": p95 <= .005, "mean_nll_increase": delta <= .01}
-	result := map[string]any{"format": "monolith-kv16-quality-v1", "plan": plan, "context": 1024, "workers": 4, "rows": rows, "mean_kl": meanKL, "p95_kl": p95, "mean_nll_increase": delta, "numerical_gates": gates, "long_answers": long, "long_answer_review": "pending", "note": "One immutable weight set. No RSS-halving or timing improvement claim. Fixed-step continuations include EOS."}
+	result := map[string]any{"format": "monolith-kv16-quality-v1", "plan": plan, "context": 1024, "workers": 4, "rows": rows, "documents": documents, "mean_kl": meanKL, "p95_kl": p95, "mean_nll_increase": delta, "numerical_gates": gates, "long_answers": long, "long_answer_review": "pending", "note": "One immutable weight set. No RSS-halving or timing improvement claim. Fixed-step continuations include EOS."}
 	out, err := os.OpenFile(os.Getenv("MONOLITH_KV16_OUTPUT"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		t.Fatal(err)
+		fail(err)
 	}
 	enc := json.NewEncoder(out)
 	enc.SetIndent("", "  ")
 	err = enc.Encode(result)
 	closeErr := out.Close()
 	if err != nil || closeErr != nil {
-		t.Fatal(err, closeErr)
+		fail(err, closeErr)
 	}
+	record(map[string]any{"event": "complete", "numerical_gates": gates})
 	// Keep the completed receipt even when gates fail.
 	for name, pass := range gates {
 		if !pass {

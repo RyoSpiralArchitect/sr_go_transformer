@@ -58,10 +58,12 @@ def main():
     unchanged = unchanged and sha(binary) == binary_hash
     unchanged = unchanged and all(sha(model/n)==v for n,v in source['files'].items())
     report = json.loads((output/'quality.json').read_text()) if (output/'quality.json').exists() else None
+    progress_path = output/'quality.json.progress.jsonl'
+    progress = dict(path=progress_path.name, sha256=sha(progress_path)) if progress_path.exists() else None
     receipt = dict(format='monolith-kv16-screen-receipt-v1',model=source['repo'],revision=source['revision'],
         files=source['files'],inputs_sha256=hashes,binary_sha256=binary_hash,identities_unchanged=unchanged,
         go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),
-        failure=failure,report=report,resources=json.loads((output/'resources.json').read_text()),
+        failure=failure,report=report,progress=progress,resources=json.loads((output/'resources.json').read_text()),
         note='Long-answer review remains separate from numerical gates. All first results retained.')
     with (output/'receipt.json').open('x') as f:
         json.dump(receipt,f,indent=2,ensure_ascii=False,allow_nan=False);f.write('\n')
