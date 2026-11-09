@@ -7,5 +7,49 @@
     "target_single_decode_ratio_max": 0.95,
     "control_prefill_and_two_session_ratio_max": 1.05
   },
-  "scope": "Existing local Mistral-7B-v0.3 Q4-mixed; no new downloads. Record all trials, investigate instability instead of retrying for green. Microbenchmarks alone cannot authorize adoption."
+  "scope": "Existing local Mistral-7B-v0.3 Q4-mixed; no new downloads. Record all trials, investigate instability instead of retrying for green. Microbenchmarks alone cannot authorize adoption.",
+  "execution": {
+    "driver": "python3 -S scripts/compare_inference.py --model PATH_TO_PINNED_MISTRAL --id mistral-7b-v03 --baseline-ref aeb74a5bedf54b14921374b8894e72638da456c4 --weight-format q4-mixed --case-order balanced --output-dir NEW_DIRECTORY",
+    "repeat": 2,
+    "process_order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "case_orders": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "threads": 4,
+    "workers": 4,
+    "context": 128,
+    "prefix_tokens_per_session": 8,
+    "decode_calls": 7,
+    "warmups_per_case": 1,
+    "measured_trials_per_case_per_process": 3,
+    "aggregation": "For each independent ABBA repeat and each session count, divide candidate median over all six trials by baseline median over all six trials. Decode metric is seven-call sum; prefill is initial forward. Both repeats must satisfy target and all control thresholds.",
+    "inputs_sha256": {
+      "cmd/monolith/monolith.go": "34393b6176efbb90f6f17f3673d04a8985393f513dc6b315416a86d326b18126",
+      "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+      "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+      "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+      "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490"
+    }
+  },
+  "pilot_limit": "Archived microbench always runs baseline first. Its ratios are exploratory, not adoption evidence; the real-model comparisons counterbalance process and case order."
 }
