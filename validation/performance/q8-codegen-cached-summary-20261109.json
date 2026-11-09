@@ -1,0 +1,321 @@
+{
+  "protocol": "q8-codegen-same-binary-kernel-v1",
+  "scope": "Kernel probes only, not generation. Cold probe/callback construction excluded. See selection receipt for process order, GOMAXPROCS and attribution limitations.",
+  "binary": "runs/q8-codegen-cached-probes-20261109.test",
+  "binary_sha256": "5262d6d5cd1700ec9d235513476ccef1ab09beeb5db977e0c5c0b0521746844e",
+  "probe_patch": "validation/performance/q8-codegen-cached-probe-20261109.patch",
+  "probe_patch_sha256": "9c938e60143b4647cdb7be03a54efcf81cc374ee540176cb8c9c7aef12e9fc4c",
+  "raw_file_sha256": {
+    "q8-codegen-cached-kernel-20261109-run1.txt": "e128ff4b30bea0ef4c9341a497ef93e5d082c34327ad4a549fc28256c1ba7777",
+    "q8-codegen-cached-kernel-20261109-run2.txt": "e481f1502fc5f105d7021c4b9e6d2ab33b0b7207be731ea4b1c64f86df61a6c0",
+    "q8-codegen-cached-kernel-20261109-run3.txt": "11b5b98705d245c922bd1b637f3a44975581aa58b5f39dc4f883d63d7d080945"
+  },
+  "cases": {
+    "BenchmarkQ8CodegenProbe/workers1/rows1": {
+      "baseline": [
+        {
+          "ns": 206543.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 206218.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 208138.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 205624.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 206440.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 206945.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        0.9955505633209549,
+        1.0010765306617269,
+        0.9942682258885931
+      ],
+      "median_ratio": 0.9955505633209549
+    },
+    "BenchmarkQ8CodegenProbe/workers1/rows3": {
+      "baseline": [
+        {
+          "ns": 438690.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 442356.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 442839.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 440241.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 442981.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 443662.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        1.0035355262258085,
+        1.001412889166192,
+        1.0018584632338163
+      ],
+      "median_ratio": 1.0018584632338163
+    },
+    "BenchmarkQ8CodegenProbe/workers1/rows4": {
+      "baseline": [
+        {
+          "ns": 655945.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 664596.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 664706.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 657199.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 665778.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 667432.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        1.0019117456494067,
+        1.0017785240958417,
+        1.004101061221051
+      ],
+      "median_ratio": 1.0019117456494067
+    },
+    "BenchmarkQ8CodegenProbe/workers4/rows1": {
+      "baseline": [
+        {
+          "ns": 75525.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 78037.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 76191.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 75791.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 77594.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 75569.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        1.0035220125786164,
+        0.9943232056588541,
+        0.9918363061253954
+      ],
+      "median_ratio": 0.9943232056588541
+    },
+    "BenchmarkQ8CodegenProbe/workers4/rows3": {
+      "baseline": [
+        {
+          "ns": 142763.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 143260.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 143310.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 143259.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 143635.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 143487.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        1.0034742895568178,
+        1.002617618316348,
+        1.0012350847812435
+      ],
+      "median_ratio": 1.002617618316348
+    },
+    "BenchmarkQ8CodegenProbe/workers4/rows4": {
+      "baseline": [
+        {
+          "ns": 209253.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 202090.0,
+          "bytes": 112,
+          "allocs": 1
+        },
+        {
+          "ns": 199495.0,
+          "bytes": 112,
+          "allocs": 1
+        }
+      ],
+      "persistent": [
+        {
+          "ns": 197574.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 198259.0,
+          "bytes": 0,
+          "allocs": 0
+        },
+        {
+          "ns": 255557.0,
+          "bytes": 0,
+          "allocs": 0
+        }
+      ],
+      "ratios": [
+        0.9441871801121131,
+        0.9810430996090851,
+        1.2810195744254242
+      ],
+      "median_ratio": 0.9810430996090851
+    }
+  },
+  "assembly": {
+    "validation/performance/q8-codegen-before-20261109.asm": {
+      "sha256": "2518438bd19a228bdb8c265a90ae652289d03fcf563973760cf01339c293ccb2",
+      "frame_bytes": 304,
+      "panic_bounds_call_sites": 54,
+      "scalar_loop": {
+        "start": "0x10040c13c",
+        "backedge": "0x10040c1b4",
+        "static_instructions": 31,
+        "stack_loads": []
+      },
+      "scope": "Static disassembly only; not retired instruction counts, hardware counters or a causal timing estimate."
+    },
+    "validation/performance/q8-codegen-rejected-20261109.asm": {
+      "sha256": "0ec3610b8dd0f165effa35f0e25c379ce9b99af957c46ada480248a82b35a168",
+      "frame_bytes": 304,
+      "panic_bounds_call_sites": 54,
+      "scalar_loop": {
+        "start": "0x100336398",
+        "backedge": "0x100336414",
+        "static_instructions": 32,
+        "stack_loads": [
+          "MOVD 120(RSP), R10"
+        ]
+      },
+      "scope": "Static disassembly only; not retired instruction counts, hardware counters or a causal timing estimate."
+    },
+    "validation/performance/q8-codegen-compact-20261109.asm": {
+      "sha256": "37f9272818a8b9676fda66829f818ff9352bb7efc0642ac8dcbba0350ea33d5a",
+      "frame_bytes": 304,
+      "panic_bounds_call_sites": 54,
+      "scalar_loop": {
+        "start": "0x100444e3c",
+        "backedge": "0x100444eb8",
+        "static_instructions": 32,
+        "stack_loads": [
+          "MOVD 120(RSP), R11"
+        ]
+      },
+      "scope": "Static disassembly only; not retired instruction counts, hardware counters or a causal timing estimate."
+    },
+    "validation/performance/q8-codegen-cached-20261109.asm": {
+      "sha256": "8ef6ed875f4305ba3ac332bd03f72047d2d9e26f329a00b021d2624841c5c61c",
+      "frame_bytes": 304,
+      "panic_bounds_call_sites": 54,
+      "scalar_loop": {
+        "start": "0x100444e40",
+        "backedge": "0x100444eb8",
+        "static_instructions": 31,
+        "stack_loads": []
+      },
+      "scope": "Static disassembly only; not retired instruction counts, hardware counters or a causal timing estimate."
+    }
+  }
+}

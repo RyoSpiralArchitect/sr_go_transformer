@@ -1,0 +1,124 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v2",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "prefix": "q8-cached-remeasure-precontrol",
+  "declared_source_sha256": {
+    "before": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "after": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08"
+  },
+  "source_provenance": "Source identities are supplied from the build record; binary hashes are recomputed. Reading today's working tree does not establish the source of a historical executable.",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 1s per leaf, count1, whole generation; worker count asserted inside leaf; 2 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. Control interpretation depends on the selected change; see selection receipt. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/q4-refined-20261109.test": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47"
+  },
+  "raw_file_sha256": {
+    "q8-cached-remeasure-precontrol-generation-before-20261109-run1.txt": "9b10cd32ab082f3264e1bd4dd1da3e3ad6b867cce741e56f858149bcc3a6d628",
+    "q8-cached-remeasure-precontrol-generation-after-20261109-run1.txt": "7bfb43ceb1b0f21e03561fa7aa9fea4799e73990517fb3cbc8989b6aedf41a72",
+    "q8-cached-remeasure-precontrol-generation-before-20261109-run2.txt": "e245b66baee802b0d67ff8f8a3e5d81e5fc88a0b8837365921416b8a549196cc",
+    "q8-cached-remeasure-precontrol-generation-after-20261109-run2.txt": "47e91e4780a025bfab66073ea37f333bd95abec629f964cd956272fbe8f4aa3f",
+    "q8-cached-remeasure-precontrol-generation-before-20261109-run3.txt": "82a7840ca1474b0a577f492f3047811cfe66c891e9a300363ad0fe0241d4eafe",
+    "q8-cached-remeasure-precontrol-generation-after-20261109-run3.txt": "a1418ab2037386643aaea27022bac494dfb148a34263ed12e7c59cba1c3dc4e8"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 55333769.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 95186983.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 92879510.0,
+          "bytes": 554985,
+          "allocs": 1084
+        }
+      ],
+      "after": [
+        {
+          "ns": 96292410.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 96023205.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 55651048.0,
+          "bytes": 554984,
+          "allocs": 1084
+        }
+      ],
+      "ratios": [
+        1.7402105755709503,
+        1.008785045745173,
+        0.5991746511151922
+      ],
+      "median_process_ratio": 1.008785045745173
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 69006508.0,
+          "bytes": 554964,
+          "allocs": 1092
+        },
+        {
+          "ns": 71442388.0,
+          "bytes": 554891,
+          "allocs": 1091
+        },
+        {
+          "ns": 70986536.0,
+          "bytes": 554952,
+          "allocs": 1091
+        }
+      ],
+      "after": [
+        {
+          "ns": 71264247.0,
+          "bytes": 554881,
+          "allocs": 1091
+        },
+        {
+          "ns": 71241479.0,
+          "bytes": 554903,
+          "allocs": 1091
+        },
+        {
+          "ns": 63893243.0,
+          "bytes": 554906,
+          "allocs": 1091
+        }
+      ],
+      "ratios": [
+        1.0327177691704092,
+        0.9971878179659952,
+        0.9000755157287855
+      ],
+      "median_process_ratio": 0.9971878179659952
+    }
+  }
+}

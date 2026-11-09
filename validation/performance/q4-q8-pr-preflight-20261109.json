@@ -1,0 +1,15 @@
+{
+  "scope": "Production Q4 invocation/callback reuse, lazy FP32 callback and equivalent wide-sum predicate; experimental Q8 candidates and all retained comparisons remain evidence-only. No Q8 invocation reuse in production.",
+  "footprint": "On the measured64-bit targets, original main executor is112 bytes and proposed executor120 bytes (+8). The184-to120 reduction in q4-refined-selection compares two intermediate local Q4 candidates, not main. Q8 cached candidate160 bytes is not adopted.",
+  "performance": "Ordinary warm Q4 invocation allocations reduced from1 to0. No whole-generation speedup claim. Q8 timing adoption remains blocked by declared screens and unresolved confounders; unfavorable data retained.",
+  "first_fresh_review": "Read-only isolated reviewer f83327d2, no parent conversation history, standard project memory freeze/thaw (no matching files existed then). Production numerical/lifetime changes accepted; requested privacy, reproduction and CI corrections. Best-effort context separation, not a claim of perfect amnesia.",
+  "resolutions": [
+    "Host prestatus containing unrelated job details is local-only and explicitly ignored; not staged or published. Own benchmark counters and aggregate machine telemetry retained.",
+    "Added prepare_q8_furnace_bundle.py: reconstructs exact historical source from committed baseline blob plus pinned ancestor/candidate patch, emits fixture archive and patch, optionally rebuilds four pinned Linux binaries with Go1.27.3. Executed locally and all four hashes match historical build record. No dependence on pre-existing ignored build inputs.",
+    "Current observation scripts contain review fixes and intentionally differ from historical script bytes; their identities are recorded independently. Original model/raw run artifacts still required to audit that historical execution, and models must be supplied separately for reproduction.",
+    "GC metric presence required during parsing; before and after thread affinities checked; dead calibration-child broken pipes handled on write/flush/close. Regression tests added, including a real immediately-exiting child.",
+    "Native local full cmd/tools race tests and vet pass. Python -S unittest77 tests pass. All five isolated probe builds and CGO-disabled production build pass. Go1.22/Linux and stable Linux/macOS CI must pass on exact final PR head before merge."
+  ],
+  "whitespace": "Code-only git diff --check passes. Archived objdump/patch files preserve original whitespace and hashes; do not reformat evidence solely to satisfy generic whitespace checks.",
+  "remaining": "Final fresh review and hosted CI before merge. No force-push, admin bypass, security-policy adjustment or unrelated workload termination. After merge, separately declare GC/utilization/frequency-temperature diagnostics."
+}

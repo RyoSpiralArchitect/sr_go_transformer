@@ -1,0 +1,25 @@
+{
+  "compiler": "go1.27.3 darwin/arm64 cross-compiling linux/amd64",
+  "flags": {"GOOS": "linux", "GOARCH": "amd64", "GOAMD64": "v1", "CGO_ENABLED": "0", "trimpath": true},
+  "ancestor": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "source_sha256": {"before": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08", "after": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e"},
+  "binaries": {
+    "before": ["furnace-before-20261109", "e41c0d285be280015c889b0982cc5074c6343c396d112954a6b72a922a909a6e"],
+    "after": ["furnace-after-20261109", "d2c70ef2601d950da83101359564a7d7b4173b3559bd696d80367e3b400fa421"]
+  },
+  "test_binaries": {
+    "before": ["furnace-before-20261109.test", "0ad656e8f0c6e83cf36d4a0339b08a7dbd720c729d2bae670a117ff405f4ee83"],
+    "after": ["furnace-after-20261109.test", "78b257ba823b0dbb89d0af3c7550dcfb5ecc32d6e269a233fc2dc25b2c8affca"]
+  },
+  "model_assets": {
+    "config.json": "39fb36dc5416f445ebc4e71cb71fbcf6727e80a35836d8ba1a1474c318467b7a",
+    "generation.json": "88effbb63300dbbc7390143fbbdd9d9fa50587b37e8bfd16c8c90d4970a74a36",
+    "model.safetensors.index.json": "0a57c30afc07c81610ae7fe013bea3b9d50365f9a8145ae98e8714220f3d7c7c",
+    "special_tokens_map.json": "6f38c73729248f6c127296386e3cdde96e254636cc58b4169d3fd32328d9a8ec",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "tokenizer_config.json": "9823dcfdc1121869029da45192238e85cf44f0b232a6d9dc20e4fe6f4242a14e",
+    "model-00001-of-00002.safetensors": "13cbd6d16e927a0c5bad54102514e6e18b4a47b3a6eb911e39d678d328d19f55",
+    "model-00002-of-00002.safetensors": "7b770216613ac5c34d7c54bdff1fa616bc4e338a9d0b20af6303e48c295ee23c"
+  },
+  "scope": "Reconstructed exact runtime sources in two new detached local worktrees; no edits to original production worktree. Both normal test binaries include identical post_singleexp_profile_test.go benchmark source; candidate includes held regression tests. Cross-compiled tests do not include race instrumentation. Remote job receives binaries/artifacts only, not another user's checkout."
+}

@@ -1,0 +1,61 @@
+{
+  "receipt": "q8-observed-selection-20261109",
+  "status": "Integration blocked: both preregistered stability screens failed. Candidate not applied, committed, pushed or merged.",
+  "gate_record": "q8-observed-gates-20261109.json",
+  "calibration": "q8-observed-calibration-20261109.json",
+  "first_pilot": "q8-observed-evaluation-20261109.json",
+  "extended_warmup": "q8-observed-warm8-evaluation-20261109.json",
+  "binaries": {
+    "baseline": "runs/q4-refined-20261109",
+    "baseline_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+    "candidate": "runs/q8-cached-invocation-20261109",
+    "candidate_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+    "provenance": "Frozen historical binaries reused, identity checked at every server start. No build or production source application. Candidate patch/source identities remain in q8-cached-resident-selection-20261109.json."
+  },
+  "method": {
+    "model": "Local Llama-3.2-3B-Instruct, Q8,11 prompt tokens,32 completion tokens, temperature0, threads4, kernel-workers4, prefix cache off; same serving flags as the resident protocol.",
+    "pilot": "ABBA fresh server order; one32-token warmup then three measured requests per server.16 total responses.",
+    "followup": "Exactly one bounded ABBA followup: eight warmups then three measured32-token requests per server.44 total responses. No change to stability thresholds or post-selection of requests.",
+    "counters": "scripts/darwin_process_usage.c compiled with cc -O2 -Wall -Wextra -Werror to runs/darwin-process-usage-20261109. Official SDK RUSAGE_INFO_V6 and libproc APIs, only own benchmark PIDs. Per-request before/after snapshots added through optional --usage-helper. Python scripts/darwin_usage.py preserves raw fields and derives diagnostic ratios; evaluator verifies raw hashes, responses and counter arithmetic.",
+    "time_units": "CPU times are Mach ticks, not nanoseconds. mach_timebase_info returns125/3. Converted CPU time independently calibrated against a controlled child's process_time_ns: ratio1.0000977494135037. Hardware cycles/instructions remain raw counters.",
+    "scope": "OS counter snapshots bracket the HTTP interval but are not exactly coextensive: helper invocation/return and a small amount of server housekeeping can fall inside the counter interval. Helper CPU is charged to a separate process. Neither helper invocation nor metrics scrape is included in HTTP wall time. CPU time is aggregate across server threads, not model-only CPU time.",
+    "interpretation": "P-only accounting is mapped by XNU task_power_info_locked/recount performance-kind accounting. No affinity or clock guarantee. cycles_per_cpu_ns is an aggregate rate proxy, not direct frequency. Do not normalize wall time by this proxy to claim a speedup."
+  },
+  "results": {
+    "pilot_mean_wall_seconds_ABBA": [10.061485902666666, 10.4835835, 10.724481055333333, 10.877300514333333],
+    "pilot_candidate_over_baseline_pair_ratios": [1.0419518152106602, 0.985950607984157],
+    "pilot_same_baseline_late_over_early": 1.0810829155413761,
+    "pilot_failed_screen": "Baseline late/early mean drift exceeds3%; no other screen failure recorded.",
+    "warm8_mean_wall_seconds_ABBA": [11.038936819333333, 11.410358236333334, 11.659481722333334, 11.796122639],
+    "warm8_candidate_over_baseline_pair_ratios": [1.0336464845373063, 0.988416455063386],
+    "warm8_same_baseline_late_over_early": 1.068592277685705,
+    "warm8_failed_screens": ["Baseline late/early mean drift exceeds3%", "GC activity differs across measured requests"],
+    "selection": "Every measured request retained. Warmups excluded only by the declared protocol. Opposite-sign candidate comparisons and same-code drift prevent a timing-based adoption claim. Neither batch authorizes64-token confirmation or production changes. No further repeat-until-pass timing in this session."
+  },
+  "confound_narrowing": {
+    "observed": "Instruction/work counts are stable enough to pass the1% same-code screen. P-core-side CPU time fractions remain approximately99.4%-99.9%. Measured page-ins and disk-read deltas are zero. Recorded mean CPU parallelism is around3.8. Thus loading/I/O and major P/E placement changes are not supported as explanations for these two batches; this does not retroactively diagnose older unobserved batches.",
+    "rate_drift": "First pilot cycles/CPU-ns proxy moves from3.5708 in the first baseline measured request to3.1755 in the final baseline request. Extended warmup moves from3.1636 to2.9381. This tracks increasing CPU/wall time for similar reported instructions/cycles and motivates direct frequency/thermal observation, but is not proof of thermal throttling or measured core frequency.",
+    "gc": "First pilot measured GC deltas are uniform and pass the declared activity screen. In warm8 one early baseline request has a GC cycle and0.000064042 seconds of recorded pause; others differ. Pause duration alone is not the observed wall drift, but concurrent-GC effects have not been traced and are not ruled out. No samples removed because of GC."
+  },
+  "correctness": {
+    "response_sha256": "820ee96f29fc363a5c2ee60f2af6d029b0985039c6b64ce4dff477948999d107",
+    "check": "All responses within each batch byte-identical, including warmups; complete structured text/token IDs checked.32 actual completion IDs and finish_reason=length throughout. Cross-batch reference files also compare byte-identical.",
+    "model_manifests": ["q8-observed-assets-20261109.sha256", "q8-observed-assets-after-20261109.sha256", "q8-observed-warm8-assets-after-20261109.sha256"],
+    "assets": "All six JSON files and two safetensors shards hashed before first pilot, after first pilot and after extended warmup; manifests compare byte-identical.",
+    "shutdown": "All eight owned servers exit status0 after idle/resource checks; no simultaneous model copies or surviving benchmark endpoints."
+  },
+  "artifacts": {
+    "raw": ["runs/q8-observed-resident-20261109", "runs/q8-observed-warm8-20261109"],
+    "console": "q8-observed-warm8-console-20261109.jsonl",
+    "integrity": "Raw root receipts hash per-leg protocol, exact argv, readiness, metrics, responses, timings and shutdown records. Evaluation embeds validated resident summary and raw-root SHA-256, retains all measured per-request diagnostic values, and records evaluator/driver/helper/module identities. Raw runs and binaries are local ignored artifacts; external reproduction needs those artifacts and the pinned model."
+  },
+  "verification": {
+    "python": "72 tests,498 subtests passed after final changes. New cases cover Mach conversion, invalid counters/identity, stability screens and preservation of unfavorable/GC samples. C helper compiled warning-free; live CPU-time calibration succeeded.",
+    "production": "Runtime remains refined Q4 SHA-256 ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08. No production or Go test edits, no Go rebuild, no configuration/security changes. No new performance claim from prior allocation evidence."
+  },
+  "blocker_and_next_action": {
+    "attempt": "powermetrics --samplers cpu_power,thermal -i1000 -n1 attempted without privilege. Exit1: powermetrics must be invoked as the superuser. Help confirms cpu_power/thermal samplers are supported; no privileged command executed.",
+    "required": "User-operated bounded read-only powermetrics collection during a separately declared diagnostic run, or access to a sufficiently stable measurement environment. CPU/power/thermal observation only; no tasks/process-name sampling, settings change or unrelated-process termination. Await permission/user operation before any further timing.",
+    "integration": "Keep production application pending. Only after execution-condition stability is established should the declared64-token confirmation, FP32/Q4/prefill controls, source/race/compatibility tests and adoption review proceed. Do not treat this blocked task as completed."
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-cached-remeasure-selection-20261109",
+  "prior_record": "q8-codegen-selection-20261109.json",
+  "decision": "The later confirmation window supports approximately neutral Q8 decode timing with substantially fewer allocations; the previous5-6% slowdown was not reproduced in that limited window. No speedup or universal no-regression claim. Keep the preserved candidate available for adoption review, but do not change production in this measurement-only round. Earlier unstable data remain part of the record.",
+  "identities": {
+    "baseline_binary": "runs/q4-refined-20261109.test",
+    "baseline_binary_sha256": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47",
+    "baseline_declared_runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "candidate_binary": "runs/q8-cached-invocation-final-20261109.test",
+    "candidate_binary_sha256": "e70a870a23408809bc95fc6d48c46ccf00eb8e1f92c57b167a5b8ca3558e382a",
+    "candidate_declared_runtime_sha256": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e",
+    "candidate_patch": "q8-cached-invocation-candidate-20261109.patch",
+    "candidate_patch_sha256": "daacf87ff742002cb1b661a86fe6f659fdc33dd0a4a7b45c0ff2b46c40d002a4",
+    "provenance": "Existing executables reused without rebuilding; hashes checked against the prior receipt. Historical runtime identities come from build records and the retained patch, not today's working tree. Current production remains the baseline runtime."
+  },
+  "environment": {
+    "platform": "darwin/arm64",
+    "cpu": "Apple M4",
+    "binary_toolchain_from_build_record": "go1.27.3",
+    "initial_observation_utc": "2026-11-09T02:20:39Z",
+    "initial_load_averages": [1.42, 1.50, 1.92],
+    "pmset_observation": "No thermal warning level, performance warning level or CPU power status had been recorded. This is not evidence of stable frequency, power, thermal conditions or core residency.",
+    "limits": "No CPU-core pinning or hardware counters; other host activity and memory bandwidth were not controlled. No other owned model, build, race or heavy validation jobs ran during timing. Small metadata/parser commands did run. No system-wide settings or other processes were modified."
+  },
+  "protocol": {
+    "workload": "Existing BenchmarkPostSingleExpGeneration, deterministic synthetic model, prefix33/tokens128; workers1 and4, formatsf32/q8/q4. Harness asserts planned workers and sets GOMAXPROCS inside each leaf. No fresh real-model measurement, prefill sweep or short-decode sweep in this round.",
+    "stage1": "Default-policy same-binary baseline/baseline screen: three fresh-process label pairs, two Q8 worker leaves per process,1s leaves; label order alternates before-after, after-before, before-after.",
+    "stage2": "Diagnostic same-binary screen with taskpolicy -b applied only to child benchmark processes, otherwise stage1 settings. Background scheduling is a separate experimental condition, not core affinity or an equivalent production condition; these results are not pooled with default-policy results. Policies end with each process.",
+    "stage3": "Default-policy fixed-work candidate comparison: one leaf per fresh process,32 timed generations per leaf (-test.benchtime=32x), count1; three pairs per format/worker case. Within a case, before-after order on odd blocks and after-before on even blocks. Format order rotates [f32,q8,q4], [q8,q4,f32], [q4,f32,q8]; worker order is [1,4], [4,1], [1,4]. Baseline and candidate for each case run adjacently.",
+    "stage4": "Default-policy fixed-work same-binary control: one Q8 worker leaf per fresh process,32x, three pairs per worker count, same alternating label and worker orders as stage3.",
+    "stage5": "After stage4 showed lower variation, an explicitly adaptive confirmation repeats stage3 unchanged. Earlier samples were not deleted, filtered or pooled away; this window was selected based on observed controls, not preregistered as an independent validation set.",
+    "stage6": "Immediately after confirmation, repeat stage4 as a post-control.",
+    "inference": "Ratios compare independently timed ns/op estimates, even with matched fixed iteration counts; they are not matched request timings. Three blocks per condition, no confidence interval or statistical equivalence test. Bracketing controls provide context, not a correction to subtract from candidate ratios."
+  },
+  "screens": {
+    "default_control_q8_workers1_ratios": [1.7402105755709503, 1.008785045745173, 0.5991746511151922],
+    "default_control_q8_workers4_ratios": [1.0327177691704092, 0.9971878179659952, 0.9000755157287855],
+    "background_control_q8_workers1_ratios": [0.8993709893640812, 0.9427113755238247, 0.9749854508808775],
+    "background_control_q8_workers4_ratios": [1.0104996099775987, 1.0588355421942222, 0.9866161714105929],
+    "interpretation": "Initial default screen remains unstable; background policy did not provide sufficiently stable controls. The cause of variation is not established. Near-one medians alone would conceal these swings."
+  },
+  "first_fixed_work_pass": {
+    "median_candidate_over_baseline": {
+      "f32_workers1": 0.9933961558485636,
+      "f32_workers4": 1.070937804892171,
+      "q8_workers1": 1.008034195912126,
+      "q8_workers4": 1.000819002592168,
+      "q4_workers1": 0.9781730036430845,
+      "q4_workers4": 1.003813396164658
+    },
+    "interpretation": "Still variable: individual ratios include1.619 for FP32 workers1 and0.679 for Q8 workers4. Do not treat these medians as an adoption result.",
+    "following_control_workers1_ratios": [1.031336147083481, 1.0020368985739818, 1.0067861131658884],
+    "following_control_workers4_ratios": [1.0003549301301615, 0.9967138520554757, 1.008414833285337],
+    "following_control_medians": {"workers1": 1.0067861131658884, "workers4": 1.0003549301301615}
+  },
+  "confirmation": {
+    "median_candidate_over_baseline": {
+      "f32_workers1": 0.9922598987702542,
+      "f32_workers4": 0.9992306868866189,
+      "q8_workers1": 0.9914639788204698,
+      "q8_workers4": 0.9966114839816219,
+      "q4_workers1": 0.9978273129971272,
+      "q4_workers4": 0.9739167439016505
+    },
+    "q8_workers1_ratios": [0.978228724232163, 0.9914639788204698, 0.9969929959576945],
+    "q8_workers4_ratios": [1.0033380796292575, 0.9966114839816219, 0.9879386769675919],
+    "post_control_workers1_ratios": [1.0016195298200303, 1.0067830377169058, 0.9774901738213635],
+    "post_control_workers4_ratios": [1.0058749319312978, 0.9992331407596695, 0.9998313539327693],
+    "post_control_medians": {"workers1": 1.0016195298200303, "workers4": 0.9998313539327693},
+    "interpretation": "Q8 is approximately baseline-like in this later, less-variable default-policy window, without the previous5-6% penalty. The small favorable ratios are not proof of acceleration: FP32 workers1 also moves by about0.8%, and Q4 workers4 by about2.6%. FP32/Q4 arithmetic is unchanged but their shared descriptor footprint differs, so they are not strictly unchanged-runtime controls. Only the baseline/baseline runs are strict same-code controls. No guarantee for earlier unstable periods, other workloads, real models or other machines."
+  },
+  "allocation_confirmation": {
+    "q8_workers1": {"baseline_allocs": 1084, "candidate_allocs": 46, "baseline_bytes_approximately": 554984, "candidate_bytes_approximately": 438760},
+    "q8_workers4_confirmation": {"baseline_allocs": [1091, 1091, 1091], "candidate_allocs": [54, 54, 54]},
+    "scope": "Whole synthetic generation, including executor setup, rather than a warm-kernel allocation count. Low fixed iteration counts and scheduling can alter amortized worker-related counts. Prior warm-kernel zero-allocation evidence remains in the prior receipt; no new warm-kernel test or model output check was performed here.",
+    "retained_tradeoff": "Candidate executor struct160 bytes versus baseline120 on this architecture. This fixed-size increase is unchanged by remeasurement and is not RSS."
+  },
+  "summary_files": [
+    "q8-cached-remeasure-precontrol-20261109.json",
+    "q8-cached-remeasure-bgcontrol-20261109.json",
+    "q8-cached-remeasure-fixed-f32-w1-20261109.json",
+    "q8-cached-remeasure-fixed-f32-w4-20261109.json",
+    "q8-cached-remeasure-fixed-q8-w1-20261109.json",
+    "q8-cached-remeasure-fixed-q8-w4-20261109.json",
+    "q8-cached-remeasure-fixed-q4-w1-20261109.json",
+    "q8-cached-remeasure-fixed-q4-w4-20261109.json",
+    "q8-cached-remeasure-fixedcontrol-w1-20261109.json",
+    "q8-cached-remeasure-fixedcontrol-w4-20261109.json",
+    "q8-cached-remeasure-confirm-f32-w1-20261109.json",
+    "q8-cached-remeasure-confirm-f32-w4-20261109.json",
+    "q8-cached-remeasure-confirm-q8-w1-20261109.json",
+    "q8-cached-remeasure-confirm-q8-w4-20261109.json",
+    "q8-cached-remeasure-confirm-q4-w1-20261109.json",
+    "q8-cached-remeasure-confirm-q4-w4-20261109.json",
+    "q8-cached-remeasure-postcontrol-w1-20261109.json",
+    "q8-cached-remeasure-postcontrol-w4-20261109.json"
+  ],
+  "audit": {
+    "raw_samples": "All108 new benchmark stdout files retained. Each summary contains all samples, recomputed binary hashes, declared historical source identities and raw-file SHA-256. Previous records and raw files remain unchanged. Summary generation uses scripts/summarize_q4_invocation.py; for per-case prefixes, --cases 1 --runs 3 --benchtime 32x, baseline and candidate binary/source arguments as above; strict controls use the baseline identity for both labels. Initial screens use --cases 2 --benchtime 1s.",
+    "production": "No production source or test implementation changed. Current runtime remains ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08. Prior correctness/race/compatibility/model-output checks are referenced, not claimed as newly rerun. No rebuild, patch application, commit, push or PR."
+  }
+}

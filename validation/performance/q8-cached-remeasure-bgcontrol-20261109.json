@@ -1,0 +1,124 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v2",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "prefix": "q8-cached-remeasure-bgcontrol",
+  "declared_source_sha256": {
+    "before": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "after": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08"
+  },
+  "source_provenance": "Source identities are supplied from the build record; binary hashes are recomputed. Reading today's working tree does not establish the source of a historical executable.",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 1s per leaf, count1, whole generation; worker count asserted inside leaf; 2 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. Control interpretation depends on the selected change; see selection receipt. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/q4-refined-20261109.test": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47"
+  },
+  "raw_file_sha256": {
+    "q8-cached-remeasure-bgcontrol-generation-before-20261109-run1.txt": "5b527189ca1ed294b23ded2f3ea2f9075965f3f3a79acf776a1bebf9d338fb6a",
+    "q8-cached-remeasure-bgcontrol-generation-after-20261109-run1.txt": "4a93aabc06b26053966c657088438d82fe28ce00df48d45e186f67b3952e92b4",
+    "q8-cached-remeasure-bgcontrol-generation-before-20261109-run2.txt": "8a8c3a556ec95429214abd7364d4a2e0eee4500d20decf75ff1b7250f6a6a071",
+    "q8-cached-remeasure-bgcontrol-generation-after-20261109-run2.txt": "3099fd69290f61d2f615da728c676d90c9f20688204827b19b4e988492d74fb6",
+    "q8-cached-remeasure-bgcontrol-generation-before-20261109-run3.txt": "54939335ffbbed7aa519c036447367cf49fc0113c2d53facd09f3c32ce7c8b1e",
+    "q8-cached-remeasure-bgcontrol-generation-after-20261109-run3.txt": "2c91af7aa411148f892e97232a8a8009c425d2151c5dd1a41b0b8217e492e4eb"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 191472597.0,
+          "bytes": 554986,
+          "allocs": 1084
+        },
+        {
+          "ns": 183329729.0,
+          "bytes": 554986,
+          "allocs": 1084
+        },
+        {
+          "ns": 172407345.0,
+          "bytes": 554985,
+          "allocs": 1084
+        }
+      ],
+      "after": [
+        {
+          "ns": 172204899.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 172827021.0,
+          "bytes": 554986,
+          "allocs": 1084
+        },
+        {
+          "ns": 168094653.0,
+          "bytes": 554986,
+          "allocs": 1084
+        }
+      ],
+      "ratios": [
+        0.8993709893640812,
+        0.9427113755238247,
+        0.9749854508808775
+      ],
+      "median_process_ratio": 0.9427113755238247
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 121294315.0,
+          "bytes": 554835,
+          "allocs": 1090
+        },
+        {
+          "ns": 114221468.0,
+          "bytes": 554899,
+          "allocs": 1091
+        },
+        {
+          "ns": 121048995.0,
+          "bytes": 554888,
+          "allocs": 1091
+        }
+      ],
+      "after": [
+        {
+          "ns": 122567858.0,
+          "bytes": 555190,
+          "allocs": 1092
+        },
+        {
+          "ns": 120941750.0,
+          "bytes": 554915,
+          "allocs": 1091
+        },
+        {
+          "ns": 119428896.0,
+          "bytes": 555078,
+          "allocs": 1091
+        }
+      ],
+      "ratios": [
+        1.0104996099775987,
+        1.0588355421942222,
+        0.9866161714105929
+      ],
+      "median_process_ratio": 1.0104996099775987
+    }
+  }
+}

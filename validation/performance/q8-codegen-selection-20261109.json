@@ -1,0 +1,116 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-codegen-selection-20261109",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "decision": "Hold the cached-dimension Q8 reuse candidate, not adopted. An extra scalar-loop stack reload has been removed and ordinary warm allocations reach zero, but whole-generation timing is inconclusive in this session. Restore production to the prior refined Q4 source; retain all candidates, disassembly and samples for remeasurement.",
+  "environment": {"go": "go1.27.3", "platform": "darwin/arm64", "cpu": "Apple M4"},
+  "identities": {
+    "baseline_runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "baseline_test_binary": "runs/q4-refined-20261109.test",
+    "baseline_test_binary_sha256": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47",
+    "previous_rejected_runtime_sha256": "e3ce9786bd188fe714744473b9cae37e785fede30d41f07aa640aebaac562de8",
+    "previous_rejected_record": "q8-invocation-selection-20261109.json",
+    "held_runtime_sha256": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e",
+    "held_test_binary": "runs/q8-cached-invocation-final-20261109.test",
+    "held_test_binary_sha256": "e70a870a23408809bc95fc6d48c46ccf00eb8e1f92c57b167a5b8ca3558e382a",
+    "held_cli_binary": "runs/q8-cached-invocation-20261109",
+    "held_cli_binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+    "held_invocation_test_source_sha256": "7d127bdb7225b392c7be9e0b52d356f3c0c64de70ddc0ae071d5b2f82a5d89a4",
+    "held_patch": "q8-cached-invocation-candidate-20261109.patch",
+    "held_patch_sha256": "daacf87ff742002cb1b661a86fe6f659fdc33dd0a4a7b45c0ff2b46c40d002a4",
+    "initial_integrated_test_binary": "runs/q8-cached-invocation-20261109.test",
+    "initial_integrated_test_binary_sha256": "c0dd90a423c41bea21ed4b95366b1fde55629b2f9aa3b2e0d9db53fe2f100b12",
+    "initial_vs_final": "Both integrated binaries use the same held runtime bytes. The final test binary adds production Q8 lifetime and inline-callback assertions. Generation measurements use only the final binary."
+  },
+  "codegen_findings": {
+    "method": "go tool objdump of saved executables. scripts/summarize_q8_codegen.py identifies the unique backwards BHI loop with four SCVTFWS, four MOVB and four FMADDS instructions, then reports its static extent and stack loads. Parser tests verify the retained disassembly.",
+    "frame_bytes_all_inspected_kernels": 304,
+    "panic_bounds_call_sites_all_inspected_kernels": 54,
+    "scalar_loop": {
+      "baseline": {"static_instructions": 31, "stack_loads": 0},
+      "rejected_extracted_function": {"static_instructions": 32, "stack_loads": 1},
+      "persistent_compact_closure": {"static_instructions": 32, "stack_loads": 1},
+      "persistent_cached_dimensions_closure": {"static_instructions": 31, "stack_loads": 0},
+      "cached_dimensions_range_helper": {"static_instructions": 31, "stack_loads": 0},
+      "integrated_cached_dimensions_range": {"static_instructions": 31, "stack_loads": 0}
+    },
+    "extra_instruction": "The rejected range contains MOVD 120(RSP), R10 within the steady four-element scalar loop; the persistent compact closure similarly reloads R11 from120(RSP). The cached variants remove that load. An early description of an extra register-to-register copy was corrected: the salient extra instruction is the stack reload.",
+    "interpretation": "Moving shape derivation into the descriptor consumer changes generated register use and introduces a repeated stack load in these Go1.27.3/arm64 builds. A persistent closure without a helper call still has the load and a slowdown, so extra function-call overhead alone is not a sufficient explanation. Precomputing in/out/groups/tiles removes the load even with a range helper. This is a concrete code-generation correlate, not proof that one instruction explains the entire historical5-6% cost. No hardware counters or compiler SSA causal analysis were collected. Equal frame/call-site counts do not imply otherwise identical code or bounds-check placement.",
+    "assembly_and_hashes": ["q8-codegen-cached-summary-20261109.json", "q8-codegen-cached-range-summary-20261109.json"]
+  },
+  "kernel_experiments": {
+    "shared_arithmetic": "All variants preserve the production four-row, paired-remainder and single-row arithmetic, dotQ8PairBlock64 helper, reductions, scale placement, task count, threshold and wide fallback. No column pairing or numerical-tolerance change.",
+    "fixture": "rows1/3/4, input1536, output513, executor workers1/4; same-binary baseline versus persistent callback, 500ms leaves, three fresh processes. Cold probe/executor/callback construction is outside timing. Persistent probes use a separate test-only state, not production lifecycle wiring.",
+    "compact": {
+      "summary": "q8-codegen-compact-summary-20261109.json",
+      "protocol_limitations": "Initial diagnostic pass used fixed baseline-then-persistent order and process GOMAXPROCS10, including workers1 leaves. Do not compare absolute times directly with the later pinned pass.",
+      "workers1_rows1_median_ratio": 1.0823334492619214,
+      "workers4_rows1_median_ratio": 1.0565608814146032
+    },
+    "compact_pinned_followup": {
+      "summary": "q8-codegen-compact-pinned-summary-20261109.json",
+      "protocol": "Original compact probe binary, -test.cpu=1, workers1 only, three fresh processes, 500ms leaves, fixed within-process mode order. Go omits the CPU suffix in these lines.",
+      "rows1_median_ratio": 1.0729016038636385,
+      "interpretation": "Compact slowdown remains with one scheduler thread; the initial GOMAXPROCS setting is not a sufficient explanation. This does not isolate all differences between binaries or remove order bias."
+    },
+    "cached_closure": {
+      "summary": "q8-codegen-cached-summary-20261109.json",
+      "protocol": "GOMAXPROCS pinned to executor workers inside leaves; baseline/persistent order reversed in process2. Complete three-process samples retained.",
+      "workers1_rows1_median_ratio": 0.9955505633209549,
+      "workers4_rows1_median_ratio": 0.9943232056588541,
+      "interpretation": "Approximately baseline-like scalar-kernel time in this diagnostic batch, not established generation acceleration. Separate probe/callback storage is a cold cost and is excluded from the timed warm kernel."
+    },
+    "cached_range": {
+      "summary": "q8-codegen-cached-range-summary-20261109.json",
+      "interpretation": "Also restores the31-instruction, no-stack-load loop while retaining an extra helper call. Timing became unstable: e.g. workers1/rows1 includes a ratio1.733. Do not use this batch to establish a speedup or exact neutrality."
+    },
+    "provenance": "Probe summaries contain raw-file, executable and per-version source-patch SHA-256. These diagnostic binaries were built against the baseline runtime ea77195..., before production integration. Current q8_codegen_test.go retains the cached-range probe and its correctness/lifetime tests; archived patches retain earlier versions. Historical baseline source provenance still comes from prior build records rather than a separately published baseline checkout."
+  },
+  "integrated_candidate": {
+    "implementation": "Shared fp32Kernel descriptor adds in/out/groups/tiles, initialized only for Q8 and unused by FP32/Q4 arithmetic. Ordinary inline Q8 uses a stack descriptor with no callback initialization. Parallel Q8 lazily creates q8Fn, joins, then zeroes the complete shared descriptor. Wide fallback remains before ordinary state/callback setup. Nil-executor dispatch still uses the global parallel path.",
+    "executor_struct_bytes": {"baseline": 120, "candidate": 160},
+    "footprint_scope": "40 extra raw struct bytes:32 for four cached integers and8 for the Q8 callback slot on this architecture. This is not RSS. Workers1 FP32/Q4 generation samples typically add32 allocated bytes because of allocator size classes; the Q8 reduction is much larger but does not erase the fixed-cost tradeoff.",
+    "warm_kernel_allocations": {"baseline": 1, "candidate": 0},
+    "synthetic_prefix33_outputs128_workers1": {"baseline_allocs": 1084, "candidate_allocs": 46, "baseline_bytes_rounded": 554984, "candidate_bytes_rounded": 438760},
+    "synthetic_prefix33_outputs128_workers4": {"baseline_allocs_observed": [1090, 1091], "candidate_allocs": 53},
+    "correctness": "882 ordinary worker/shape combinations bit-match baselineLinearQ8Into with output guards. Complete state clearing includes all four cached integers. All-workers-blocked completion ordering, same-executor format switching, independent executors, threshold/task-count inline cases and wide fallback without ordinary callback initialization pass. Warm allocation tests cover workers1/2/4 and rows1/2/3/4/5/17."
+  },
+  "whole_generation": {
+    "summary": "q8-cached-invocation-generation-20261109.json",
+    "protocol": "After all owned full validation and real-model jobs completed, three fresh before/after blocks with alternating process order;18 fixed format/worker/shape cases, 500ms per leaf, count1, unchanged generation harness. Host activity, memory bandwidth and thermal/power state were not controlled. No other owned heavy job ran during timing; small metadata/parser commands did run.",
+    "control_summary": "q8-cached-control-20261109.json",
+    "control_protocol": "Three additional alternating label blocks, identical baseline binary on both sides, Q8 prefix33/outputs128 workers1/4,1s leaves. These are independent calibrated estimates, not paired requests.",
+    "control_workers1_ratios": [1.0132058304165674, 1.050795581344606, 0.9803270098628102],
+    "control_workers4_ratios": [1.6105197719481519, 0.9983713537053983, 0.9285363719916154],
+    "control_baseline_workers1_ns_range": [35050806, 94907535],
+    "control_baseline_workers4_ns_range": [25237068, 69976674],
+    "interpretation": "Identical binaries vary substantially, including a1.61 ratio within one control block and large absolute-time shifts. Broad candidate ratios also vary by case/process; neither favorable medians nor unfavorable ones establish a code effect here. Do not claim the historical slowdown is resolved at whole-generation level, a new speedup, or a no-regression guarantee. Allocation reduction is supported independently. The cause of the session's time variation is not established."
+  },
+  "real_model_outputs": {
+    "model": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "settings": "generate -hf-model MODEL -weight-format FORMAT -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4; FORMAT=q8 or q4",
+    "comparison": "Fresh held-candidate complete stdout compared using cmp against preserved refined-baseline outputs. Baseline not rerun in this round. Model jobs overlapped validation, not performance measurement; no real-model timing inference.",
+    "q8_stdout_sha256_both": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+    "q4_stdout_sha256_both": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+    "candidate_artifacts": "runs/realmodel-llama3b/q8-cached-invocation-{q8,q4}-after-20261109.out",
+    "baseline_artifacts": "runs/realmodel-llama3b/q4-refined-{q8,q4}-after-20261109.out",
+    "availability": "Models, CLI/test binaries and stdout remain local ignored artifacts. Source patches, disassembly and benchmark samples are retained in validation/performance. No across-format identity or independent token-ID proof is claimed."
+  },
+  "verification_candidate": {
+    "regular": "./scripts/go.sh test ./cmd/... ./tools/... passed",
+    "vet": "./scripts/go.sh vet ./cmd/... ./tools/... passed",
+    "race": "./scripts/go.sh test -race ./cmd/... ./tools/... passed; monolith300.463s with model output checks overlapping part of validation, not a performance result",
+    "compatibility": "GOTOOLCHAIN=go1.22.12 GOARCH=amd64 ./scripts/go.sh test ./cmd/monolith -run 'TestProjection|TestSharedProjection|TestWideSumScanPredicates|TestQ4|TestQ8|TestWorkerLinearSteadyAllocation' -count=1 passed under Rosetta; not native Linux testing",
+    "python": "57 tests and474 subtests passed",
+    "parser_fix": "Go benchmark output omits the CPU suffix at -test.cpu=1. Shared parser now accepts that form, still rejects normalized duplicate cases, and has a regression test. Recomputing the earlier q4-refined-generation-20261109.json with this parser compared byte-identical; old receipts were not overwritten.",
+    "inspection_parser": "Retained assembly tests verify304-byte frames,31/32 scalar-loop static instruction counts and0/1 stack loads; summary tests reject unpaired modes and changed case sets.",
+    "scope": "The pre-existing ignored runs/dbg_special_test.go still prevents whole-tree go test ./...; cmd/tools packages were verified. No scratch data removed, no security or project config changed, and no remote CI or fork review performed."
+  },
+  "restoration": {
+    "runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "meaning": "Production runtime restored byte-for-byte to the prior refined Q4 candidate; executor remains120 bytes and production Q8 still has its existing allocation. Candidate-only production assertions are preserved in the held patch; active tests retain Q8 baseline and test-only cached-range probes. Earlier Q4 improvements and receipts are unchanged.",
+    "verification": "After restoration: cmd/tools regular tests and vet, targeted Q8/Q4/projection/shared-state race tests, targeted Go1.22.12/amd64 tests,57 Python tests with474 subtests, gofmt and git diff --check passed. Full race passed on the held candidate; only targeted race was rerun after restoring the byte-identical baseline runtime.",
+    "reproducer": "Apply the complete held patch only in a separate clean checkout of ancestor_commit. It contains the runtime delta and all six added Go harness/test files, including prior Q4 work. git apply --reverse --check succeeded on the exact candidate before restoration. The patch is not intended for the already-modified current worktree. Build using ./scripts/go.sh test -c -o CANDIDATE.test ./cmd/monolith and CGO_ENABLED=0 ./scripts/go.sh build -trimpath -o CANDIDATE ./cmd/monolith. Verify the runtime hash before remeasurement; independent binary hashes may differ with build path/environment.",
+    "remaining_gate": "Remeasure the preserved candidate and baseline under sufficiently stable conditions, including same-binary controls and FP32/Q4 cases, before deciding whether the allocation benefit justifies the160-byte state. No adoption, commit, push or PR is implied."
+  }
+}

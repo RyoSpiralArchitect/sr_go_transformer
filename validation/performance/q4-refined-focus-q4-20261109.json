@@ -1,0 +1,117 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v2",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "prefix": "q4-refined-focus-q4",
+  "declared_source_sha256": {
+    "before": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4",
+    "after": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08"
+  },
+  "source_provenance": "Source identities are supplied from the build record; binary hashes are recomputed. Reading today's working tree does not establish the source of a historical executable.",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 1s per leaf, count1, whole generation; worker count asserted inside leaf; 1 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. Control interpretation depends on the selected change; see selection receipt. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/q4-invocation-candidate-20261109.test": "f7f719557e5c2cf8e3e1e00cfbe62edd30ebac37be4002621cead9cb1f4c21cf",
+    "runs/q4-refined-20261109.test": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47"
+  },
+  "raw_file_sha256": {
+    "q4-refined-focus-q4-generation-before-20261109-run1.txt": "7d7aeaf3f23d250f3b771b10b8240b61e19e4d0d2563f3cfe4222e83fea08700",
+    "q4-refined-focus-q4-generation-after-20261109-run1.txt": "8cac7ec793718280a5e3b50540ac64e80fae29f43cf0ad6119c90d44e2448c3f",
+    "q4-refined-focus-q4-generation-before-20261109-run2.txt": "3c74ffa9933aae1cf51d8f3b2dd47131f2b8a32dc23bdd170e6661c1362a35bc",
+    "q4-refined-focus-q4-generation-after-20261109-run2.txt": "5113fc5b1420c03fa61043e58e0ea088b9bf230e701fc65142ce8fa611f93408",
+    "q4-refined-focus-q4-generation-before-20261109-run3.txt": "faa366d3cf28a77f4ac0452324ad893424de46b335bce35faa39f0e5c75c475e",
+    "q4-refined-focus-q4-generation-after-20261109-run3.txt": "05a52943fccbc24181851a471d11b33c253f971b1a5cc7bfa6f249bcc364d966",
+    "q4-refined-focus-q4-generation-before-20261109-run4.txt": "bc5bcd250b9f8f47271b955c086a9de4c9f32fab634c47a8c4567eb8c9b453b2",
+    "q4-refined-focus-q4-generation-after-20261109-run4.txt": "3592b037cf2d955c81398fa367ab4e4315405392f19b2ffdfc28d0ff107835ea",
+    "q4-refined-focus-q4-generation-before-20261109-run5.txt": "ae06bcf67a14037904219be86306a9eb6bbd371973c7810ca3bf7d403454f30b",
+    "q4-refined-focus-q4-generation-after-20261109-run5.txt": "cc3092087d04d1a7dde27e784de8acc5415926b60ba808e45c3bea5a3d7b1edc"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 20250461.0,
+          "bytes": 438377,
+          "allocs": 53
+        },
+        {
+          "ns": 19848690.0,
+          "bytes": 438400,
+          "allocs": 53
+        },
+        {
+          "ns": 19913197.0,
+          "bytes": 438419,
+          "allocs": 54
+        },
+        {
+          "ns": 20051807.0,
+          "bytes": 438394,
+          "allocs": 53
+        },
+        {
+          "ns": 20041542.0,
+          "bytes": 438410,
+          "allocs": 54
+        }
+      ],
+      "after": [
+        {
+          "ns": 19752833.0,
+          "bytes": 438367,
+          "allocs": 53
+        },
+        {
+          "ns": 19762114.0,
+          "bytes": 438287,
+          "allocs": 52
+        },
+        {
+          "ns": 19955099.0,
+          "bytes": 438311,
+          "allocs": 52
+        },
+        {
+          "ns": 20016578.0,
+          "bytes": 438333,
+          "allocs": 53
+        },
+        {
+          "ns": 20019897.0,
+          "bytes": 438355,
+          "allocs": 53
+        }
+      ],
+      "ratios": [
+        0.9754263372078295,
+        0.9956382008082145,
+        1.0021042326854899,
+        0.9982431009833678,
+        0.998919993281954
+      ],
+      "median_process_ratio": 0.9982431009833678
+    }
+  }
+}

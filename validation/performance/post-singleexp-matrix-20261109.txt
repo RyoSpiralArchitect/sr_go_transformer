@@ -1,0 +1,41 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix257/tokens1-10         	      42	  10678760 ns/op	  617464 B/op	      71 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix257/tokens1-10         	      45	  10706178 ns/op	  617381 B/op	      70 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens8-10          	     246	   2071269 ns/op	  335633 B/op	      47 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens8-10          	     229	   2060004 ns/op	  335507 B/op	      47 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens128-10        	      30	  15689464 ns/op	  439050 B/op	      59 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens128-10        	      30	  15711903 ns/op	  438860 B/op	      58 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix257/tokens1-10         	      43	  10842187 ns/op	  617502 B/op	      71 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix257/tokens1-10         	      44	  10745270 ns/op	  617362 B/op	      70 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens8-10          	     244	   1951477 ns/op	  335527 B/op	      47 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens8-10          	     246	   1956601 ns/op	  335512 B/op	      47 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens128-10        	      30	  15615438 ns/op	  438860 B/op	      58 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens128-10        	      30	  15677942 ns/op	  438978 B/op	      59 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix257/tokens1-10          	      27	  17244486 ns/op	  631106 B/op	     193 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix257/tokens1-10          	      27	  16965917 ns/op	  630834 B/op	     190 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens8-10           	     146	   3319096 ns/op	  344300 B/op	     126 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens8-10           	     144	   3313404 ns/op	  344253 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128-10         	      19	  23956533 ns/op	  555122 B/op	    1096 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128-10         	      19	  26202333 ns/op	  555118 B/op	    1096 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix257/tokens1-10          	      25	  17815873 ns/op	  630765 B/op	     190 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix257/tokens1-10          	      26	  16687527 ns/op	  630819 B/op	     190 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens8-10           	     148	   3197329 ns/op	  344249 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens8-10           	     148	   3192713 ns/op	  344218 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128-10         	      20	  24002633 ns/op	  555241 B/op	    1097 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128-10         	      19	  24021169 ns/op	  555359 B/op	    1098 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix257/tokens1-10          	      32	  14460484 ns/op	  631257 B/op	     194 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix257/tokens1-10          	      32	  14464940 ns/op	  630776 B/op	     190 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens8-10           	     172	   2772077 ns/op	  344235 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens8-10           	     171	   2838360 ns/op	  344221 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens128-10         	      22	  20316998 ns/op	  554839 B/op	    1095 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens128-10         	      22	  20236886 ns/op	  554832 B/op	    1095 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix257/tokens1-10          	      36	  14491829 ns/op	  630968 B/op	     191 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix257/tokens1-10          	      32	  14512375 ns/op	  630846 B/op	     190 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens8-10           	     172	   2770228 ns/op	  344204 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens8-10           	     172	   2777593 ns/op	  344279 B/op	     125 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128-10         	      22	  20230381 ns/op	  554967 B/op	    1096 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128-10         	      22	  20190733 ns/op	  554829 B/op	    1095 allocs/op
+PASS

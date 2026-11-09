@@ -1,0 +1,375 @@
+{
+  "protocol": "q8-observed-resident-evaluation-v1",
+  "resident_summary": {
+    "protocol": "q8-resident-http-generation-summary-v1",
+    "input": "/Users/ryohiga/SpiralReality/sr_go_transformer/runs/q8-observed-resident-20261109",
+    "input_sha256": "4df508c337ada61e65d7c0f0ca770ca5cf8f533c2fbdd391a64b44e0546f34ee",
+    "reader_sha256": "5e1a6b27d73197cb328c0e06794abe8e06bace286d30d786af63cf153a0b1a2a",
+    "measurement_protocol": {
+      "schedule": [
+        "before",
+        "after",
+        "after",
+        "before"
+      ],
+      "tokens": 32,
+      "repeats": 3,
+      "warmups_per_leg": 1,
+      "script_sha256": "758ee61dc680712ae4439deab5bf5208d398a51ea932b174921318df41480c98",
+      "usage_helper_sha256": "c35dae221a125d297d8284ededc3a640bc73a13a93b9d539b6de46622fc21404",
+      "usage_module_sha256": "d8436ae18f2583be10560bd19107241e28af58c4e6af115c183cf0e52bf77630",
+      "scope": "resident HTTP generation including prompt prefill, scheduling and response transfer; excludes startup/model loading"
+    },
+    "reference": {
+      "text": " (approx. 500-750 words)\n\nTokyo, one of the world's most populous and vibrant cities, has a rich and complex history spanning over ",
+      "token_ids": [
+        320,
+        49153,
+        13,
+        220,
+        2636,
+        12,
+        11711,
+        4339,
+        696,
+        53954,
+        16417,
+        11,
+        832,
+        315,
+        279,
+        1917,
+        596,
+        1455,
+        95551,
+        323,
+        34076,
+        9919,
+        11,
+        706,
+        264,
+        9257,
+        323,
+        6485,
+        3925,
+        56886,
+        927,
+        220
+      ],
+      "prompt_tokens": 11,
+      "completion_tokens": 32,
+      "finish_reason": "length"
+    },
+    "legs": [
+      {
+        "index": 0,
+        "label": "before",
+        "wall_seconds": [
+          9.832654583,
+          10.092374958,
+          10.259428167
+        ],
+        "compute_seconds": [
+          9.80713267,
+          10.064479542,
+          10.228941582000001
+        ],
+        "mean_wall_seconds": 10.061485902666666,
+        "mean_compute_seconds": 10.033517931333334
+      },
+      {
+        "index": 1,
+        "label": "after",
+        "wall_seconds": [
+          10.3164925,
+          10.490006958,
+          10.644251042
+        ],
+        "compute_seconds": [
+          10.288938331000002,
+          10.461313580999999,
+          10.614235707000002
+        ],
+        "mean_wall_seconds": 10.4835835,
+        "mean_compute_seconds": 10.454829206333335
+      },
+      {
+        "index": 2,
+        "label": "after",
+        "wall_seconds": [
+          10.604434125,
+          10.757180791,
+          10.81182825
+        ],
+        "compute_seconds": [
+          10.572953084000002,
+          10.725349165999997,
+          10.780952204999998
+        ],
+        "mean_wall_seconds": 10.724481055333333,
+        "mean_compute_seconds": 10.693084818333332
+      },
+      {
+        "index": 3,
+        "label": "before",
+        "wall_seconds": [
+          10.763465709,
+          10.892253625,
+          10.976182209
+        ],
+        "compute_seconds": [
+          10.732100957,
+          10.861152998999998,
+          10.944544919000002
+        ],
+        "mean_wall_seconds": 10.877300514333333,
+        "mean_compute_seconds": 10.845932958333334
+      }
+    ],
+    "comparison_pairs": [
+      {
+        "before_leg": 0,
+        "after_leg": 1,
+        "wall_ratio": 1.0419518152106602,
+        "compute_ratio": 1.0419903844178424
+      },
+      {
+        "before_leg": 3,
+        "after_leg": 2,
+        "wall_ratio": 0.985950607984157,
+        "compute_ratio": 0.9859073312930113
+      }
+    ],
+    "same_baseline_late_over_early": {
+      "wall_ratio": 1.0810829155413761,
+      "compute_ratio": 1.0809701076491762
+    },
+    "same_candidate_late_over_early": {
+      "wall_ratio": 1.0229785507344253,
+      "compute_ratio": 1.0227890487063784
+    },
+    "all_response_bytes_identical": true,
+    "scope": "Warmup excluded; resident single-request HTTP latency includes prefill, scheduling and response transfer. Compute sums cover engine model batches, not decode alone. Independent request/process estimates; no equivalence test or universal speed claim."
+  },
+  "legs": [
+    {
+      "index": 0,
+      "label": "before",
+      "samples": [
+        {
+          "wall_seconds": 9.832654583,
+          "cpu_seconds": 37.57256104166667,
+          "parallelism": 3.821202171245505,
+          "performance_cpu_fraction": 0.9966324061631124,
+          "instructions": 972244185582,
+          "cycles": 134164344387,
+          "cycles_per_cpu_ns": 3.5708064786485116,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.092374958,
+          "cpu_seconds": 38.583192625,
+          "parallelism": 3.823004276551969,
+          "performance_cpu_fraction": 0.9971906074650987,
+          "instructions": 972242761746,
+          "cycles": 134223583524,
+          "cycles_per_cpu_ns": 3.478809667944113,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.259428167,
+          "cpu_seconds": 39.21895391666666,
+          "parallelism": 3.822723184788849,
+          "performance_cpu_fraction": 0.9974237955994096,
+          "instructions": 972240185336,
+          "cycles": 134063827145,
+          "cycles_per_cpu_ns": 3.4183427592143816,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        }
+      ],
+      "wall_max_over_min": 1.0434036994178422,
+      "mean_wall_seconds": 10.061485902666666
+    },
+    {
+      "index": 1,
+      "label": "after",
+      "samples": [
+        {
+          "wall_seconds": 10.3164925,
+          "cpu_seconds": 39.52269325,
+          "parallelism": 3.831020402525374,
+          "performance_cpu_fraction": 0.9989836387647156,
+          "instructions": 972238586177,
+          "cycles": 133862199675,
+          "cycles_per_cpu_ns": 3.386970589991359,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.490006958,
+          "cpu_seconds": 40.10424525,
+          "parallelism": 3.823090433645068,
+          "performance_cpu_fraction": 0.99835972373357,
+          "instructions": 972237332327,
+          "cycles": 133433951140,
+          "cycles_per_cpu_ns": 3.327177716678261,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.644251042,
+          "cpu_seconds": 40.7086005,
+          "parallelism": 3.8244682823969796,
+          "performance_cpu_fraction": 0.9986285248658122,
+          "instructions": 972242053400,
+          "cycles": 133864888049,
+          "cycles_per_cpu_ns": 3.288368708450196,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        }
+      ],
+      "wall_max_over_min": 1.0317703465591623,
+      "mean_wall_seconds": 10.4835835
+    },
+    {
+      "index": 2,
+      "label": "after",
+      "samples": [
+        {
+          "wall_seconds": 10.604434125,
+          "cpu_seconds": 40.58985645833334,
+          "parallelism": 3.8276305911168396,
+          "performance_cpu_fraction": 0.9985813614937898,
+          "instructions": 972245701614,
+          "cycles": 133700884461,
+          "cycles_per_cpu_ns": 3.2939481961028325,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.757180791,
+          "cpu_seconds": 41.15863645833333,
+          "parallelism": 3.8261545713509553,
+          "performance_cpu_fraction": 0.999095215207845,
+          "instructions": 972238445885,
+          "cycles": 133756153901,
+          "cycles_per_cpu_ns": 3.2497712609213165,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.81182825,
+          "cpu_seconds": 41.35471308333334,
+          "parallelism": 3.8249509821184344,
+          "performance_cpu_fraction": 0.9985906221486963,
+          "instructions": 972239329623,
+          "cycles": 133503808033,
+          "cycles_per_cpu_ns": 3.2282610149894704,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        }
+      ],
+      "wall_max_over_min": 1.0195573024034417,
+      "mean_wall_seconds": 10.724481055333333
+    },
+    {
+      "index": 3,
+      "label": "before",
+      "samples": [
+        {
+          "wall_seconds": 10.763465709,
+          "cpu_seconds": 41.20210983333334,
+          "parallelism": 3.8279594089180495,
+          "performance_cpu_fraction": 0.9987095159232926,
+          "instructions": 972248473161,
+          "cycles": 133450759504,
+          "cycles_per_cpu_ns": 3.2389302403158893,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.892253625,
+          "cpu_seconds": 41.56627116666667,
+          "parallelism": 3.816131408404169,
+          "performance_cpu_fraction": 0.9951931298849127,
+          "instructions": 972277573399,
+          "cycles": 133406593388,
+          "cycles_per_cpu_ns": 3.2094914853700676,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        },
+        {
+          "wall_seconds": 10.976182209,
+          "cpu_seconds": 41.930456416666665,
+          "parallelism": 3.8201312276217028,
+          "performance_cpu_fraction": 0.997951715594351,
+          "instructions": 972246869769,
+          "cycles": 133148563350,
+          "cycles_per_cpu_ns": 3.175461817703364,
+          "pageins": 0,
+          "disk_read_bytes": 0,
+          "gc": {
+            "monolith_gc_cycles_total": 0.0,
+            "monolith_gc_pause_seconds_total": 0.0
+          }
+        }
+      ],
+      "wall_max_over_min": 1.0197628260033507,
+      "mean_wall_seconds": 10.877300514333333
+    }
+  ],
+  "screen_failures": [
+    "before: late/early mean wall exceeds3% screen"
+  ],
+  "eligible_for_confirmation": false,
+  "gate_file": "validation/performance/q8-observed-gates-20261109.json",
+  "evaluator_sha256": "a96e35a95b5e3c4d741bac1a9735b07557ea6929dbdbb767ff8460b33666ebca",
+  "interpretation": "All data retained; failed screens block an adoption timing claim. Counters are diagnostic, not a latency correction or direct core-frequency measurement."
+}

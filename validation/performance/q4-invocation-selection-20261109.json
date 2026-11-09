@@ -1,0 +1,59 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q4-invocation-selection-20261109",
+  "date": "2026-11-09",
+  "baseline_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "baseline_monolith_sha256": "912870ebf6e41819ba51fc106864f32ec5b239973a0e302debcdf386b2d70717",
+  "candidate_monolith_sha256": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4",
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3"},
+  "candidate": {
+    "description": "Extract ordinary Q4 range arithmetic unchanged into linearQ4Range. Non-nil executors run serial jobs with stack state, and parallel jobs with executor-owned state plus a lazily initialized reusable callback. Clear borrowed state only after all worker completions. Nil-executor dispatch and wide-sum fallback remain non-reused paths.",
+    "unchanged": ["arithmetic and reduction order", "weight representation", "four-row and paired-row kernels", "tile partitioning", "work threshold", "worker counts", "admission limits", "Q8 and FP32 arithmetic", "monolithic production structure"],
+    "tradeoff": "Executor holds an additional Q4 descriptor and callback field. First parallel Q4 use allocates one callback; subsequent ordinary calls are allocation-free. Executor allocation size can increase even for other formats, so control-format bytes must not be assumed unchanged.",
+    "decision": "Retain as an allocation-reduction candidate, not a demonstrated wall-clock speedup. Local only; no PR or mainline adoption implied."
+  },
+  "correctness": {
+    "tests": "cmd/monolith/q4_invocation_test.go",
+    "red_green": "Before the runtime edit, TestQ4InvocationSteadyAllocation/workers1/rows1 failed with 1.0 allocations. After edit ordinary warmed Q4 calls allocate zero with workers1/2/4 and rows1/2/3/4/5/17.",
+    "reference": "Existing blockBaselineLinearQ4Into frozen from 6b94640; preserves the same per-output four-accumulator reduction order. This is an arithmetic oracle, NOT the old invocation timing baseline.",
+    "exact_shapes": "882 combinations: workers1/4 x rows0/1/2/3/4/5/7/8/17 x in1/3/63/64/65/129/513 x out1/2/31/32/33/65/259. Ordinary finite input outputs compared by Float32bits with poisoned outputs and guards.",
+    "lifecycle": "Assert descriptor cleared after each call, block all four worker callbacks to verify state survives until join, then verify clearing and subsequent reuse. Four independent owners share immutable inputs/weights under race testing. Wide-sum fallback separately compared bitwise including infinite results; ordinary callback must remain uninitialized on a fresh fallback-only executor."
+  },
+  "generation_measurement": {
+    "summary": "q4-invocation-generation-20261109.json",
+    "reproducer": "python3 scripts/summarize_q4_invocation.py",
+    "protocol": "Three baseline/candidate fresh-process blocks, order before-after / after-before / before-after. Each binary runs the identical BenchmarkPostSingleExpGeneration harness with 200ms leaves, 18 format/worker/shape cases. The prior baseline test executable is bound by SHA-256 in the summary. Ratios are ratios of independently calibrated benchmark estimates, NOT request-level matched pairs.",
+    "controls": "FP32 and Q8 use unchanged arithmetic. Across conditions their median process ratios range approximately 0.993-1.003. These descriptive controls and fixed format order do not prove absence of small regressions.",
+    "q4_median_process_ratios": {
+      "workers1_prefix257_outputs1": 1.000993,
+      "workers1_prefix33_outputs8": 0.998844,
+      "workers1_prefix33_outputs128": 0.998367,
+      "workers4_prefix257_outputs1": 1.000359,
+      "workers4_prefix33_outputs8": 0.998812,
+      "workers4_prefix33_outputs128": 1.002416
+    },
+    "q4_outputs128_workers1": {"before_allocs": 1084, "after_allocs": 46, "before_bytes": 554698, "after_bytes": 438522},
+    "q4_outputs128_workers4": {"before_allocs": [1090, 1091], "after_allocs": 53, "before_bytes": [554460, 554580], "after_bytes": [438302, 438336]},
+    "interpretation": "Allocation reduction reproduced; timing is approximately neutral. Do not call these tiny negative ratios speedups. The benchmark verifies deterministic completions within each binary, not cross-binary identity."
+  },
+  "real_model_output_check": {
+    "model": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "arguments": "generate -hf-model MODEL -weight-format q4 -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4",
+    "build": "CGO_ENABLED=0 go build -trimpath ./cmd/monolith; baseline built from a clean detached 9af9a1c worktree, candidate from the source hash above",
+    "baseline_binary_sha256": "e78490c57c2dfc08b09b2d10420c6e51783177c19a68ff518dd14ffec878a192",
+    "candidate_binary_sha256": "6bd8440320a032df352b34a6499f2e8472ea992aca029910397fe235e6a787ed",
+    "stdout_sha256_both": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+    "comparison": "cmp succeeded on complete stdout; output validation only, no timing claim",
+    "artifacts": ["runs/realmodel-llama3b/q4-invocation-baseline-20261109.out", "runs/realmodel-llama3b/q4-invocation-candidate-20261109.out"],
+    "availability": "Raw model, stdout, binaries and baseline worktree are local ignored artifacts, not published here. One model/prompt/greedy condition is not a universal output guarantee."
+  },
+  "verification": {
+    "regular": "./scripts/go.sh test ./cmd/... ./tools/... passed",
+    "vet": "./scripts/go.sh vet ./cmd/... ./tools/... passed",
+    "race": "./scripts/go.sh test -race ./cmd/monolith -run 'TestQ4|TestWorkerLinearSteadyAllocation|TestAttentionInvocation' -count=1 passed",
+    "go122_amd64": "GOTOOLCHAIN=go1.22.12 GOARCH=amd64 ./scripts/go.sh test ./cmd/monolith -run '^TestQ4Invocation' -count=1 passed under Rosetta, not Linux",
+    "python": "49 passed, 467 subtests passed",
+    "formatting": "gofmt applied; git diff --check passed",
+    "scope": "Full ./... is locally affected by pre-existing ignored runs/dbg_special_test.go. No scratch artifacts deleted. No remote CI or fork review performed in this round."
+  }
+}

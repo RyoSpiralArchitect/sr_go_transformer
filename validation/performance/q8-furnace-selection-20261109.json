@@ -1,0 +1,61 @@
+{
+  "receipt": "q8-furnace-selection-20261109",
+  "decision": "Keep candidate held. Independent Linux CPU observations obtained, but preregistered stability screen fails in one baseline leg. Candidate ratios are close to same-code variation. No speedup, equivalence or Mac no-regression claim; no production adoption, commit, push or merge.",
+  "build_record": "q8-furnace-build-20261109.json",
+  "gate_record": "q8-furnace-gates-20261109.json",
+  "summary": "q8-furnace-summary-20261109.json",
+  "host": {
+    "machine": "SpiralReality-furnace, Intel Core Ultra9 285K, Linux7.0.0-38-generic x86_64,24 online CPUs, approximately123GiB usable RAM",
+    "transport": "Existing spiral command only; no credential discovery or reconstructed SSH configuration.",
+    "contention": "Existing RTX5090 training workload remains running. Preflight showed CPU1-3 busy and CPU4-7 idle. Only our controller/children constrained to CPUs4-7. Linux PMU sysfs identifies cpu_core0-7 and cpu_atom8-23. No exclusivity or shared-bandwidth isolation claimed.",
+    "policy": "perf events unavailable: perf_event_paranoid=4. No permission, governor, boost, power, cgroup or security settings modified; no unrelated jobs stopped. No sudo used."
+  },
+  "sources": {
+    "ancestor": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+    "before_runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "after_runtime_sha256": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e",
+    "construction": "Two new detached local worktrees; before reconstructed from runtime diff, after from held candidate patch, hashes checked before cross-compilation. Same Go1.27.3, GOOS=linux GOARCH=amd64 GOAMD64=v1 CGO_ENABLED=0 and trimpath. Binaries and test binaries hashed in build record. No Go installation on Furnace and no production worktree changes.",
+    "fixtures": "Tracked ancestor git archive plus exact patches reconstructed into two new remote fixture directories; runtime hashes match compiled sources. No other checkout modified."
+  },
+  "experiment": {
+    "command": "spiral run --dir /home/ryospiralarchitect/spiralreality/SpiralReality/tmp/sr-q8-cpu-20261109 -- taskset -c4-7 python3 measure_q8_furnace.py --output observed-cpu-v2",
+    "model": "Same local Llama-3.2-3B-Instruct assets transferred as exactly six JSON files and two safetensors shards; all remote hashes checked against Mac manifest before execution and again after execution.",
+    "workload": "Tokyo prompt,11 prompt tokens,64 actual output tokens,temperature0,4 threads/workers,prefix cache off. ABBA fresh server processes, two warmups then three measured requests per leg. All20 responses retained; all12 timed requests used.",
+    "scope": "Resident single-request HTTP generation, including prefill/scheduling/response transfer, excluding model load/quantization/warmup. Not decode-only and not a direct comparison with Darwin executables.",
+    "observations": "Per-request own-process user/system CPU ticks, faults/I/O, thread affinity and GC;1Hz OS-reported cpufreq, coretemp, /proc/stat and CPU/memory pressure. Counter arithmetic and raw hashes independently verified after pull. No hardware instruction/cycle counters available. Package temperature includes other work, and sysfs frequency is not an exact instruction-rate measurement.",
+    "frequency_summary": "Uniform request-interior windows, first/last1s excluded only from frequency/temperature aggregation to avoid idle boundaries. No request timing removed, filtered or clock-normalized. Full telemetry retained."
+  },
+  "timing": {
+    "before_A1_seconds": [36.389644922,34.742881058,34.645866108],
+    "after_B1_seconds": [34.640782671,34.565817979,34.572154210],
+    "after_B2_seconds": [34.705644792,34.538793790,34.557553776],
+    "before_A2_seconds": [34.623424880,35.287285204,34.556545258],
+    "means_ABBA_seconds": [35.25946402933334,34.59291828666667,34.60066411933333,34.822418447333334],
+    "candidate_over_baseline_pairs": [0.9810959763281667,0.9936318516091756],
+    "same_baseline_late_over_early": 0.9876048716555529,
+    "same_candidate_late_over_early": 1.000223913825439,
+    "within_leg_max_over_min_ABBA": [1.0503315116604157,1.0021687521483085,1.0048308288649128,1.0211462095109416],
+    "failed_screen": "First baseline max/min1.0503315116604157 exceeds declared1.05. Do not round away failure, loosen threshold or delete first measured request.",
+    "interpretation": "Much smaller session drift than prior Mac measurements, but small candidate changes are comparable with same-code variation. No proof of speedup or equivalence. The two blocks are independent process comparisons, not12 independent binary comparisons."
+  },
+  "diagnostic_findings": {
+    "gc": "First timed request in every leg records a GC cycle; first baseline request has approximately61.9 microseconds recorded GC pause. This coincides with a slower request but does not prove GC caused its roughly1.7s excess. Concurrent GC, allocation/scheduler effects and host interference remain unseparated. Candidate first-request GC also occurs, so allocation reduction does not by itself eliminate these cycles.",
+    "parallelism": "Reported aggregate CPU time divided by wall is about1.99-2.09 despite four configured workers and all observed thread affinities4-7. This is an unresolved execution-shape clue, not proof of quota, scheduler failure or underused hardware. A post-run probe of the SSH scope and parent cgroups reported cpu.max=max and cumulative throttling counters0; actual per-request cgroup snapshots were not collected, so avoid a retrospective quota diagnosis.",
+    "io": "Measured major faults and read_bytes deltas are zero in inspected/retained request observations; raw values are preserved per request. Model residency and matching work counters are checked."
+  },
+  "validation": {
+    "responses": "All20 response bodies byte-identical: SHA-2566b6963e4e3bd0761c4a11be3e68034320cbeeb53f28fd72b349751a9b627bbb8. Structured completions contain identical text and64 token IDs; cross-batch Mac64-token reference also compares equal. This is only one prompt/format/workload, not tensor-wide or universal cross-platform identity.",
+    "go": "Both full cross-compiled normal cmd/monolith test executables exit0 on Furnace with matching source/fixture trees. No race instrumentation in these CGO=0 test binaries; no new Go1.22 compatibility claim.",
+    "python": "74 tests and501 subtests passed before remote measurement; rerun after final artifacts/reader changes.",
+    "preflight_error": "First attempt stopped before timing: TestMain could not locate repository root. Failure and log retained in observed-cpu. Added exact source/fixture snapshots and reran as observed-cpu-v2. No unfavorable timing removed from this setup correction.",
+    "shutdown": "All four measured servers exit status0 after idle/resource checks. No surviving benchmark endpoints. Main runtime source remains refined Q4 hash."
+  },
+  "artifacts": {
+    "remote": "/home/ryospiralarchitect/spiralreality/SpiralReality/tmp/sr-q8-cpu-20261109/observed-cpu-v2",
+    "local_raw_copy": "runs/furnace-cpu-pull-20261109/observed-cpu-v2",
+    "remote_code_and_model": "/home/ryospiralarchitect/spiralreality/SpiralReality/tmp/sr-q8-cpu-20261109",
+    "console": "validation/performance/q8-furnace-console-v2-20261109.jsonl",
+    "integrity": "Raw root receipt hashes protocol, exact argv, per-request metrics/counters/responses,810 machine samples, model manifests and normal-test logs. Summary hashes that root receipt and validates counter deltas and raw data. These raw runs, models and executables remain local/remote ignored artifacts; external reproduction needs them."
+  },
+  "next_gate": "Separate GC phase and actual worker utilization with a separately declared bounded diagnostic, without production changes or filtering old samples. Then return to default-runtime confirmation with more independent blocks and FP32/Q4/prefill controls. Linux evidence alone cannot clear the unresolved Mac gate. Integration remains pending."
+}

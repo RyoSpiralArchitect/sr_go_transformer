@@ -1,0 +1,369 @@
+{
+  "protocol": "q8-cached-realmodel-fresh-cli-v1",
+  "scope": "Complete CLI process, not decode-only",
+  "summarizer_sha256": "4cc2caabfc1a57c8624e9e99646d941eab5b188ec79f08a3d2f0086d40a78367",
+  "model_manifest_after": "validation/performance/q8-cached-realmodel-assets-after-20261109.sha256",
+  "model_manifest_after_sha256": "549fc7cc0942174cecf5680ebc84ae8be8927063ba6fa27a6ca321c43be3a350",
+  "units": {
+    "real": "seconds",
+    "user": "CPU seconds",
+    "sys": "CPU seconds",
+    "maximum resident set size": "Darwin bytes",
+    "peak memory footprint": "Darwin bytes"
+  },
+  "cases": {
+    "q8": {
+      "pairs": [
+        [
+          "q8-before-run1",
+          "q8-after-run1"
+        ],
+        [
+          "q8-before-run2",
+          "q8-after-run2"
+        ],
+        [
+          "q8-before-run3",
+          "q8-after-run3"
+        ]
+      ],
+      "ratios": [
+        1.2307276657060517,
+        1.392256167292926,
+        1.0
+      ],
+      "median_ratio": 1.2307276657060517
+    },
+    "q4": {
+      "pairs": [
+        [
+          "q4-before-run1",
+          "q4-after-run1"
+        ],
+        [
+          "q4-before-run2",
+          "q4-after-run2"
+        ]
+      ],
+      "ratios": [
+        1.1404288197797952,
+        0.8309914642153644
+      ],
+      "median_ratio": 0.9857101419975798
+    }
+  },
+  "controls": {
+    "precontrol": {
+      "pairs": [
+        [
+          "q8-precontrol-before",
+          "q8-precontrol-after"
+        ]
+      ],
+      "ratios": [
+        1.0310841546626233
+      ],
+      "median_ratio": 1.0310841546626233
+    },
+    "postcontrol": {
+      "pairs": [
+        [
+          "q8-postcontrol-before",
+          "q8-postcontrol-after"
+        ]
+      ],
+      "ratios": [
+        0.9292744335088121
+      ],
+      "median_ratio": 0.9292744335088121
+    }
+  },
+  "rows": {
+    "q8-before-run1": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 55.52,
+        "user": 168.17,
+        "sys": 1.26,
+        "maximum resident set size": 3524444160,
+        "instructions retired": 3950244002952,
+        "cycles elapsed": 526355933259,
+        "peak memory footprint": 3517959144
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-before-run1-20261109.time",
+      "time_file_sha256": "21bb9fc43320cdeab5fe959114dcfb5c38a1c00133ac115b89127532a00f9187",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-before-run1-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-after-run1": {
+      "format": "q8",
+      "binary": "runs/q8-cached-invocation-20261109",
+      "binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+      "time": {
+        "real": 68.33,
+        "user": 191.11,
+        "sys": 7.38,
+        "maximum resident set size": 3503865856,
+        "instructions retired": 3968290825958,
+        "cycles elapsed": 571548041477,
+        "peak memory footprint": 3518516200
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-after-run1-20261109.time",
+      "time_file_sha256": "eb2acab0df593843e87ea97e13381feff585df6411b599b5e6979059a1c3f1d2",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-after-run1-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-before-run2": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 61.21,
+        "user": 191.09,
+        "sys": 1.37,
+        "maximum resident set size": 3525312512,
+        "instructions retired": 3950989019832,
+        "cycles elapsed": 526065838771,
+        "peak memory footprint": 3518827496
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-before-run2-20261109.time",
+      "time_file_sha256": "7899e6f8754624793c359046802d8c11b93fe3510361c044532905bbf5b101ac",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-before-run2-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-after-run2": {
+      "format": "q8",
+      "binary": "runs/q8-cached-invocation-20261109",
+      "binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+      "time": {
+        "real": 85.22,
+        "user": 237.34,
+        "sys": 3.3,
+        "maximum resident set size": 3518709760,
+        "instructions retired": 3954974494293,
+        "cycles elapsed": 561897092298,
+        "peak memory footprint": 3518794752
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-after-run2-20261109.time",
+      "time_file_sha256": "2577aa36d01d321b09c38e96414c3423590e3f45cec7db39b510fa0b3c2fa37c",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-after-run2-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-before-run3": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 61.28,
+        "user": 191.1,
+        "sys": 1.27,
+        "maximum resident set size": 3525574656,
+        "instructions retired": 3950205361103,
+        "cycles elapsed": 526670788740,
+        "peak memory footprint": 3519056872
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-before-run3-20261109.time",
+      "time_file_sha256": "c9f9c639837673b92f7267b4848d96a136c48f986844bc576ebd2678ff4fa43f",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-before-run3-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-after-run3": {
+      "format": "q8",
+      "binary": "runs/q8-cached-invocation-20261109",
+      "binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+      "time": {
+        "real": 61.28,
+        "user": 190.97,
+        "sys": 1.27,
+        "maximum resident set size": 3524886528,
+        "instructions retired": 3950119070889,
+        "cycles elapsed": 525714893406,
+        "peak memory footprint": 3518434328
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-after-run3-20261109.time",
+      "time_file_sha256": "301bb9ecf5b412338d1b033e1813386fd59b4d71159b705debb5c40886c8b56c",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-after-run3-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q4-before-run1": {
+      "format": "q4",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 51.77,
+        "user": 148.68,
+        "sys": 1.12,
+        "maximum resident set size": 1911226368,
+        "instructions retired": 2534848466077,
+        "cycles elapsed": 425225935765,
+        "peak memory footprint": 1903937336
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q4-before-run1-20261109.time",
+      "time_file_sha256": "5fef50c12aa869c24a964e3d2d403bd5ff3f316dd85a07b0396e8c053e2188c9",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q4-before-run1-20261109.out",
+      "stdout_sha256": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q4-after-20261109.out"
+    },
+    "q4-after-run1": {
+      "format": "q4",
+      "binary": "runs/q8-cached-invocation-20261109",
+      "binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+      "time": {
+        "real": 59.04,
+        "user": 154.09,
+        "sys": 1.3,
+        "maximum resident set size": 1910521856,
+        "instructions retired": 2535299967877,
+        "cycles elapsed": 449643421525,
+        "peak memory footprint": 1903232872
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q4-after-run1-20261109.time",
+      "time_file_sha256": "7642c2b6f617658ddda0a27268303cf2e9144ada5e2963990ac68027482429ce",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q4-after-run1-20261109.out",
+      "stdout_sha256": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q4-after-20261109.out"
+    },
+    "q4-before-run2": {
+      "format": "q4",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 76.15,
+        "user": 212.43,
+        "sys": 6.55,
+        "maximum resident set size": 1892630528,
+        "instructions retired": 2547881927125,
+        "cycles elapsed": 546269547859,
+        "peak memory footprint": 1902921600
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q4-before-run2-20261109.time",
+      "time_file_sha256": "7e423f71900cda16ab1076398add1e4037e43d5eea519153255edb531b31d1f8",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q4-before-run2-20261109.out",
+      "stdout_sha256": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q4-after-20261109.out"
+    },
+    "q4-after-run2": {
+      "format": "q4",
+      "binary": "runs/q8-cached-invocation-20261109",
+      "binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+      "time": {
+        "real": 63.28,
+        "user": 163.57,
+        "sys": 1.36,
+        "maximum resident set size": 1910669312,
+        "instructions retired": 2535240381068,
+        "cycles elapsed": 455103216771,
+        "peak memory footprint": 1903314744
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q4-after-run2-20261109.time",
+      "time_file_sha256": "fcaba8fdf093d22e4906004e4b33821303b768f39fb55227fb594139efdf59f6",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q4-after-run2-20261109.out",
+      "stdout_sha256": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q4-after-20261109.out"
+    },
+    "q8-precontrol-before": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 52.76,
+        "user": 158.1,
+        "sys": 1.09,
+        "maximum resident set size": 3524804608,
+        "instructions retired": 3949925355636,
+        "cycles elapsed": 529612779303,
+        "peak memory footprint": 3518335976
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-precontrol-before-20261109.time",
+      "time_file_sha256": "865e0cd32630c761da3101adda0f1aabaa9fd0669c2940572efd6d346c04a702",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-precontrol-before-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-precontrol-after": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 54.4,
+        "user": 164.92,
+        "sys": 1.08,
+        "maximum resident set size": 3524231168,
+        "instructions retired": 3949837219026,
+        "cycles elapsed": 526982586211,
+        "peak memory footprint": 3517729744
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-precontrol-after-20261109.time",
+      "time_file_sha256": "35bfb33ce885802862c355204ddd50f6114fbe05ecd1229eb3139d418c85d4a6",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-precontrol-after-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-postcontrol-before": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 131.07,
+        "user": 366.26,
+        "sys": 15.48,
+        "maximum resident set size": 3483041792,
+        "instructions retired": 3977146684230,
+        "cycles elapsed": 777893446212,
+        "peak memory footprint": 3517795304
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-postcontrol-before-20261109.time",
+      "time_file_sha256": "7ee910828da8c90e44c4ad0edc12293f68f1e9ebbde030b09701f397a3567620",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-postcontrol-before-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    },
+    "q8-postcontrol-after": {
+      "format": "q8",
+      "binary": "runs/q4-refined-20261109",
+      "binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+      "time": {
+        "real": 121.8,
+        "user": 368.79,
+        "sys": 6.43,
+        "maximum resident set size": 3480961024,
+        "instructions retired": 3960050766712,
+        "cycles elapsed": 768048364785,
+        "peak memory footprint": 3518811088
+      },
+      "time_file": "validation/performance/q8-cached-realmodel-q8-postcontrol-after-20261109.time",
+      "time_file_sha256": "0165399de52f53f99539db6e7b6413ed5150aeda70de03bc31c9c35161914631",
+      "stdout_file": "runs/realmodel-llama3b/q8-cached-realmodel-q8-postcontrol-after-20261109.out",
+      "stdout_sha256": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+      "reference_stdout": "runs/realmodel-llama3b/q4-refined-q8-after-20261109.out"
+    }
+  },
+  "completed_order": [
+    "q8-precontrol-before",
+    "q8-precontrol-after",
+    "q8-before-run1",
+    "q8-after-run1",
+    "q8-after-run2",
+    "q8-before-run2",
+    "q8-before-run3",
+    "q8-after-run3",
+    "q4-before-run1",
+    "q4-after-run1",
+    "q4-after-run2",
+    "q4-before-run2",
+    "q8-postcontrol-before",
+    "q8-postcontrol-after"
+  ],
+  "order_sha256": "ccf125562a7129982825f780dd60267bf744f9629bcdd7c7389eb08376d4b65f",
+  "model_manifest": "validation/performance/q8-cached-realmodel-assets-20261109.sha256",
+  "model_manifest_sha256": "549fc7cc0942174cecf5680ebc84ae8be8927063ba6fa27a6ca321c43be3a350",
+  "counter_scope": "OS process totals printed by /usr/bin/time -lp, including startup/loading/quantization/generation; not isolated kernel counters or a causal explanation."
+}

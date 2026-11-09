@@ -1,0 +1,11 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens128-10         	      62	  19073668 ns/op	  438728 B/op	      46 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens128-10         	      74	  15871193 ns/op	  438614 B/op	      53 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128-10          	      33	  34817335 ns/op	  554984 B/op	    1084 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128-10          	      46	  25107867 ns/op	  554853 B/op	    1090 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens128-10          	      43	  27667672 ns/op	  438440 B/op	      45 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128-10          	      57	  20353124 ns/op	  438313 B/op	      52 allocs/op
+PASS

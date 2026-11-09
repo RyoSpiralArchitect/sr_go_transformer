@@ -1,0 +1,82 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v2",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "prefix": "q4-refined-control-q4",
+  "declared_source_sha256": {
+    "before": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4",
+    "after": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4"
+  },
+  "source_provenance": "Source identities are supplied from the build record; binary hashes are recomputed. Reading today's working tree does not establish the source of a historical executable.",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 1s per leaf, count1, whole generation; worker count asserted inside leaf; 1 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. Control interpretation depends on the selected change; see selection receipt. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/q4-invocation-candidate-20261109.test": "f7f719557e5c2cf8e3e1e00cfbe62edd30ebac37be4002621cead9cb1f4c21cf"
+  },
+  "raw_file_sha256": {
+    "q4-refined-control-q4-generation-before-20261109-run1.txt": "8090baf8295d6c5b0e9caef7f63199b1a80e24ca6b99839193c78ac4fb586f74",
+    "q4-refined-control-q4-generation-after-20261109-run1.txt": "8924504bab90cb5066b16e9ffe9a841d73f8c71dc2a9e4a30a5105285481e0f2",
+    "q4-refined-control-q4-generation-before-20261109-run2.txt": "09c65f5c5a67efca8a57d3fad80573858789e7969854850c5558235eed80a577",
+    "q4-refined-control-q4-generation-after-20261109-run2.txt": "3a21aa12b04138d915eeed30f52af1168dbc792f6e0058eae7f0b1f89b64fac2",
+    "q4-refined-control-q4-generation-before-20261109-run3.txt": "f6fed7ab66d51b70d417dff3641acf49e69e21133b0d6d0edb02dc077e065eb6",
+    "q4-refined-control-q4-generation-after-20261109-run3.txt": "e76f2704054a69ca950c998eb09061902fff65854cbcc3051e580ac9f8d8fa65"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 20025858.0,
+          "bytes": 438377,
+          "allocs": 53
+        },
+        {
+          "ns": 20025165.0,
+          "bytes": 438422,
+          "allocs": 54
+        },
+        {
+          "ns": 20129160.0,
+          "bytes": 438413,
+          "allocs": 54
+        }
+      ],
+      "after": [
+        {
+          "ns": 20045602.0,
+          "bytes": 438394,
+          "allocs": 53
+        },
+        {
+          "ns": 20100821.0,
+          "bytes": 438409,
+          "allocs": 53
+        },
+        {
+          "ns": 20176402.0,
+          "bytes": 438400,
+          "allocs": 53
+        }
+      ],
+      "ratios": [
+        1.0009859252971833,
+        1.0037780462732766,
+        1.0023469434392691
+      ],
+      "median_process_ratio": 1.0023469434392691
+    }
+  }
+}

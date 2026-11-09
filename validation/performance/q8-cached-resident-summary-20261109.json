@@ -1,0 +1,173 @@
+{
+  "protocol": "q8-resident-http-generation-summary-v1",
+  "input": "/Users/ryohiga/SpiralReality/sr_go_transformer/runs/q8-cached-resident-20261109",
+  "input_sha256": "b2d11df5612f4aa766f87aef021939a1d0e4f26ebb9b350ffefc402031e034a8",
+  "reader_sha256": "c164ded5bb00fa7dc26073bd9302eb6affabb0cc0ceb832f918746f5dbb8bfb8",
+  "measurement_protocol": {
+    "schedule": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "tokens": 64,
+    "repeats": 2,
+    "warmups_per_leg": 1,
+    "script_sha256": "e3db9c97081da955f7305d568d79c0e52c17c8a664bf6f95f552f8cd513a8df4",
+    "scope": "resident HTTP generation including prompt prefill, scheduling and response transfer; excludes startup/model loading"
+  },
+  "reference": {
+    "text": " (approx. 500-750 words)\n\nTokyo, one of the world's most populous and vibrant cities, has a rich and complex history spanning over 1,400 years. From its humble beginnings as a small fishing village to its current status as a global metropolis, Tokyo has undergone numerous transformations shaped by its",
+    "token_ids": [
+      320,
+      49153,
+      13,
+      220,
+      2636,
+      12,
+      11711,
+      4339,
+      696,
+      53954,
+      16417,
+      11,
+      832,
+      315,
+      279,
+      1917,
+      596,
+      1455,
+      95551,
+      323,
+      34076,
+      9919,
+      11,
+      706,
+      264,
+      9257,
+      323,
+      6485,
+      3925,
+      56886,
+      927,
+      220,
+      16,
+      11,
+      3443,
+      1667,
+      13,
+      5659,
+      1202,
+      39612,
+      67482,
+      439,
+      264,
+      2678,
+      20543,
+      14458,
+      311,
+      1202,
+      1510,
+      2704,
+      439,
+      264,
+      3728,
+      2322,
+      55422,
+      11,
+      27286,
+      706,
+      64238,
+      12387,
+      54070,
+      27367,
+      555,
+      1202
+    ],
+    "prompt_tokens": 11,
+    "completion_tokens": 64,
+    "finish_reason": "length"
+  },
+  "legs": [
+    {
+      "index": 0,
+      "label": "before",
+      "wall_seconds": [
+        57.094727708,
+        76.603021709
+      ],
+      "compute_seconds": [
+        56.808208705,
+        76.100951499
+      ],
+      "mean_wall_seconds": 66.8488747085,
+      "mean_compute_seconds": 66.454580102
+    },
+    {
+      "index": 1,
+      "label": "after",
+      "wall_seconds": [
+        55.550051042,
+        52.631030708
+      ],
+      "compute_seconds": [
+        55.402903501,
+        52.49444612900001
+      ],
+      "mean_wall_seconds": 54.090540875,
+      "mean_compute_seconds": 53.948674815000004
+    },
+    {
+      "index": 2,
+      "label": "after",
+      "wall_seconds": [
+        47.864608417,
+        49.209510667
+      ],
+      "compute_seconds": [
+        47.740316424,
+        49.084942419
+      ],
+      "mean_wall_seconds": 48.537059542,
+      "mean_compute_seconds": 48.4126294215
+    },
+    {
+      "index": 3,
+      "label": "before",
+      "wall_seconds": [
+        48.676714375,
+        47.273299791
+      ],
+      "compute_seconds": [
+        48.549119082000004,
+        47.150239876
+      ],
+      "mean_wall_seconds": 47.975007083,
+      "mean_compute_seconds": 47.849679479
+    }
+  ],
+  "comparison_pairs": [
+    {
+      "before_leg": 0,
+      "after_leg": 1,
+      "wall_ratio": 0.8091466178131829,
+      "compute_ratio": 0.81181274085541
+    },
+    {
+      "before_leg": 3,
+      "after_leg": 2,
+      "wall_ratio": 1.011715526337028,
+      "compute_ratio": 1.01176496788755
+    }
+  ],
+  "same_baseline_late_over_early": {
+    "wall_ratio": 0.7176636449334256,
+    "compute_ratio": 0.7200358411046515
+  },
+  "same_candidate_late_over_early": {
+    "wall_ratio": 0.8973298982934231,
+    "compute_ratio": 0.897383106953338
+  },
+  "all_response_bytes_identical": true,
+  "scope": "Warmup excluded; resident single-request HTTP latency includes prefill, scheduling and response transfer. Compute sums cover engine model batches, not decode alone. Independent request/process estimates; no equivalence test or universal speed claim."
+}

@@ -10,3 +10,4 @@ coverage.out
 
 __pycache__/
 *.pyc
+/validation/performance/q8-furnace-prestatus-20261109.txt

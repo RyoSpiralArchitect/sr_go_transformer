@@ -1,0 +1,12 @@
+{
+  "protocol": "q8-furnace-resident-cpu-v1",
+  "declared_before_run": true,
+  "scope": "Independent Linux/amd64 CPU experiment, not an explanation of Mac frequency variation or a Mac performance validation.",
+  "source": "Exact held before/after runtime hashes, Go1.27.3 cross-built with identical linux/amd64/v1 CGO=0 trimpath flags in isolated local worktrees. No production source edits.",
+  "workload": "Q8 Llama-3.2-3B-Instruct; Tokyo prompt, temperature0,64 actual generated tokens. Four worker threads. CPU affinity4-7 inherited by controller and every server thread, no changes to other tasks. ABBA fresh-server order,2 warmups plus3 measured requests per leg. All20 responses retained; no prefix cache or simultaneous model copies.",
+  "observations": "Per-request own-process CPU time, faults, I/O, all-thread affinity and GC;1Hz OS-reported per-CPU frequency, CPU coretemp temperatures, /proc/stat, memory/CPU pressure. Capture start/end model manifests. Hardware perf events unavailable under perf_event_paranoid=4; do not change that security policy or request global governor/boost changes.",
+  "screens": {"within_leg_request_wall_max_over_min": 1.05, "same_binary_late_over_early_mean_range": [0.97, 1.03]},
+  "interpretation": "Operational screens, not equivalence tests. All samples used; no clock normalization or filtering by GC/frequency. Failed screen means no timing-based adoption claim. Even a stable Linux result does not establish a speedup or no-regression on Mac/arm64, nor satisfy all original adoption gates.",
+  "sharing": "Existing GPU/CPU workload remains running. Affinity does not reserve CPUs or isolate LLC/memory/PCIe bandwidth; preserve telemetry and report contention limitations.",
+  "next": "Inspect results and telemetry first. If a larger confirmation is justified, declare it separately with independent blocks and FP32/Q4 controls. Source review and correctness/race/compatibility validation are still required before integrating the candidate. No automatic commit/push/merge."
+}

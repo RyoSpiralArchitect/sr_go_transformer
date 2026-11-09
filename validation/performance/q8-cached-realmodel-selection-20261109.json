@@ -1,0 +1,76 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-cached-realmodel-selection-20261109",
+  "prior_records": ["q8-codegen-selection-20261109.json", "q8-cached-remeasure-selection-20261109.json"],
+  "summary": "q8-cached-realmodel-summary-20261109.json",
+  "decision": "Do not adopt cached Q8 invocation reuse on this evidence. Two of three real-model end-to-end comparisons are slower; no repeatable speed benefit or no-regression result. Identical baseline executions also change substantially over the session, so code causality is unresolved. Preserve all data and the candidate; leave production on the existing refined Q4 baseline.",
+  "identities": {
+    "baseline_binary": "runs/q4-refined-20261109",
+    "baseline_binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+    "baseline_declared_runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "candidate_binary": "runs/q8-cached-invocation-20261109",
+    "candidate_binary_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+    "candidate_declared_runtime_sha256": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e",
+    "candidate_patch": "q8-cached-invocation-candidate-20261109.patch",
+    "candidate_patch_sha256": "daacf87ff742002cb1b661a86fe6f659fdc33dd0a4a7b45c0ff2b46c40d002a4",
+    "provenance": "Previously built CLI executables reused unchanged; hashes checked at start. Source identities are from the prior build records and retained patch, not inferred from today's working tree. No build or patch application in this round."
+  },
+  "model": {
+    "directory": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "architecture": "Llama-3.2-3B-Instruct,28 layers, hidden3072, intermediate8192,24 attention heads,8 KV heads, vocabulary128256, BF16 source weights",
+    "manifest_before": "q8-cached-realmodel-assets-20261109.sha256",
+    "manifest_after": "q8-cached-realmodel-assets-after-20261109.sha256",
+    "asset_check": "SHA-256 of all six JSON files and both safetensors shards, measured before and after timing. Manifests compare byte-identical. The summary hashes the manifest; full per-asset SHA-256 values are retained in both manifests.",
+    "settings": "generate -hf-model /Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct -weight-format FORMAT -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4; FORMAT=q8 or q4; unprovided flags retain the frozen CLI defaults.",
+    "token_scope": "Maximum128 generated tokens, not an independently verified actual token count. Plain CLI stdout was captured, not structured token IDs. No tokens-per-second metric is inferred."
+  },
+  "measurement": {
+    "platform": "Apple M4, darwin/arm64; saved binaries built with Go1.27.3",
+    "method": "/usr/bin/time -lp BINARY generate ARGS, fresh process per leg; stdout saved separately, stderr and OS timing/resource statistics retained together in each .time file.",
+    "scope": "Whole CLI process: startup, model loading, resident-weight quantization, prompt handling, prefill, generation, output and exit. Not isolated decode or persistent loaded-model serving latency.",
+    "order": "One Q8 baseline/baseline pre-control pair; three Q8 baseline/candidate pairs with orders before-after, after-before, before-after; two Q4 baseline/candidate pairs with orders before-after, after-before; one Q8 baseline/baseline post-control pair.14 executions, one at a time. Timestamped start/end order retained.",
+    "order_file": "q8-cached-realmodel-order-20261109.txt",
+    "conditions": "No simultaneous owned builds, tests, profiling or other model jobs during timing. Default process scheduling, no taskpolicy wrapper or core pinning. Other host activity, memory pressure, thermal/power state and core residency were not controlled. Cache not flushed; hashing source assets before measurement warms filesystem caches, and cache residency may change between processes.",
+    "precision": "POSIX real/user/sys seconds printed to two decimals by time. Raw OS process counters and memory statistics retained but not attributed to the Q8 kernel.",
+    "ratios": "After-label wall time divided by before-label wall time within each listed pair; candidate/baseline for comparison pairs and baseline/baseline for controls. Independent executions, not matched requests or statistical equivalence tests."
+  },
+  "q8_comparisons": {
+    "baseline_seconds": [55.52, 61.21, 61.28],
+    "candidate_seconds": [68.33, 85.22, 61.28],
+    "ratios": [1.2307276657060517, 1.392256167292926, 1.0],
+    "median_ratio": 1.2307276657060517,
+    "interpretation": "Two materially unfavorable comparisons and one equal at printed precision. The observed median is about23% slower but is not a causal estimate of the code change; the session also exhibits substantial baseline variation. Neither discard the unfavorable legs nor use the third leg alone to approve adoption."
+  },
+  "q4_comparisons": {
+    "baseline_seconds": [51.77, 76.15],
+    "candidate_seconds": [59.04, 63.28],
+    "ratios": [1.1404288197797952, 0.8309914642153644],
+    "median_ratio": 0.9857101419975798,
+    "interpretation": "Opposite-sign, large changes; the median of two ratios conceals variation and is not evidence of neutrality or acceleration. Q4 arithmetic is unchanged, but the candidate's larger shared descriptor changes its call-state footprint, so this is not a strict same-code control."
+  },
+  "strict_controls": {
+    "pre_seconds": [52.76, 54.40],
+    "pre_ratio": 1.0310841546626233,
+    "post_seconds": [131.07, 121.80],
+    "post_ratio": 0.9292744335088121,
+    "interpretation": "All four executions use exactly the baseline binary and Q8 settings. Absolute baseline times rise from approximately53 seconds to122-131 seconds across the session. The3.1% and-7.1% within-control differences do not bound variation during other pairs. The reason for drift is not established: no claim that thermal effects, scheduler placement, memory pressure, model loading or the candidate alone explains it."
+  },
+  "output_validation": {
+    "q8_stdout_sha256_all10_new_executions": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+    "q4_stdout_sha256_all4_new_executions": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+    "check": "Every new complete stdout was cmp-checked immediately against the corresponding preserved refined-Q4-baseline output. The summary independently compares all stdout bytes again and hashes each file. Q8 and Q4 are compared only within format; no across-format output equality claimed.",
+    "reference_paths": "runs/realmodel-llama3b/q4-refined-{q8,q4}-after-20261109.out",
+    "new_paths": "runs/realmodel-llama3b/q8-cached-realmodel-NAME-20261109.out",
+    "availability": "Raw stdout, model files and executables remain local ignored artifacts; external independent validation requires those artifacts. Timing/resource logs, asset manifests, hashes and the timestamp ledger are retained under validation/performance."
+  },
+  "memory_and_counters": {
+    "interpretation": "Raw maximum resident size, peak footprint, CPU times, instructions retired and cycles elapsed describe complete OS processes, including model conversion/loading. They are not Go allocation counts, decode-only counters, hardware-independent instruction counts or proof about one stack reload. No real-model allocation savings or RSS reduction is established here.",
+    "prior_allocation_evidence": "Synthetic warm-kernel and whole-generation allocation evidence remains in prior records. The candidate executor's120-to160-byte fixed-size tradeoff also remains; this measurement does not override either."
+  },
+  "verification": {
+    "summary_script": "scripts/summarize_q8_realmodel.py validates frozen binary hashes, required nonnegative CPU/positive wall/RSS fields, rejects duplicate timing fields, checks every stdout against its within-format reference and requires all14 completed ledger entries. All pair samples and raw hashes are retained.",
+    "python": "python3 -m pytest scripts -q:61 tests and480 subtests passed, including four new time-parser/pair-preservation tests.",
+    "production": "No production runtime or Go test changes, no fresh Go test/build, no commit/push/PR. Current runtime remains the prior refined Q4 source."
+  },
+  "next_gate": "Any adoption proposal still needs repeatable real-model no-regression evidence under sufficiently stable execution conditions. If the next investigation isolates loaded-model generation from loading/quantization, treat that as a different protocol with separately built and identified harnesses; do not mix its timing with this whole-CLI record."
+}
