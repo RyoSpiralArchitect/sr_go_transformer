@@ -15,6 +15,7 @@ def main():
     go = str(Path(goroot) / 'bin/go')
     probes = {
         'inference': ['inference_perf_test.go'],
+        'kv16-quality': ['kv16_quality_test.go'],
         'long-generation': ['inference_perf_test.go', 'long_generation_perf_test.go'],
         'prompt-prefill': ['prompt_prefill_perf_test.go'],
         'prefix-chat': ['prefix_chat_perf_test.go'],
