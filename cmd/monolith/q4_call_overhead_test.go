@@ -96,16 +96,20 @@ type compactProjectionLayout struct {
 
 func TestProjectionDescriptorFootprint(t *testing.T) {
 	actual, compact := reflect.TypeOf(kernelExecutor{}).Size(), reflect.TypeOf(compactProjectionLayout{}).Size()
-	t.Logf("executor %d bytes; compact layout %d bytes", actual, compact)
-	if actual > compact {
-		t.Fatalf("executor size %d exceeds shared descriptor layout %d", actual, compact)
+	// Grouped inference adds a bounded three-projection packet and one lazy
+	// callback. Keep the original singleton descriptor bound separate so the
+	// extra per-executor storage is explicit rather than hidden in a new cap.
+	group := 3*reflect.TypeOf(fp32Kernel{}).Size() + 4*reflect.TypeOf(int(0)).Size() + reflect.TypeOf((func(int, int))(nil)).Size()
+	t.Logf("executor %d bytes; singleton %d; grouped allowance %d", actual, compact, group)
+	if actual > compact+group {
+		t.Fatalf("executor size %d exceeds bounded layout %d", actual, compact+group)
 	}
 }
 
 func TestProjectionCallbacksStartLazy(t *testing.T) {
 	for _, workers := range []int{1, 4} {
 		e := newKernelExecutor(workers)
-		if e.linearFn != nil || e.q4Fn != nil {
+		if e.linearFn != nil || e.q4Fn != nil || e.groupFn != nil {
 			e.close()
 			t.Fatal("unused projection callback allocated at construction")
 		}
