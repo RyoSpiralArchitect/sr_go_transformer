@@ -1,0 +1,83 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q4-refined-selection-20261109",
+  "date": "2026-11-09",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "before": {
+    "description": "Previous uncommitted Q4 invocation-reuse candidate, NOT unmodified main",
+    "source_sha256": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4",
+    "test_binary": "runs/q4-invocation-candidate-20261109.test",
+    "test_binary_sha256": "f7f719557e5c2cf8e3e1e00cfbe62edd30ebac37be4002621cead9cb1f4c21cf",
+    "cli_binary_sha256": "6bd8440320a032df352b34a6499f2e8472ea992aca029910397fe235e6a787ed",
+    "prior_record": "q4-invocation-selection-20261109.json"
+  },
+  "after": {
+    "source_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "test_binary": "runs/q4-refined-20261109.test",
+    "test_binary_sha256": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47",
+    "cli_binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+    "test_source_sha256": "0335cad6dc32600e1998031b91478a274115cf80c36f7ebeeb4b1edbfe695902"
+  },
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3"},
+  "selected_changes": {
+    "shared_descriptor": "FP32 and Q4 reuse the same existing fp32Kernel descriptor. Both use FP32 activations/output; descriptor has only x/y/w/n. Single-caller, non-recursive executor contract and joining all workers before clearing remain unchanged. Separate format-specific callbacks avoid a new per-job format branch.",
+    "lazy_initialization": "FP32 callback is now initialized only on the first non-inline FP32 projection. Q4 callback remains lazy. Serial projections never initialize either callback.",
+    "safety_scan": "Use abs Float32bits with an explicit upper bound at infinity for the existing magnitude threshold. NaNs still return false, +/-Inf true; equality at the limit remains false. Same threshold and wide-sum fallback, no admission or numerical tolerance changes.",
+    "structure": "Production remains monolithic in cmd/monolith/monolith.go; arithmetic/reduction kernels, work threshold and worker partitioning unchanged. Q8 gets the common safety-scan change but NOT reusable invocation dispatch in this round."
+  },
+  "footprint": {
+    "descriptor_test": "TestProjectionDescriptorFootprint failed before the change: actual184 versus compact120. It now passes at120 bytes on this Go/architecture.",
+    "executor_struct_bytes_before": 184,
+    "executor_struct_bytes_after": 120,
+    "q4_outputs128_workers1": {"before_allocs": 46, "after_allocs": 45, "before_bytes": 438522, "after_bytes": 438442},
+    "scope": "Struct bytes are not RSS or total executor allocation including channels/workers. The 184-byte baseline is the previous local Q4 candidate, not main. Relative to main, an extra Q4 callback slot remains; descriptor storage is shared. Warm ordinary Q4 and FP32 kernels remain allocation-free."
+  },
+  "scan_probe": {
+    "source": "cmd/monolith/q4_call_overhead_test.go",
+    "receipts": ["wide-scan-20261109-run1.json", "wide-scan-20261109-run2.json", "wide-scan-20261109-run3.json"],
+    "binary": "runs/q4-call-overhead-probes-20261109.test",
+    "binary_sha256": "a23238b318b3a51fa499402440352eeeaffa439f35038a3a167addb3209cda72",
+    "protocol": "Three fresh processes, GOMAXPROCS=1, 32 rotating three-leg trials per length, same function-pointer layer and normal deterministic finite inputs, lengths64/256/704/1536/3584/16384. Roughly 2^20 scanned elements per timed leg. Full timing arrays retained.",
+    "selected_bounded_comparison_median_ratio_range_rounded": [0.7021, 0.7584],
+    "unselected": "Unsigned-subtraction range predicate also tested; similar results, but explicit upper/lower bounds selected for readability.",
+    "source_provenance": "Probe was built before integration, against b544... runtime and test source5a3a46c915e2197775e18f69a9060eb23891a35b4a6b61d159e6950371ce2411. Retained test now includes additional mixed-format/lifetime assertions; predicate and timing bodies are unchanged.",
+    "limitations": "Isolated full scans only, not a whole-Q4-kernel or generation speed ratio. Early-exit and exceptional-value timing not characterized; their Boolean decisions are tested."
+  },
+  "correctness": {
+    "guard": "Compare frozen float predicate, production predicate and both bit predicates on signed limit-neighbor values, zeros/subnormals, infinities, multiple NaN encodings, short/long arrays and 65536 random17-lane bit-pattern vectors.",
+    "shared_state": "TestSharedProjectionAlternatingFormats interleaves Q4/FP32/Q8 on the same executor with workers1/4 and rows1/3/4/5/17; outputs equal nil-executor reference and descriptor is clear after each call. Original Q4 bit/guard/worker-lifetime/independent-owner tests retained; no numerical assertions relaxed.",
+    "initialization": "TestProjectionCallbacksStartLazy failed before integration due to eager callback; now passes for workers1/4."
+  },
+  "generation": {
+    "broad_measurement": "q4-refined-generation-20261109.json",
+    "broad_protocol": "Three before-after fresh-process blocks, alternating block order, 18 fixed format/worker/shape cases, 200ms benchmark leaves. Same synthetic model and benchmark harness as prior record. FP32 arithmetic unchanged but constructor/descriptor handling changed; Q8 also receives the scan change, so neither is a strictly unchanged-runtime control.",
+    "broad_observations": "Some Q4 workers4 medians near0.98, while FP32 workers1 had up to~1.015. Raw outliers retained. These short estimates are not sufficient to establish either speedup or regression.",
+    "followup_reason": "Investigate potential FP32 regression and favorable Q4 median rather than selecting one short-run result. Followup ran after other owned validation/model jobs completed; host background activity was not controlled.",
+    "followup_protocol": "1s leaves, count1, five fresh before-after blocks alternating order; focus on prefix33/outputs128 with FP32 workers1 and Q4 workers4. Three additional same-binary baseline/baseline blocks for each condition. Ratios divide independently calibrated ns/op estimates, not per-request pairs.",
+    "followup_files": ["q4-refined-focus-f32-20261109.json", "q4-refined-focus-q4-20261109.json", "q4-refined-control-f32-20261109.json", "q4-refined-control-q4-20261109.json"],
+    "followup_median_ratios": {"f32_workers1": 0.9972802191844623, "q4_workers4": 0.9982431009833678, "f32_same_binary_control": 1.0004788219752065, "q4_same_binary_control": 1.0023469434392691},
+    "interpretation": "Approximately neutral whole-generation timing. Initial2% Q4 improvement and~1.5% FP32 slowdown did not reproduce consistently. Longer FP32 samples still include ratios~0.948 and1.106; do not infer a universal no-regression guarantee or subtract control medians to manufacture a speedup.",
+    "reproducer": "scripts/summarize_q4_invocation.py accepts prefix, cases, runs, benchtime and before/after source and executable identities; summaries include raw-file and executable SHA-256. Recomputed broad summary compared byte-identical after parser updates.",
+    "parser_verification": "Unit tests enforce expected case counts, reject duplicate cases, preserve all samples and use declared historical source identities rather than hashing today's runtime as a historical build."
+  },
+  "real_model_outputs": {
+    "model": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "settings": "generate -hf-model MODEL -weight-format FORMAT -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4; FORMAT=q4 or q8.",
+    "build": "CGO_ENABLED=0 go build -trimpath ./cmd/monolith; before CLI is the preserved b544... candidate, after CLI sourceea77195...",
+    "q4_stdout_sha256_both": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+    "q8_stdout_sha256_both": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+    "comparison": "cmp succeeded for complete stdout before/after within each format. No cross-format identity, independent token-ID validation or timing claim.",
+    "artifacts": "runs/realmodel-llama3b/q4-refined-{q4,q8}-{before,after}-20261109.out",
+    "availability": "Model, raw stdout and executables remain local ignored artifacts. Before source was an uncommitted candidate identified by its prior build record; no historical source snapshot is published by this receipt."
+  },
+  "verification": {
+    "regular": "./scripts/go.sh test ./cmd/... ./tools/... passed",
+    "vet": "./scripts/go.sh vet ./cmd/... ./tools/... passed",
+    "race": "./scripts/go.sh test -race ./cmd/... ./tools/... passed",
+    "go122_amd64": "GOTOOLCHAIN=go1.22.12 GOARCH=amd64 ./scripts/go.sh test ./cmd/monolith -run 'TestProjection|TestSharedProjection|TestWideSumScanPredicates|TestQ4|TestQ8|TestWorkerLinearSteadyAllocation' -count=1 passed under Rosetta; not native Linux testing",
+    "python": "python3 -m pytest scripts -q:52 passed,468 subtests passed",
+    "formatting": "gofmt applied; git diff --check passed",
+    "scope": "Tracked cmd/tools packages verified locally; full ./... remains affected by pre-existing ignored runs/dbg_special_test.go. No scratch data deleted and no remote CI or fork-review in this round."
+  },
+  "decision": "Keep the shared descriptor, lazy initialization and bounded bit scan as the current local candidate for lower invocation footprint and faster isolated ordinary scans. Do not claim whole-generation acceleration. Prior records and rejected experiments retained unchanged; no commit, push, PR or merge implied."
+}

@@ -1,0 +1,90 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "post-singleexp-q4-exploration-20261109",
+  "date": "2026-11-09",
+  "baseline_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "production_source_sha256": "912870ebf6e41819ba51fc106864f32ec5b239973a0e302debcdf386b2d70717",
+  "production_modified": false,
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3"},
+  "generation_matrix": {
+    "harness": "cmd/monolith/post_singleexp_profile_test.go",
+    "harness_sha256": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "binary_sha256": "b2e6620c11e0295a9b930b89fad0637175b31ec1e856e93424fd26647cc3b5a4",
+    "model": "Synthetic decodeComparisonModel: dim256, hidden704, layers1, heads4, kvheads2, context512, byte tokenizer, seed19. Quantize matrix parameters with existing test helpers; setup and quantization are outside timed generation.",
+    "sampling": "greedy, repeat penalty1, seed19; fixed-step tokenizer disables EOS",
+    "formats": ["f32", "q8", "q4"],
+    "workers": [1, 4],
+    "shapes": [[257, 1], [33, 8], [33, 128]],
+    "protocol": "GOMAXPROCS is set inside each leaf benchmark and planGenerationPrompt worker count is asserted. Two untimed completions are compared within each format before measurement. Cross-format completion equality is NOT claimed. Whole request generation includes scratch/KV/executor creation, prefill, decode, sampling and output decoding; model loading is excluded.",
+    "command": "./scripts/go.sh test -c -o runs/post-singleexp-20261109-v2.test ./cmd/monolith; runs/post-singleexp-20261109-v2.test -test.run '^$' -test.bench '^BenchmarkPostSingleExpGeneration$' -test.benchtime=400ms -test.count=2",
+    "raw_results": "post-singleexp-matrix-20261109-v2.txt",
+    "superseded_results": "post-singleexp-matrix-20261109.txt is retained as a diagnostic only: it set GOMAXPROCS in the parent benchmark rather than each leaf, so worker labels were not reliable. Do not use it for worker-count conclusions.",
+    "workers1_ms_ranges": {
+      "f32": {"prefix257_outputs1": [26.612, 26.652], "prefix33_outputs8": [3.702, 3.728], "prefix33_outputs128": [18.527, 18.722]},
+      "q8": {"prefix257_outputs1": [45.937, 46.095], "prefix33_outputs8": [6.938, 6.996], "prefix33_outputs128": [34.749, 34.856]},
+      "q4": {"prefix257_outputs1": [35.620, 35.661], "prefix33_outputs8": [5.317, 5.322], "prefix33_outputs128": [27.666, 27.667]}
+    },
+    "workers4_ms_ranges": {
+      "f32": {"prefix257_outputs1": [10.429, 10.729], "prefix33_outputs8": [1.928, 1.929], "prefix33_outputs128": [15.817, 15.858]},
+      "q8": {"prefix257_outputs1": [16.470, 17.871], "prefix33_outputs8": [3.275, 3.291], "prefix33_outputs128": [25.032, 25.146]},
+      "q4": {"prefix257_outputs1": [13.339, 13.352], "prefix33_outputs8": [2.641, 2.643], "prefix33_outputs128": [19.743, 20.029]}
+    },
+    "workers1_outputs128_allocs_per_operation": {"f32": 47, "q8": 1085, "q4": 1084},
+    "workers1_outputs128_bytes_per_operation": {"f32": 438728, "q8": 554984, "q4": [554696, 554697]},
+    "workers4_outputs128_allocs_per_operation": {"f32": 53, "q8": 1091, "q4": 1090}
+  },
+  "cpu_profiles": {
+    "scope": "Six separate processes: three formats x prefill-heavy(257/1) or decode-heavy(33/128), workers1. Benchtime3s includes Go benchmark calibration, setup and untimed checks in the process-wide profile. No claim of pure decode-only timing.",
+    "command_template": "runs/post-singleexp-20261109-v2.test -test.run '^$' -test.bench '^BenchmarkPostSingleExpGeneration$/FORMAT$/workers1$/PREFIX/TOKENS$' -test.benchtime=3s -test.cpuprofile=runs/PROFILE.pprof -test.memprofile=runs/PROFILE-mem.pprof",
+    "top_output": "post-singleexp-cpu-20261109.txt",
+    "linear_cumulative_percent": {"f32_prefill": 71.72, "f32_decode": 80.91, "q8_prefill": 80.46, "q8_decode": 83.93, "q4_prefill": 76.63, "q4_decode": 79.87},
+    "q4_decode_dotQ4Block64_flat_percent": 45.47,
+    "q4_decode_attention_cumulative_percent": 7.89,
+    "raw_cpu_sha256": {
+      "runs/post-singleexp-f32-prefix257-tokens1-20261109.pprof": "52782136e6df839c17c49a7670bcd23d0d3c031ccdf019b7909f7c6415fd1c5c",
+      "runs/post-singleexp-f32-prefix33-tokens128-20261109.pprof": "eeb9b5979e45b979a4b11eeb6cc864cc600bc9f70eda1786aa22ce1a2b6b92e0",
+      "runs/post-singleexp-q8-prefix257-tokens1-20261109.pprof": "add9b43dff465afcaf13dfb92c8ceb62dc8965d563414b8ebbe4e4dd7625b78f",
+      "runs/post-singleexp-q8-prefix33-tokens128-20261109.pprof": "a4a5b08e6921116d486de124fedc0a68bf40bb94ed69c5d5cfae1e2c33395f69",
+      "runs/post-singleexp-q4-prefix257-tokens1-20261109.pprof": "0f98f3d7b535135721310f6dbbbc31fb07257228f8e5fa080eb27592a13e0c23",
+      "runs/post-singleexp-q4-prefix33-tokens128-20261109.pprof": "d12e1ffb95d7ff12526d0101f29d18f099dfba0c4704264c167ba5d3ddb7ee2f"
+    }
+  },
+  "q4_candidate": {
+    "hypothesis": "Replace two-weight lookup-table loads with signed-nibble shifts and integer-to-float conversion, retaining the existing fully unrolled 64-element dot structure and reduction order.",
+    "implementation": "cmd/monolith/q4_nibble_probe_test.go:nibbleQ4Block64",
+    "test_source_sha256": "719ff241dedaa9a44d434c81ce42dc85441333504b1472881f3b28614537eff8",
+    "binary_sha256": "aa7293ee51f21cec346664b8255038e24e1fbb556d7365f10c3a7dc11053786f",
+    "correctness": "All 256 packed-byte decode values match the existing table. 256 full blocks with deterministic ordinary finite inputs match dotQ4Block64 bit-for-bit. No claim about full-kernel tails, wide sums or exceptional floating-point values.",
+    "timing_protocol": "Same complete 64-element block per call, same dynamic function-call layer, single GOMAXPROCS=1, 256 deterministic blocks, 1024 sweeps per leg, 32 pairs alternating order, warmup both paths, three fresh processes. No dispatch or omitted-tail mismatch.",
+    "command_template": "MONOLITH_Q4_NIBBLE_OUTPUT=validation/performance/q4-nibble-block-20261109-runN.json runs/q4-nibble-20261109.test -test.run '^TestNibbleQ4Timing$' -test.v",
+    "receipts": ["q4-nibble-block-20261109-run1.json", "q4-nibble-block-20261109-run2.json", "q4-nibble-block-20261109-run3.json"],
+    "candidate_over_lookup_pair_median_rounded": [1.4150, 1.4126, 1.4157],
+    "allocations_both": 0,
+    "decision": "rejected; keep the production lookup table",
+    "generation_comparison": "Not performed: the matched block probe is already substantially slower. No runtime integration or whole-generation speedup is claimed.",
+    "cause": "Not established. These measurements do not isolate conversion instruction throughput from load behavior, scheduling or code layout."
+  },
+  "memory_observations": {
+    "report": "post-singleexp-q4-allocations-20261109.txt",
+    "scope": "Go sampled alloc_objects/alloc_space across the profiling process, including benchmark harness and setup; not RSS, peak memory or retained live bytes.",
+    "q4_decode_linearQ4Into_sampled_objects_percent": 59.87,
+    "escape_analysis": "go build -gcflags=-m reports cmd/monolith/monolith.go:4464:40: func literal escapes to heap. Full build diagnostics are retained locally at runs/post-singleexp-escape.log.",
+    "next_hypothesis": "Investigate escaping per-invocation quantized-kernel callbacks and reuse call state, preserving admission limits, worker join and reference-clearing invariants. Allocation reductions are not automatically wall-clock speedups."
+  },
+  "verification": {
+    "regular": "./scripts/go.sh test ./cmd/... ./tools/... passed",
+    "vet": "./scripts/go.sh vet ./cmd/... ./tools/... passed",
+    "race": "./scripts/go.sh test -race ./cmd/monolith -run 'TestNibbleQ4BlockExact|TestQ4' -count=1 passed",
+    "go122_amd64": "GOTOOLCHAIN=go1.22.12 GOARCH=amd64 ./scripts/go.sh test ./cmd/monolith -run '^TestNibbleQ4BlockExact$' -count=1 passed under Rosetta; this is not Linux testing",
+    "python": "python3 -m pytest scripts -q: 49 passed, 466 subtests passed",
+    "formatting": "gofmt applied to the two new Go test files; git diff --check passed",
+    "scope": "No production edit. Local full ./... remains affected by pre-existing ignored runs/dbg_special_test.go; no scratch artifacts deleted."
+  },
+  "limitations": [
+    "Single Apple M4 host/toolchain and small synthetic cache-resident model; not a ranking of real-model f32/q8/q4 performance.",
+    "Matrix repeats are in one process and fixed format order; they are descriptive baselines, not matched candidate speedup evidence.",
+    "CPU sample shares are not directly removable wall-clock time.",
+    "Raw pprof and test executables are retained locally under ignored runs/; textual summaries, source and timing arrays are retained in the repository.",
+    "No new real-model measurements, no production changes, and no claim of a general optimization ceiling."
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-cached-resident-selection-20261109",
+  "previous_whole_cli_record": "q8-cached-realmodel-selection-20261109.json",
+  "summary": "q8-cached-resident-summary-20261109.json",
+  "decision": "Keep the cached-dimension Q8 candidate unadopted. Resident-model measurements successfully exclude startup/loading/quantization, but model-compute wall time still varies within and across identical baseline executions. The two candidate comparisons disagree in size; no repeatable acceleration or equivalence result. Production stays on the prior refined Q4 runtime.",
+  "identities": {
+    "baseline_cli": "runs/q4-refined-20261109",
+    "baseline_cli_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+    "baseline_declared_runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "candidate_cli": "runs/q8-cached-invocation-20261109",
+    "candidate_cli_sha256": "e9ca0f3ad6fd84c48bb2504cb829466af30963a17f2e5eae210e9bc88dae119c",
+    "candidate_declared_runtime_sha256": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e",
+    "candidate_patch": "q8-cached-invocation-candidate-20261109.patch",
+    "candidate_patch_sha256": "daacf87ff742002cb1b661a86fe6f659fdc33dd0a4a7b45c0ff2b46c40d002a4",
+    "provenance": "Saved CLI hashes checked for every server start. Runtime identities are historical build-record identities, not inferred from today's working tree. Existing serve and linear kernels used without rebuilding or applying patches."
+  },
+  "model": {
+    "directory": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "format": "q8",
+    "asset_manifest_before": "q8-cached-resident-assets-20261109.sha256",
+    "asset_manifest_after": "q8-cached-resident-assets-after-20261109.sha256",
+    "asset_check": "All six JSON assets and two safetensors shards hashed before and after timing; manifests compare byte-identical.",
+    "request": {"prompt": "Write a detailed history of the city of Tokyo.", "max_tokens": 64, "temperature": 0, "top_k": 40, "top_p": 0.95, "repeat_penalty": 1.1, "seed": 1, "stream": false}
+  },
+  "protocol": {
+    "driver": "scripts/measure_q8_resident.py",
+    "reader": "scripts/summarize_q8_resident.py",
+    "command": "python3 scripts/measure_q8_resident.py --model /Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct --output runs/q8-cached-resident-20261109 --tokens 64 --repeats 2",
+    "server": "Existing serve binary, bound only to127.0.0.1 on a selected ephemeral port; -weight-format q8 -weight-mib 14000 -context 2048 -kv-mib 512 -threads 4 -kernel-workers 4 -max-batch 1 -queue 1 -prefill-chunk 16 -prefix-cache-mib 0. Exact argv and readiness data retained per leg.",
+    "schedule": ["baseline A1", "candidate B1", "candidate B2", "baseline A2"],
+    "samples": "Each leg is a fresh server process, loading the model once. Wait for healthy model and four workers, perform one complete untimed warmup then two timed serial requests. Four warmups excluded by design; all eight timed requests retained. One server at a time, no simultaneous resident model copies.64 tokens chosen to stay within the existing2-minute request timeout; no timeout changes.",
+    "http_timer": "Python monotonic perf_counter_ns around POST and full response read. Model readiness, startup, loading, quantization, warmup, metrics scrapes, response validation and artifact writes are outside each measured HTTP interval.",
+    "compute_timer": "Difference of existing monolith_batch_compute_seconds_sum before and after a single request. This is the engine's model-batch wall time, including prompt prefill and decode, not CPU-seconds, pure dot-product time or decode alone. Its scope is narrower than HTTP wall time but can include runtime scheduling/pauses while the model call is active.",
+    "lifecycle_and_cache": "Between requests require zero active/queued/computing/admitted sessions and zero KV reservation, four kernel workers, zero prefix hits and zero retained prefix bytes. Per-request completed/generated counters must advance by1/64; all actual model-batch counts were64. Each server receives SIGINT only after requests complete and exits successfully; no unrelated process stopped.",
+    "conditions": "Default OS scheduling, no affinity, taskpolicy, elevated priority or system settings. Host power/thermal/core residency/memory-bandwidth activity not controlled. No other owned build/test/model job overlapped measured requests. Warmup/resident engine/pool reuse makes this a different protocol from the earlier fresh CLI runs; do not pool timings."
+  },
+  "results": {
+    "baseline_A1": {"http_seconds": [57.094727708, 76.603021709], "mean_http_seconds": 66.8488747085, "mean_compute_seconds": 66.454580102},
+    "candidate_B1": {"http_seconds": [55.550051042, 52.631030708], "mean_http_seconds": 54.090540875, "mean_compute_seconds": 53.948674815000004},
+    "candidate_B2": {"http_seconds": [47.864608417, 49.209510667], "mean_http_seconds": 48.537059542, "mean_compute_seconds": 48.4126294215},
+    "baseline_A2": {"http_seconds": [48.676714375, 47.273299791], "mean_http_seconds": 47.975007083, "mean_compute_seconds": 47.849679479},
+    "candidate_B1_over_baseline_A1": {"http_ratio": 0.8091466178131829, "compute_ratio": 0.81181274085541},
+    "candidate_B2_over_baseline_A2": {"http_ratio": 1.011715526337028, "compute_ratio": 1.01176496788755},
+    "identical_baseline_A2_over_A1": {"http_ratio": 0.7176636449334256, "compute_ratio": 0.7200358411046515},
+    "identical_candidate_B2_over_B1": {"http_ratio": 0.8973298982934231, "compute_ratio": 0.897383106953338},
+    "interpretation": "Candidate looks faster against early baseline but approximately neutral/slightly slower against late baseline. Identical baseline mean improves about28% across legs, and two requests within its first unchanged process differ by about34%. ABBA ordering and repeated requests do not eliminate that variation. No pooling, warmup reuse as data, outlier removal, hypothesis test or equivalence margin. Eight requests nested in four processes are not eight independent binary comparisons."
+  },
+  "what_isolated": {
+    "finding": "Model loading/quantization is not a sufficient explanation for all observed timing variation. Within the same baseline server, after warmup and without reloading, model-batch time changes from56.808208705 to76.100951499 seconds while output and work counters match. HTTP overhead alone cannot explain that model-batch wall-time change either.",
+    "gc_observation": "For the first baseline's measured requests, GC cycles change16->17 then17->17; cumulative pause seconds change0.000798293->0.142695959 then remain0.142695959. The slower second request has no increase in these reported counters. These snapshots are not an exhaustive concurrent-GC trace or a root-cause diagnosis.",
+    "unknown": "No CPU residency/frequency, hardware counters or concurrent-GC trace collected in this protocol. Do not assign the variation to thermal throttling, E/P-core movement, GC, memory pressure or the candidate without further evidence.",
+    "allocation_scope": "Existing metrics expose heap/GC snapshots, not per-request cumulative Go allocation counts. This round does not independently establish allocation savings or RSS reduction; earlier synthetic allocation results remain separate."
+  },
+  "correctness_and_artifacts": {
+    "completion": "All12 responses, including four warmups, byte-identical across both binaries. Structured completions have11 prompt tokens,64 token IDs,64 completion tokens, finish_reason=length and identical text. Reader rechecks complete objects, token IDs, raw response bytes, raw-file hashes and metric deltas.",
+    "response_sha256": "6b6963e4e3bd0761c4a11be3e68034320cbeeb53f28fd72b349751a9b627bbb8",
+    "raw_directory": "runs/q8-cached-resident-20261109",
+    "raw_receipt": "runs/q8-cached-resident-20261109/result.json",
+    "integrity": "Summary hashes the raw root receipt; that receipt hashes protocol, readiness, exact commands, startup/shutdown records, request JSON, every response, per-request monotonic timing and before/after Prometheus snapshots. Driver/reader hashes retained. Raw directory is local ignored data; independent outside verification requires those artifacts and frozen binaries/model assets.",
+    "scope": "No direct comparison to the earlier128-token plain CLI stdout hashes: token limit, response encoding and serving protocol differ. No untested prompts or formats covered."
+  },
+  "verification": {
+    "python": "python3 -m pytest scripts -q passed:67 tests,495 subtests. New tests cover metric parsing, accounting/cache/lifecycle rejection, token and metadata mismatch, warmup exclusion, nonpositive measurements and raw-file integrity/path checks.",
+    "shutdown": "All four owned servers exited with status0 after requests/resources became idle. No surviving benchmark server or endpoint is required.",
+    "production": "No production runtime or Go-test edits, no Go rebuild, no security/persistent configuration changes, no commit/push/PR. Production runtime remains the refined Q4 source ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08."
+  },
+  "next_gate": "Investigate execution-condition variation during resident generation before using small timing differences for adoption. Continue to require repeatable baseline/candidate comparisons with strict same-binary controls; preserved allocation and output-correctness evidence alone does not prove performance."
+}

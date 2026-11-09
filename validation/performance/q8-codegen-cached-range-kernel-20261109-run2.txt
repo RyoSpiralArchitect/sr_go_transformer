@@ -1,0 +1,17 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ8CodegenProbe/workers1/rows1/persistent-10         	    1800	    462911 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers1/rows1/baseline-10           	    1994	    267082 ns/op	     112 B/op	       1 allocs/op
+BenchmarkQ8CodegenProbe/workers1/rows3/persistent-10         	    1159	    613815 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers1/rows3/baseline-10           	    1039	    656846 ns/op	     112 B/op	       1 allocs/op
+BenchmarkQ8CodegenProbe/workers1/rows4/persistent-10         	     619	    876831 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers1/rows4/baseline-10           	     624	    837434 ns/op	     112 B/op	       1 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows1/persistent-10         	    7333	    129202 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows1/baseline-10           	    4694	    146268 ns/op	     112 B/op	       1 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows3/persistent-10         	    2496	    278204 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows3/baseline-10           	    2102	    284666 ns/op	     112 B/op	       1 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows4/persistent-10         	    1671	    406417 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ8CodegenProbe/workers4/rows4/baseline-10           	    1668	    419868 ns/op	     112 B/op	       1 allocs/op
+PASS

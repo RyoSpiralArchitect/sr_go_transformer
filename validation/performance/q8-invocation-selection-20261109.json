@@ -1,0 +1,83 @@
+{
+  "schema": "sr_go_transformer/performance-receipt/v1",
+  "receipt": "q8-invocation-selection-20261109",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "decision": "Reject this Q8 invocation-reuse implementation for production: allocation reduction is established, but longer synthetic generation measurements show a repeatable runtime cost. Restore the prior refined Q4 runtime exactly. This does not reject every possible Q8 reuse design.",
+  "before": {
+    "description": "Previous local refined Q4 candidate, not unmodified main",
+    "source_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "test_binary": "runs/q4-refined-20261109.test",
+    "test_binary_sha256": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47",
+    "cli_binary": "runs/q4-refined-20261109",
+    "cli_binary_sha256": "1fa2fd0f7bdf074a4a6db0280bd660a13216d1dc9a29ae69318d308856e287d8",
+    "prior_record": "q4-refined-selection-20261109.json"
+  },
+  "rejected_candidate": {
+    "source_sha256": "e3ce9786bd188fe714744473b9cae37e785fede30d41f07aa640aebaac562de8",
+    "test_binary": "runs/q8-invocation-candidate-20261109.test",
+    "test_binary_sha256": "b85f9dec5cebddd4f420255e2157534b2dc950033e7d205139b5c2e770919992",
+    "cli_binary": "runs/q8-invocation-candidate-20261109",
+    "cli_binary_sha256": "daea52c630640a827743aa38807a161b603013c41fecdb8cf0cfb4708486b97f",
+    "test_source_sha256": "2bceb3788c44ab1776d883278ebb4658c15b5bc723ae65b9854dd9766d9c9ff2",
+    "implementation": "Ordinary Q8 arithmetic moved unchanged into linearQ8Range using the existing shared x/y/w/n descriptor. Inline calls use a stack descriptor; parallel calls initialize q8Fn lazily, join all workers, then clear references. The wide fallback remains before callback setup. No arithmetic, partition, threshold or numerical-tolerance change.",
+    "executor_struct_bytes": {"before": 120, "candidate": 128},
+    "retained_patch": "q8-invocation-candidate-20261109.patch",
+    "patch_sha256": "858fc57ae4b997b79bf31bf5b19a9ef1ee97660002d548dcff917b23b6b65d1b",
+    "reproduction": "The patch contains the complete runtime delta from ancestor_commit plus the five added Go test/harness files, including the candidate allocation/lifetime tests. Apply only in a separate clean checkout of ancestor_commit; the current dirty worktree already contains retained Q4 work and a different post-rejection Q8 test file. git apply --reverse --check succeeded against the exact candidate before restoration. Build with ./scripts/go.sh test -c ./cmd/monolith, and CGO_ENABLED=0 ./scripts/go.sh build -trimpath ./cmd/monolith. Source hashes identify bytes; independently rebuilt binary hashes can vary with checkout path/build environment. The patch does not include local models or raw model stdout."
+  },
+  "environment": {"platform": "darwin/arm64", "cpu": "Apple M4", "go": "go1.27.3"},
+  "allocation": {
+    "warm_kernel": "TestQ8InvocationSteadyAllocation first failed on the baseline at workers1/rows1 with 1 object per call. Candidate passed with zero objects at workers1/2/4 and rows1/2/3/4/5/17. Cold parallel callback creation is not included in the warm zero-allocation claim.",
+    "synthetic_prefix33_outputs128_workers1": {"before_allocs": 1084, "candidate_allocs": 46, "before_bytes": 554984, "candidate_bytes_observed": [438728, 438730]},
+    "synthetic_prefix33_outputs128_workers4": {"before_allocs": 1090, "candidate_allocs": 53},
+    "interpretation": "Allocation reduction alone is not a speedup. After rejection, the production Q8 path retains its existing per-call allocation; the current baseline test reports it without asserting that it must remain. The exact zero-allocation candidate tests are preserved in the patch."
+  },
+  "correctness": {
+    "ordinary": "Candidate passed exact float32-bit comparison against baselineLinearQ8Into on 882 worker/row/input/output combinations, plus output guards and cleared shared references. Shape sets: workers1/4, rows0/1/2/3/4/5/7/8/17, inputs1/3/63/64/65/129/513, outputs1/2/31/32/33/65/259.",
+    "lifetime": "Candidate callback was intercepted to block all four participants: the call did not return or clear state until release; workers joined, exact output matched and shared references cleared. Multiple independent executors and alternating Q4/FP32/Q8 calls passed, including race validation.",
+    "wide": "Extreme activations produced bit-identical wide-fallback results, including infinity, without initializing q8Fn. An initial test helper incorrectly rejected equal infinities because it also evaluated an arithmetic error check; this test was changed to compare Float32bits directly, without changing production arithmetic."
+  },
+  "generation": {
+    "broad_receipt": "q8-invocation-generation-20261109.json",
+    "broad_protocol": "Three alternating before/after blocks; fresh processes, 18 fixed-order leaves each, 300ms benchmark duration. Own full race/compatibility validation overlapped this broad pass. Preserve these samples, but do not use their timings for adoption. Allocation evidence is consistent with focused kernel tests and the later pass.",
+    "followup_receipt": "q8-invocation-focus-20261109.json",
+    "followup_protocol": "After all owned validation/model jobs completed: three alternating before/after blocks, fresh processes, 1s leaves, count1, prefix33/outputs128, all three formats and workers1/4 (six leaves per process). No other owned heavy job ran during this pass. Host background activity remains uncontrolled.",
+    "followup_median_candidate_over_baseline": {
+      "q8_workers1": 1.0631876046802549,
+      "q8_workers4": 1.0537138817885248,
+      "f32_workers1": 1.003498700928307,
+      "f32_workers4": 1.0048281322241925,
+      "q4_workers1": 0.9994234412857671,
+      "q4_workers4": 0.9975780817159995
+    },
+    "same_binary_receipt": "q8-invocation-control-20261109.json",
+    "same_binary_protocol": "Three additional alternating label blocks with the preserved baseline binary on both sides, 1s leaves, Q8 workers1/4, prefix33/outputs128. Labels do not denote different code in this control.",
+    "same_binary_median_ratios": {"q8_workers1": 0.9991859241810893, "q8_workers4": 1.002280909862103},
+    "interpretation": "The candidate is approximately 5-6% slower on the longer Q8 synthetic condition; FP32/Q4 and same-binary medians do not show a comparable cost. This supports rejecting this candidate on this workload, not a universal performance conclusion. Ratios compare independently calibrated estimates, not matched requests; only three blocks were collected. No confidence interval, code-generation cause, spilling claim, model timing or control-subtracted speed estimate is asserted."
+  },
+  "real_model_outputs": {
+    "model": "/Users/ryohiga/SpiralReality/models/Llama-3.2-3B-Instruct",
+    "settings": "generate -hf-model MODEL -weight-format FORMAT -weight-mib 14000 -prompt 'Write a detailed history of the city of Tokyo.' -max-tokens 128 -temperature 0 -threads 4; FORMAT=q8 or q4",
+    "comparison": "Fresh candidate complete stdout was compared by cmp against preserved refined-baseline stdout; baseline CLI and saved-output hashes were checked against the prior receipt. The baseline model was not rerun in this round. Both formats matched. No real-model timing inference or cross-format identity is claimed.",
+    "q8_sha256_both": "7cf81b5656111c075d458d51f5e61a8e620d9362554c55b5b8ccb2cae77a5271",
+    "q4_sha256_both": "a1dbfce79a5fe0cc13f3119e1fbdde9f1080d2394aef2aadeea10c8e4d31c293",
+    "baseline_artifacts": "runs/realmodel-llama3b/q4-refined-{q8,q4}-after-20261109.out",
+    "candidate_artifacts": "runs/realmodel-llama3b/q8-invocation-{q8,q4}-after-20261109.out",
+    "availability": "Models, stdout and executables remain local ignored artifacts. Benchmark raw files and source patch are retained with this receipt."
+  },
+  "verification_candidate": {
+    "regular": "./scripts/go.sh test ./cmd/... ./tools/... passed",
+    "vet": "./scripts/go.sh vet ./cmd/... ./tools/... passed",
+    "race": "./scripts/go.sh test -race ./cmd/... ./tools/... passed (monolith 135.624s)",
+    "compatibility": "GOTOOLCHAIN=go1.22.12 GOARCH=amd64 ./scripts/go.sh test ./cmd/monolith -run 'TestProjection|TestSharedProjection|TestWideSumScanPredicates|TestQ4|TestQ8|TestWorkerLinearSteadyAllocation' -count=1 passed under Rosetta; not native Linux testing",
+    "python": "52 unittest tests passed; pytest also passed 52 tests and 469 subtests",
+    "scope": "go test ./... still fails on the pre-existing ignored runs/dbg_special_test.go, which refers to unexported monolith symbols from a separate package. That file was neither removed nor modified. No remote CI, commit, push or PR in this round."
+  },
+  "restoration": {
+    "runtime_sha256": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "meaning": "Production source restored byte-for-byte to the pre-Q8 refined Q4 candidate. Executor remains120 bytes. Prior Q4/FP32 sharing, lazy callbacks and safety scan remain; the rejected Q8 callback and range helper are absent. All earlier receipts and raw data are unchanged.",
+    "tests": "Keep ordinary Q8 shape/guard, independent-owner and wide-path regression coverage in cmd/monolith/q8_invocation_test.go. Candidate-only callback/lifetime and zero-allocation assertions remain in the archived patch, not active production tests.",
+    "verification": "After restoration: regular cmd/tools tests, vet, targeted Q8/Q4/shared-state/projection race tests, the same targeted tests under Go1.22.12/amd64, gofmt and git diff --check passed. Full race passed on the rejected candidate; after restoration only targeted race was rerun."
+  },
+  "next_hypothesis": "Investigate the generated Q8 hot-loop/descriptor extraction before attempting another reuse design. Code shape, bounds checks and register allocation are hypotheses only; no cause has been established. Do not recover the observed slowdown by changing numerical tolerances or reviving the rejected column-pairing experiment."
+}

@@ -3713,6 +3713,7 @@ type kernelExecutor struct {
 	lifetime  sync.WaitGroup
 	linear    fp32Kernel
 	linearFn  func(lo, hi int)
+	q4Fn      func(lo, hi int)
 }
 
 type fp32Kernel struct {
@@ -3729,9 +3730,6 @@ type kernelJob struct {
 // Callers bound workers to 1..256. One worker runs inline on the caller.
 func newKernelExecutor(workers int) *kernelExecutor {
 	e := &kernelExecutor{workers: workers}
-	e.linearFn = func(lo, hi int) {
-		linearFP32Range(&e.linear, lo, hi)
-	}
 	if workers > 1 {
 		e.jobs = make(chan kernelJob, workers)
 		e.completed = make(chan struct{}, workers)
@@ -3961,6 +3959,9 @@ func linearIntoWithExecutor(e *kernelExecutor, y, x []float32, w *Param, n int) 
 	if e.workers < 2 || tasks < 2 || work < 131072 {
 		linearFP32Range(&job, 0, tasks)
 		return
+	}
+	if e.linearFn == nil {
+		e.linearFn = func(lo, hi int) { linearFP32Range(&e.linear, lo, hi) }
 	}
 	e.linear = job
 	e.parallel(tasks, work, e.linearFn)
@@ -4414,8 +4415,10 @@ func dotQ8PairBlock64(x0, x1 *[64]float32, w *[64]int8) (float32, float32) {
 // leaves rounding headroom; ordinary activations only pay one input scan.
 func q8NeedsWideSum(x []float32) bool {
 	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
+	limitBits := math.Float32bits(limit)
 	for _, v := range x {
-		if v > limit || v < -limit {
+		magnitude := math.Float32bits(v) & 0x7fffffff
+		if magnitude > limitBits && magnitude <= 0x7f800000 {
 			return true
 		}
 	}
@@ -4460,22 +4463,94 @@ func linearQ4Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
 		return
 	}
 
+	tasks, work := ((n+3)/4)*((out+31)/32), n*in*out
+	if e == nil {
+		parallel(tasks, work, func(lo, hi int) {
+			job := fp32Kernel{x: x, y: y, w: w, n: n}
+			linearQ4Range(&job, lo, hi)
+		})
+		return
+	}
+	job := fp32Kernel{x: x, y: y, w: w, n: n}
+	if e.workers < 2 || tasks < 2 || work < 131072 {
+		linearQ4Range(&job, 0, tasks)
+		return
+	}
+	if e.q4Fn == nil {
+		e.q4Fn = func(lo, hi int) { linearQ4Range(&e.linear, lo, hi) }
+	}
+	e.linear = job
+	e.parallel(tasks, work, e.q4Fn)
+	e.linear = fp32Kernel{}
+}
+
+func linearQ4Range(job *fp32Kernel, lo, hi int) {
+	y, x, w, n := job.y, job.x, job.w, job.n
+	in, out := w.Cols, w.Rows
 	groups, tiles := (in+q8Block-1)/q8Block, (out+31)/32
-	e.parallel(((n+3)/4)*tiles, n*in*out, func(lo, hi int) {
-		for task := lo; task < hi; task++ {
-			r, o0 := (task/tiles)*4, (task%tiles)*32
-			for o := o0; o < min(o0+32, out); o++ {
-				wr := w.Q4.Values[o*((in+1)/2) : (o+1)*((in+1)/2)]
-				scales := w.Q4.Scales[o*groups : (o+1)*groups]
-				if r+4 <= n {
-					x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
-					x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
-					var s0, s1, s2, s3 float32
+	for task := lo; task < hi; task++ {
+		r, o0 := (task/tiles)*4, (task%tiles)*32
+		for o := o0; o < min(o0+32, out); o++ {
+			wr := w.Q4.Values[o*((in+1)/2) : (o+1)*((in+1)/2)]
+			scales := w.Q4.Scales[o*groups : (o+1)*groups]
+			if r+4 <= n {
+				x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
+				x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
+				var s0, s1, s2, s3 float32
+				for g, scale := range scales {
+					var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
+					j, end := g*q8Block, min((g+1)*q8Block, in)
+					for ; j+4 <= end; j += 4 {
+						v0, v1, v2, v3 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1], q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+						a0 += x0[j] * v0
+						b0 += x0[j+1] * v1
+						c0 += x0[j+2] * v2
+						d0 += x0[j+3] * v3
+						a1 += x1[j] * v0
+						b1 += x1[j+1] * v1
+						c1 += x1[j+2] * v2
+						d1 += x1[j+3] * v3
+						a2 += x2[j] * v0
+						b2 += x2[j+1] * v1
+						c2 += x2[j+2] * v2
+						d2 += x2[j+3] * v3
+						a3 += x3[j] * v0
+						b3 += x3[j+1] * v1
+						c3 += x3[j+2] * v2
+						d3 += x3[j+3] * v3
+					}
+					p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
+					for ; j < end; j++ {
+						v := q4Pairs[wr[(j)/2]][(j)%2]
+						p0 += x0[j] * v
+						p1 += x1[j] * v
+						p2 += x2[j] * v
+						p3 += x3[j] * v
+					}
+					s0 += p0 * scale
+					s1 += p1 * scale
+					s2 += p2 * scale
+					s3 += p3 * scale
+				}
+				y[r*out+o], y[(r+1)*out+o] = s0, s1
+				y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
+			} else {
+				row := r
+				if row+2 <= n {
+					x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
+					var s0, s1 float32
 					for g, scale := range scales {
-						var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
 						j, end := g*q8Block, min((g+1)*q8Block, in)
+						if end-j == 64 {
+							p0, p1 := dotQ4PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[32]byte)(wr[j/2:end/2]))
+							s0 += p0 * scale
+							s1 += p1 * scale
+							continue
+						}
+						var a0, b0, c0, d0, a1, b1, c1, d1 float32
 						for ; j+4 <= end; j += 4 {
-							v0, v1, v2, v3 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1], q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+							v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
+							v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
 							a0 += x0[j] * v0
 							b0 += x0[j+1] * v1
 							c0 += x0[j+2] * v2
@@ -4484,99 +4559,49 @@ func linearQ4Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
 							b1 += x1[j+1] * v1
 							c1 += x1[j+2] * v2
 							d1 += x1[j+3] * v3
-							a2 += x2[j] * v0
-							b2 += x2[j+1] * v1
-							c2 += x2[j+2] * v2
-							d2 += x2[j+3] * v3
-							a3 += x3[j] * v0
-							b3 += x3[j+1] * v1
-							c3 += x3[j+2] * v2
-							d3 += x3[j+3] * v3
 						}
-						p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
+						p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
 						for ; j < end; j++ {
-							v := q4Pairs[wr[(j)/2]][(j)%2]
+							v := q4Pairs[wr[j/2]][j%2]
 							p0 += x0[j] * v
 							p1 += x1[j] * v
-							p2 += x2[j] * v
-							p3 += x3[j] * v
 						}
 						s0 += p0 * scale
 						s1 += p1 * scale
-						s2 += p2 * scale
-						s3 += p3 * scale
 					}
-					y[r*out+o], y[(r+1)*out+o] = s0, s1
-					y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
-				} else {
-					row := r
-					if row+2 <= n {
-						x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
-						var s0, s1 float32
-						for g, scale := range scales {
-							j, end := g*q8Block, min((g+1)*q8Block, in)
-							if end-j == 64 {
-								p0, p1 := dotQ4PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[32]byte)(wr[j/2:end/2]))
-								s0 += p0 * scale
-								s1 += p1 * scale
-								continue
-							}
-							var a0, b0, c0, d0, a1, b1, c1, d1 float32
-							for ; j+4 <= end; j += 4 {
-								v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
-								v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
-								a0 += x0[j] * v0
-								b0 += x0[j+1] * v1
-								c0 += x0[j+2] * v2
-								d0 += x0[j+3] * v3
-								a1 += x1[j] * v0
-								b1 += x1[j+1] * v1
-								c1 += x1[j+2] * v2
-								d1 += x1[j+3] * v3
-							}
-							p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
-							for ; j < end; j++ {
-								v := q4Pairs[wr[j/2]][j%2]
-								p0 += x0[j] * v
-								p1 += x1[j] * v
-							}
-							s0 += p0 * scale
-							s1 += p1 * scale
+					y[row*out+o], y[(row+1)*out+o] = s0, s1
+					row += 2
+				}
+				for ; row < min(r+4, n); row++ {
+					xr := x[row*in : (row+1)*in]
+					var sum float32
+					for g, scale := range scales {
+						j, end := g*q8Block, min((g+1)*q8Block, in)
+						if end-j == 64 {
+							// Safe array views check the complete block once, without copying.
+							sum += dotQ4Block64((*[64]float32)(xr[j:end]), (*[32]byte)(wr[j/2:end/2])) * scale
+							continue
 						}
-						y[row*out+o], y[(row+1)*out+o] = s0, s1
-						row += 2
-					}
-					for ; row < min(r+4, n); row++ {
-						xr := x[row*in : (row+1)*in]
-						var sum float32
-						for g, scale := range scales {
-							j, end := g*q8Block, min((g+1)*q8Block, in)
-							if end-j == 64 {
-								// Safe array views check the complete block once, without copying.
-								sum += dotQ4Block64((*[64]float32)(xr[j:end]), (*[32]byte)(wr[j/2:end/2])) * scale
-								continue
-							}
-							var a, b, c, d float32
-							for ; j+4 <= end; j += 4 {
-								v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
-								v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
-								a += xr[j] * v0
-								b += xr[j+1] * v1
-								c += xr[j+2] * v2
-								d += xr[j+3] * v3
-							}
-							part := (a + b) + (c + d)
-							for ; j < end; j++ {
-								part += xr[j] * q4Pairs[wr[(j)/2]][(j)%2]
-							}
-							sum += part * scale
+						var a, b, c, d float32
+						for ; j+4 <= end; j += 4 {
+							v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
+							v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+							a += xr[j] * v0
+							b += xr[j+1] * v1
+							c += xr[j+2] * v2
+							d += xr[j+3] * v3
 						}
-						y[row*out+o] = sum
+						part := (a + b) + (c + d)
+						for ; j < end; j++ {
+							part += xr[j] * q4Pairs[wr[(j)/2]][(j)%2]
+						}
+						sum += part * scale
 					}
+					y[row*out+o] = sum
 				}
 			}
 		}
-	})
+	}
 }
 
 // dotQ4PairBlock64 shares each packed decode across two rows while retaining

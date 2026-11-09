@@ -1,0 +1,83 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v2",
+  "ancestor_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "prefix": "q8-cached-remeasure-confirm-q8-w1",
+  "declared_source_sha256": {
+    "before": "ea77195bd7cb3b35a6a466bf92920db3c16dc5dc7d3ee18d5ffd0a359a7d9d08",
+    "after": "7852de0f51364936992daefa7d447c7aac040877dce9633bdcb193eb1ca5161e"
+  },
+  "source_provenance": "Source identities are supplied from the build record; binary hashes are recomputed. Reading today's working tree does not establish the source of a historical executable.",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 32x per leaf, count1, whole generation; worker count asserted inside leaf; 1 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. Control interpretation depends on the selected change; see selection receipt. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/q4-refined-20261109.test": "4541c8ad971754b3d598ef490e9f047580a352fcc0c020ca1101db419a4ffd47",
+    "runs/q8-cached-invocation-final-20261109.test": "e70a870a23408809bc95fc6d48c46ccf00eb8e1f92c57b167a5b8ca3558e382a"
+  },
+  "raw_file_sha256": {
+    "q8-cached-remeasure-confirm-q8-w1-generation-before-20261109-run1.txt": "fb08048af66ff66852e9c09996f587c6d1582e2b1fc4f40438cf40566bfbcaff",
+    "q8-cached-remeasure-confirm-q8-w1-generation-after-20261109-run1.txt": "65c8793ce077981669f32e1450d85db717b39a027b76766983675600e470d0af",
+    "q8-cached-remeasure-confirm-q8-w1-generation-before-20261109-run2.txt": "6a1595eb49b47f1504fa5ebfbf507657bc11c8dab8a6f8417f2b2b8673e6e82b",
+    "q8-cached-remeasure-confirm-q8-w1-generation-after-20261109-run2.txt": "d25840bc75e0d0af88906b14f4ffef3960cfc6ec425eaea8be38f1efd03be028",
+    "q8-cached-remeasure-confirm-q8-w1-generation-before-20261109-run3.txt": "942f0ddf43aef628733b43c16b5a58020a9f33b71a259565530105a164b228bf",
+    "q8-cached-remeasure-confirm-q8-w1-generation-after-20261109-run3.txt": "96a5921a10abeeb2259dc73e8a799121425bdbbf84b65ebfcfa7bbace07df44e"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 35625565.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 35066689.0,
+          "bytes": 554985,
+          "allocs": 1084
+        },
+        {
+          "ns": 34903844.0,
+          "bytes": 554985,
+          "allocs": 1084
+        }
+      ],
+      "after": [
+        {
+          "ns": 34849951.0,
+          "bytes": 438760,
+          "allocs": 46
+        },
+        {
+          "ns": 34767359.0,
+          "bytes": 438760,
+          "allocs": 46
+        },
+        {
+          "ns": 34798888.0,
+          "bytes": 438760,
+          "allocs": 46
+        }
+      ],
+      "ratios": [
+        0.978228724232163,
+        0.9914639788204698,
+        0.9969929959576945
+      ],
+      "median_process_ratio": 0.9914639788204698
+    }
+  }
+}

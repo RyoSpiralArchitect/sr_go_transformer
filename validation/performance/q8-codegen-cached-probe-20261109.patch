@@ -1,0 +1,225 @@
+diff --git a/cmd/monolith/q8_codegen_test.go b/cmd/monolith/q8_codegen_test.go
+new file mode 100644
+index 0000000..b808e2c
+--- /dev/null
++++ b/cmd/monolith/q8_codegen_test.go
+@@ -0,0 +1,219 @@
++package main
++
++import (
++	"fmt"
++	"math"
++	"os"
++	"runtime"
++	"testing"
++)
++
++type q8CodegenProbe struct {
++	e                      *kernelExecutor
++	job                    fp32Kernel
++	fn                     func(int, int)
++	in, out, groups, tiles int
++}
++
++func newQ8CodegenProbe(e *kernelExecutor) *q8CodegenProbe {
++	p := &q8CodegenProbe{e: e}
++	p.fn = func(lo, hi int) {
++		y, x, w, n := p.job.y, p.job.x, p.job.w, p.job.n
++		in, out, groups, tiles := p.in, p.out, p.groups, p.tiles
++		for task := lo; task < hi; task++ {
++			r, o0 := (task/tiles)*4, (task%tiles)*32
++			for o := o0; o < min(o0+32, out); o++ {
++				wr := w.Q8.Values[o*in : (o+1)*in]
++				scales := w.Q8.Scales[o*groups : (o+1)*groups]
++				if r+4 <= n {
++					x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
++					x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
++					var s0, s1, s2, s3 float32
++					for g, scale := range scales {
++						var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
++						j, end := g*q8Block, min((g+1)*q8Block, in)
++						for ; j+4 <= end; j += 4 {
++							v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
++							a0 += x0[j] * v0
++							b0 += x0[j+1] * v1
++							c0 += x0[j+2] * v2
++							d0 += x0[j+3] * v3
++							a1 += x1[j] * v0
++							b1 += x1[j+1] * v1
++							c1 += x1[j+2] * v2
++							d1 += x1[j+3] * v3
++							a2 += x2[j] * v0
++							b2 += x2[j+1] * v1
++							c2 += x2[j+2] * v2
++							d2 += x2[j+3] * v3
++							a3 += x3[j] * v0
++							b3 += x3[j+1] * v1
++							c3 += x3[j+2] * v2
++							d3 += x3[j+3] * v3
++						}
++						p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++						for ; j < end; j++ {
++							v := float32(wr[j])
++							p0 += x0[j] * v
++							p1 += x1[j] * v
++							p2 += x2[j] * v
++							p3 += x3[j] * v
++						}
++						s0 += p0 * scale
++						s1 += p1 * scale
++						s2 += p2 * scale
++						s3 += p3 * scale
++					}
++					y[r*out+o], y[(r+1)*out+o] = s0, s1
++					y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
++				} else {
++					row := r
++					if row+2 <= n {
++						x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
++						var s0, s1 float32
++						for g, scale := range scales {
++							j, end := g*q8Block, min((g+1)*q8Block, in)
++							if end-j == 64 {
++								p0, p1 := dotQ8PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[64]int8)(wr[j:end]))
++								s0 += p0 * scale
++								s1 += p1 * scale
++								continue
++							}
++							var a0, b0, c0, d0, a1, b1, c1, d1 float32
++							for ; j+4 <= end; j += 4 {
++								v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
++								a0 += x0[j] * v0
++								b0 += x0[j+1] * v1
++								c0 += x0[j+2] * v2
++								d0 += x0[j+3] * v3
++								a1 += x1[j] * v0
++								b1 += x1[j+1] * v1
++								c1 += x1[j+2] * v2
++								d1 += x1[j+3] * v3
++							}
++							p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
++							for ; j < end; j++ {
++								v := float32(wr[j])
++								p0 += x0[j] * v
++								p1 += x1[j] * v
++							}
++							s0 += p0 * scale
++							s1 += p1 * scale
++						}
++						y[row*out+o], y[(row+1)*out+o] = s0, s1
++						row += 2
++					}
++					for ; row < min(r+4, n); row++ {
++						xr := x[row*in : (row+1)*in]
++						var sum float32
++						for g, scale := range scales {
++							j, end := g*q8Block, min((g+1)*q8Block, in)
++							var a, b, c, d float32
++							for ; j+4 <= end; j += 4 {
++								a += xr[j] * float32(wr[j])
++								b += xr[j+1] * float32(wr[j+1])
++								c += xr[j+2] * float32(wr[j+2])
++								d += xr[j+3] * float32(wr[j+3])
++							}
++							part := (a + b) + (c + d)
++							for ; j < end; j++ {
++								part += xr[j] * float32(wr[j])
++							}
++							sum += part * scale
++						}
++						y[row*out+o] = sum
++					}
++				}
++			}
++		}
++	}
++	return p
++}
++
++func (p *q8CodegenProbe) run(y, x []float32, w *Param, n int) {
++	in, out := w.Cols, w.Rows
++	if q8NeedsWideSum(x[:n*in]) {
++		linearQ8WideInto(p.e, y, x, w, n)
++		return
++	}
++	p.job = fp32Kernel{x: x, y: y, w: w, n: n}
++	p.in, p.out, p.groups, p.tiles = in, out, (in+q8Block-1)/q8Block, (out+31)/32
++	p.e.parallel(((n+3)/4)*((out+31)/32), n*in*out, p.fn)
++	p.job = fp32Kernel{}
++}
++
++func TestQ8CodegenProbe(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		p := newQ8CodegenProbe(e)
++		for _, rows := range []int{0, 1, 2, 3, 4, 5, 7, 8, 17} {
++			for _, in := range []int{1, 3, 63, 64, 65, 129, 513} {
++				for _, out := range []int{1, 2, 31, 32, 33, 65, 259} {
++					x, dense, _ := linearFixture(rows, in, out)
++					w := quantizeTestParam(t, dense)
++					want := make([]float32, rows*out)
++					guard := make([]float32, rows*out+2)
++					guard[0], guard[len(guard)-1] = -777, -777
++					linearQ8Into(e, want, x, w, rows)
++					p.run(guard[1:len(guard)-1], x, w, rows)
++					for i := range want {
++						if math.Float32bits(want[i]) != math.Float32bits(guard[i+1]) {
++							t.Fatalf("workers%d/rows%d/in%d/out%d element%d", workers, rows, in, out, i)
++						}
++					}
++					if guard[0] != -777 || guard[len(guard)-1] != -777 {
++						t.Fatal("output guard changed")
++					}
++					if p.job.x != nil || p.job.y != nil || p.job.w != nil || p.job.n != 0 {
++						t.Fatal("probe retained references")
++					}
++				}
++			}
++		}
++		x, dense, _ := linearFixture(4, 513, 259)
++		w := quantizeTestParam(t, dense)
++		y := make([]float32, 4*w.Rows)
++		if got := testing.AllocsPerRun(20, func() { p.run(y, x, w, 4) }); got != 0 {
++			t.Fatalf("warm probe allocated %v", got)
++		}
++		e.close()
++	}
++}
++
++func BenchmarkQ8CodegenProbe(b *testing.B) {
++	for _, workers := range []int{1, 4} {
++		for _, rows := range []int{1, 3, 4} {
++			b.Run(fmt.Sprintf("workers%d/rows%d", workers, rows), func(b *testing.B) {
++				old := runtime.GOMAXPROCS(workers)
++				defer runtime.GOMAXPROCS(old)
++				x, dense, _ := linearFixture(rows, 1536, 513)
++				w := quantizeTestParam(b, dense)
++				y := make([]float32, rows*w.Rows)
++				e := newKernelExecutor(workers)
++				defer e.close()
++				p := newQ8CodegenProbe(e)
++				modes := []string{"baseline", "persistent"}
++				if os.Getenv("Q8_CODEGEN_REVERSE") == "1" {
++					modes[0], modes[1] = modes[1], modes[0]
++				}
++				for _, mode := range modes {
++					b.Run(mode, func(b *testing.B) {
++						old := runtime.GOMAXPROCS(workers)
++						defer runtime.GOMAXPROCS(old)
++						b.ReportAllocs()
++						b.ResetTimer()
++						if mode == "baseline" {
++							for i := 0; i < b.N; i++ {
++								linearQ8Into(e, y, x, w, rows)
++							}
++						} else {
++							for i := 0; i < b.N; i++ {
++								p.run(y, x, w, rows)
++							}
++						}
++					})
++				}
++			})
++		}
++	}
++}

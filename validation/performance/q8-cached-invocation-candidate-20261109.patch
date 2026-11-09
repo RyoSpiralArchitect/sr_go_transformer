@@ -1,0 +1,1661 @@
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index de17b30..f0c5fa9 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -3713,12 +3713,15 @@ type kernelExecutor struct {
+ 	lifetime  sync.WaitGroup
+ 	linear    fp32Kernel
+ 	linearFn  func(lo, hi int)
++	q4Fn      func(lo, hi int)
++	q8Fn      func(lo, hi int)
+ }
+ 
+ type fp32Kernel struct {
+-	x, y []float32
+-	w    *Param
+-	n    int
++	x, y                   []float32
++	w                      *Param
++	n                      int
++	in, out, groups, tiles int
+ }
+ 
+ type kernelJob struct {
+@@ -3729,9 +3732,6 @@ type kernelJob struct {
+ // Callers bound workers to 1..256. One worker runs inline on the caller.
+ func newKernelExecutor(workers int) *kernelExecutor {
+ 	e := &kernelExecutor{workers: workers}
+-	e.linearFn = func(lo, hi int) {
+-		linearFP32Range(&e.linear, lo, hi)
+-	}
+ 	if workers > 1 {
+ 		e.jobs = make(chan kernelJob, workers)
+ 		e.completed = make(chan struct{}, workers)
+@@ -3962,6 +3962,9 @@ func linearIntoWithExecutor(e *kernelExecutor, y, x []float32, w *Param, n int)
+ 		linearFP32Range(&job, 0, tasks)
+ 		return
+ 	}
++	if e.linearFn == nil {
++		e.linearFn = func(lo, hi int) { linearFP32Range(&e.linear, lo, hi) }
++	}
+ 	e.linear = job
+ 	e.parallel(tasks, work, e.linearFn)
+ 	e.linear = fp32Kernel{}
+@@ -4147,19 +4150,90 @@ func linearQ8Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
+ 		return
+ 	}
+ 	groups, tiles := (in+q8Block-1)/q8Block, (out+31)/32
+-	e.parallel(((n+3)/4)*tiles, n*in*out, func(lo, hi int) {
+-		for task := lo; task < hi; task++ {
+-			r, o0 := (task/tiles)*4, (task%tiles)*32
+-			for o := o0; o < min(o0+32, out); o++ {
+-				wr := w.Q8.Values[o*in : (o+1)*in]
+-				scales := w.Q8.Scales[o*groups : (o+1)*groups]
+-				if r+4 <= n {
+-					x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
+-					x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
+-					var s0, s1, s2, s3 float32
++	tasks, work := ((n+3)/4)*tiles, n*in*out
++	if e == nil {
++		parallel(tasks, work, func(lo, hi int) {
++			job := fp32Kernel{x: x, y: y, w: w, n: n, in: in, out: out, groups: groups, tiles: tiles}
++			linearQ8Range(&job, lo, hi)
++		})
++		return
++	}
++	job := fp32Kernel{x: x, y: y, w: w, n: n, in: in, out: out, groups: groups, tiles: tiles}
++	if e.workers < 2 || tasks < 2 || work < 131072 {
++		linearQ8Range(&job, 0, tasks)
++		return
++	}
++	if e.q8Fn == nil {
++		e.q8Fn = func(lo, hi int) { linearQ8Range(&e.linear, lo, hi) }
++	}
++	e.linear = job
++	e.parallel(tasks, work, e.q8Fn)
++	e.linear = fp32Kernel{}
++}
++
++func linearQ8Range(job *fp32Kernel, lo, hi int) {
++	y, x, w, n := job.y, job.x, job.w, job.n
++	in, out, groups, tiles := job.in, job.out, job.groups, job.tiles
++	for task := lo; task < hi; task++ {
++		r, o0 := (task/tiles)*4, (task%tiles)*32
++		for o := o0; o < min(o0+32, out); o++ {
++			wr := w.Q8.Values[o*in : (o+1)*in]
++			scales := w.Q8.Scales[o*groups : (o+1)*groups]
++			if r+4 <= n {
++				x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
++				x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
++				var s0, s1, s2, s3 float32
++				for g, scale := range scales {
++					var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
++					j, end := g*q8Block, min((g+1)*q8Block, in)
++					for ; j+4 <= end; j += 4 {
++						v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
++						a0 += x0[j] * v0
++						b0 += x0[j+1] * v1
++						c0 += x0[j+2] * v2
++						d0 += x0[j+3] * v3
++						a1 += x1[j] * v0
++						b1 += x1[j+1] * v1
++						c1 += x1[j+2] * v2
++						d1 += x1[j+3] * v3
++						a2 += x2[j] * v0
++						b2 += x2[j+1] * v1
++						c2 += x2[j+2] * v2
++						d2 += x2[j+3] * v3
++						a3 += x3[j] * v0
++						b3 += x3[j+1] * v1
++						c3 += x3[j+2] * v2
++						d3 += x3[j+3] * v3
++					}
++					p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++					for ; j < end; j++ {
++						v := float32(wr[j])
++						p0 += x0[j] * v
++						p1 += x1[j] * v
++						p2 += x2[j] * v
++						p3 += x3[j] * v
++					}
++					s0 += p0 * scale
++					s1 += p1 * scale
++					s2 += p2 * scale
++					s3 += p3 * scale
++				}
++				y[r*out+o], y[(r+1)*out+o] = s0, s1
++				y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
++			} else {
++				row := r
++				if row+2 <= n {
++					x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
++					var s0, s1 float32
+ 					for g, scale := range scales {
+-						var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
+ 						j, end := g*q8Block, min((g+1)*q8Block, in)
++						if end-j == 64 {
++							p0, p1 := dotQ8PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[64]int8)(wr[j:end]))
++							s0 += p0 * scale
++							s1 += p1 * scale
++							continue
++						}
++						var a0, b0, c0, d0, a1, b1, c1, d1 float32
+ 						for ; j+4 <= end; j += 4 {
+ 							v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
+ 							a0 += x0[j] * v0
+@@ -4170,91 +4244,42 @@ func linearQ8Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
+ 							b1 += x1[j+1] * v1
+ 							c1 += x1[j+2] * v2
+ 							d1 += x1[j+3] * v3
+-							a2 += x2[j] * v0
+-							b2 += x2[j+1] * v1
+-							c2 += x2[j+2] * v2
+-							d2 += x2[j+3] * v3
+-							a3 += x3[j] * v0
+-							b3 += x3[j+1] * v1
+-							c3 += x3[j+2] * v2
+-							d3 += x3[j+3] * v3
+ 						}
+-						p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++						p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
+ 						for ; j < end; j++ {
+ 							v := float32(wr[j])
+ 							p0 += x0[j] * v
+ 							p1 += x1[j] * v
+-							p2 += x2[j] * v
+-							p3 += x3[j] * v
+ 						}
+ 						s0 += p0 * scale
+ 						s1 += p1 * scale
+-						s2 += p2 * scale
+-						s3 += p3 * scale
+ 					}
+-					y[r*out+o], y[(r+1)*out+o] = s0, s1
+-					y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
+-				} else {
+-					row := r
+-					if row+2 <= n {
+-						x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
+-						var s0, s1 float32
+-						for g, scale := range scales {
+-							j, end := g*q8Block, min((g+1)*q8Block, in)
+-							if end-j == 64 {
+-								p0, p1 := dotQ8PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[64]int8)(wr[j:end]))
+-								s0 += p0 * scale
+-								s1 += p1 * scale
+-								continue
+-							}
+-							var a0, b0, c0, d0, a1, b1, c1, d1 float32
+-							for ; j+4 <= end; j += 4 {
+-								v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
+-								a0 += x0[j] * v0
+-								b0 += x0[j+1] * v1
+-								c0 += x0[j+2] * v2
+-								d0 += x0[j+3] * v3
+-								a1 += x1[j] * v0
+-								b1 += x1[j+1] * v1
+-								c1 += x1[j+2] * v2
+-								d1 += x1[j+3] * v3
+-							}
+-							p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
+-							for ; j < end; j++ {
+-								v := float32(wr[j])
+-								p0 += x0[j] * v
+-								p1 += x1[j] * v
+-							}
+-							s0 += p0 * scale
+-							s1 += p1 * scale
++					y[row*out+o], y[(row+1)*out+o] = s0, s1
++					row += 2
++				}
++				for ; row < min(r+4, n); row++ {
++					xr := x[row*in : (row+1)*in]
++					var sum float32
++					for g, scale := range scales {
++						j, end := g*q8Block, min((g+1)*q8Block, in)
++						var a, b, c, d float32
++						for ; j+4 <= end; j += 4 {
++							a += xr[j] * float32(wr[j])
++							b += xr[j+1] * float32(wr[j+1])
++							c += xr[j+2] * float32(wr[j+2])
++							d += xr[j+3] * float32(wr[j+3])
+ 						}
+-						y[row*out+o], y[(row+1)*out+o] = s0, s1
+-						row += 2
+-					}
+-					for ; row < min(r+4, n); row++ {
+-						xr := x[row*in : (row+1)*in]
+-						var sum float32
+-						for g, scale := range scales {
+-							j, end := g*q8Block, min((g+1)*q8Block, in)
+-							var a, b, c, d float32
+-							for ; j+4 <= end; j += 4 {
+-								a += xr[j] * float32(wr[j])
+-								b += xr[j+1] * float32(wr[j+1])
+-								c += xr[j+2] * float32(wr[j+2])
+-								d += xr[j+3] * float32(wr[j+3])
+-							}
+-							part := (a + b) + (c + d)
+-							for ; j < end; j++ {
+-								part += xr[j] * float32(wr[j])
+-							}
+-							sum += part * scale
++						part := (a + b) + (c + d)
++						for ; j < end; j++ {
++							part += xr[j] * float32(wr[j])
+ 						}
+-						y[row*out+o] = sum
++						sum += part * scale
+ 					}
++					y[row*out+o] = sum
+ 				}
+ 			}
+ 		}
+-	})
++	}
+ }
+ 
+ // Complete Q8 pairs keep the original four accumulators and reduction order.
+@@ -4414,8 +4439,10 @@ func dotQ8PairBlock64(x0, x1 *[64]float32, w *[64]int8) (float32, float32) {
+ // leaves rounding headroom; ordinary activations only pay one input scan.
+ func q8NeedsWideSum(x []float32) bool {
+ 	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
++	limitBits := math.Float32bits(limit)
+ 	for _, v := range x {
+-		if v > limit || v < -limit {
++		magnitude := math.Float32bits(v) & 0x7fffffff
++		if magnitude > limitBits && magnitude <= 0x7f800000 {
+ 			return true
+ 		}
+ 	}
+@@ -4460,22 +4487,94 @@ func linearQ4Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
+ 		return
+ 	}
+ 
++	tasks, work := ((n+3)/4)*((out+31)/32), n*in*out
++	if e == nil {
++		parallel(tasks, work, func(lo, hi int) {
++			job := fp32Kernel{x: x, y: y, w: w, n: n}
++			linearQ4Range(&job, lo, hi)
++		})
++		return
++	}
++	job := fp32Kernel{x: x, y: y, w: w, n: n}
++	if e.workers < 2 || tasks < 2 || work < 131072 {
++		linearQ4Range(&job, 0, tasks)
++		return
++	}
++	if e.q4Fn == nil {
++		e.q4Fn = func(lo, hi int) { linearQ4Range(&e.linear, lo, hi) }
++	}
++	e.linear = job
++	e.parallel(tasks, work, e.q4Fn)
++	e.linear = fp32Kernel{}
++}
++
++func linearQ4Range(job *fp32Kernel, lo, hi int) {
++	y, x, w, n := job.y, job.x, job.w, job.n
++	in, out := w.Cols, w.Rows
+ 	groups, tiles := (in+q8Block-1)/q8Block, (out+31)/32
+-	e.parallel(((n+3)/4)*tiles, n*in*out, func(lo, hi int) {
+-		for task := lo; task < hi; task++ {
+-			r, o0 := (task/tiles)*4, (task%tiles)*32
+-			for o := o0; o < min(o0+32, out); o++ {
+-				wr := w.Q4.Values[o*((in+1)/2) : (o+1)*((in+1)/2)]
+-				scales := w.Q4.Scales[o*groups : (o+1)*groups]
+-				if r+4 <= n {
+-					x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
+-					x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
+-					var s0, s1, s2, s3 float32
++	for task := lo; task < hi; task++ {
++		r, o0 := (task/tiles)*4, (task%tiles)*32
++		for o := o0; o < min(o0+32, out); o++ {
++			wr := w.Q4.Values[o*((in+1)/2) : (o+1)*((in+1)/2)]
++			scales := w.Q4.Scales[o*groups : (o+1)*groups]
++			if r+4 <= n {
++				x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
++				x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
++				var s0, s1, s2, s3 float32
++				for g, scale := range scales {
++					var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
++					j, end := g*q8Block, min((g+1)*q8Block, in)
++					for ; j+4 <= end; j += 4 {
++						v0, v1, v2, v3 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1], q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
++						a0 += x0[j] * v0
++						b0 += x0[j+1] * v1
++						c0 += x0[j+2] * v2
++						d0 += x0[j+3] * v3
++						a1 += x1[j] * v0
++						b1 += x1[j+1] * v1
++						c1 += x1[j+2] * v2
++						d1 += x1[j+3] * v3
++						a2 += x2[j] * v0
++						b2 += x2[j+1] * v1
++						c2 += x2[j+2] * v2
++						d2 += x2[j+3] * v3
++						a3 += x3[j] * v0
++						b3 += x3[j+1] * v1
++						c3 += x3[j+2] * v2
++						d3 += x3[j+3] * v3
++					}
++					p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++					for ; j < end; j++ {
++						v := q4Pairs[wr[(j)/2]][(j)%2]
++						p0 += x0[j] * v
++						p1 += x1[j] * v
++						p2 += x2[j] * v
++						p3 += x3[j] * v
++					}
++					s0 += p0 * scale
++					s1 += p1 * scale
++					s2 += p2 * scale
++					s3 += p3 * scale
++				}
++				y[r*out+o], y[(r+1)*out+o] = s0, s1
++				y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
++			} else {
++				row := r
++				if row+2 <= n {
++					x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
++					var s0, s1 float32
+ 					for g, scale := range scales {
+-						var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
+ 						j, end := g*q8Block, min((g+1)*q8Block, in)
++						if end-j == 64 {
++							p0, p1 := dotQ4PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[32]byte)(wr[j/2:end/2]))
++							s0 += p0 * scale
++							s1 += p1 * scale
++							continue
++						}
++						var a0, b0, c0, d0, a1, b1, c1, d1 float32
+ 						for ; j+4 <= end; j += 4 {
+-							v0, v1, v2, v3 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1], q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
++							v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
++							v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+ 							a0 += x0[j] * v0
+ 							b0 += x0[j+1] * v1
+ 							c0 += x0[j+2] * v2
+@@ -4484,99 +4583,49 @@ func linearQ4Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
+ 							b1 += x1[j+1] * v1
+ 							c1 += x1[j+2] * v2
+ 							d1 += x1[j+3] * v3
+-							a2 += x2[j] * v0
+-							b2 += x2[j+1] * v1
+-							c2 += x2[j+2] * v2
+-							d2 += x2[j+3] * v3
+-							a3 += x3[j] * v0
+-							b3 += x3[j+1] * v1
+-							c3 += x3[j+2] * v2
+-							d3 += x3[j+3] * v3
+ 						}
+-						p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++						p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
+ 						for ; j < end; j++ {
+-							v := q4Pairs[wr[(j)/2]][(j)%2]
++							v := q4Pairs[wr[j/2]][j%2]
+ 							p0 += x0[j] * v
+ 							p1 += x1[j] * v
+-							p2 += x2[j] * v
+-							p3 += x3[j] * v
+ 						}
+ 						s0 += p0 * scale
+ 						s1 += p1 * scale
+-						s2 += p2 * scale
+-						s3 += p3 * scale
+ 					}
+-					y[r*out+o], y[(r+1)*out+o] = s0, s1
+-					y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
+-				} else {
+-					row := r
+-					if row+2 <= n {
+-						x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
+-						var s0, s1 float32
+-						for g, scale := range scales {
+-							j, end := g*q8Block, min((g+1)*q8Block, in)
+-							if end-j == 64 {
+-								p0, p1 := dotQ4PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[32]byte)(wr[j/2:end/2]))
+-								s0 += p0 * scale
+-								s1 += p1 * scale
+-								continue
+-							}
+-							var a0, b0, c0, d0, a1, b1, c1, d1 float32
+-							for ; j+4 <= end; j += 4 {
+-								v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
+-								v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+-								a0 += x0[j] * v0
+-								b0 += x0[j+1] * v1
+-								c0 += x0[j+2] * v2
+-								d0 += x0[j+3] * v3
+-								a1 += x1[j] * v0
+-								b1 += x1[j+1] * v1
+-								c1 += x1[j+2] * v2
+-								d1 += x1[j+3] * v3
+-							}
+-							p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
+-							for ; j < end; j++ {
+-								v := q4Pairs[wr[j/2]][j%2]
+-								p0 += x0[j] * v
+-								p1 += x1[j] * v
+-							}
+-							s0 += p0 * scale
+-							s1 += p1 * scale
++					y[row*out+o], y[(row+1)*out+o] = s0, s1
++					row += 2
++				}
++				for ; row < min(r+4, n); row++ {
++					xr := x[row*in : (row+1)*in]
++					var sum float32
++					for g, scale := range scales {
++						j, end := g*q8Block, min((g+1)*q8Block, in)
++						if end-j == 64 {
++							// Safe array views check the complete block once, without copying.
++							sum += dotQ4Block64((*[64]float32)(xr[j:end]), (*[32]byte)(wr[j/2:end/2])) * scale
++							continue
+ 						}
+-						y[row*out+o], y[(row+1)*out+o] = s0, s1
+-						row += 2
+-					}
+-					for ; row < min(r+4, n); row++ {
+-						xr := x[row*in : (row+1)*in]
+-						var sum float32
+-						for g, scale := range scales {
+-							j, end := g*q8Block, min((g+1)*q8Block, in)
+-							if end-j == 64 {
+-								// Safe array views check the complete block once, without copying.
+-								sum += dotQ4Block64((*[64]float32)(xr[j:end]), (*[32]byte)(wr[j/2:end/2])) * scale
+-								continue
+-							}
+-							var a, b, c, d float32
+-							for ; j+4 <= end; j += 4 {
+-								v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
+-								v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
+-								a += xr[j] * v0
+-								b += xr[j+1] * v1
+-								c += xr[j+2] * v2
+-								d += xr[j+3] * v3
+-							}
+-							part := (a + b) + (c + d)
+-							for ; j < end; j++ {
+-								part += xr[j] * q4Pairs[wr[(j)/2]][(j)%2]
+-							}
+-							sum += part * scale
++						var a, b, c, d float32
++						for ; j+4 <= end; j += 4 {
++							v0, v1 := q4Pairs[wr[j/2]][0], q4Pairs[wr[j/2]][1]
++							v2, v3 := q4Pairs[wr[j/2+1]][0], q4Pairs[wr[j/2+1]][1]
++							a += xr[j] * v0
++							b += xr[j+1] * v1
++							c += xr[j+2] * v2
++							d += xr[j+3] * v3
+ 						}
+-						y[row*out+o] = sum
++						part := (a + b) + (c + d)
++						for ; j < end; j++ {
++							part += xr[j] * q4Pairs[wr[(j)/2]][(j)%2]
++						}
++						sum += part * scale
+ 					}
++					y[row*out+o] = sum
+ 				}
+ 			}
+ 		}
+-	})
++	}
+ }
+ 
+ // dotQ4PairBlock64 shares each packed decode across two rows while retaining
+diff --git a/cmd/monolith/post_singleexp_profile_test.go b/cmd/monolith/post_singleexp_profile_test.go
+new file mode 100644
+index 0000000..94e84f9
+--- /dev/null
++++ b/cmd/monolith/post_singleexp_profile_test.go
+@@ -0,0 +1,60 @@
++package main
++
++import (
++	"fmt"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++func postSingleExpModel(t testing.TB, format string) *Model {
++	t.Helper()
++	m := decodeComparisonModel(t, Tokenizer{})
++	for _, p := range m.Params {
++		if p.Rows < 2 || format == "f32" {
++			continue
++		}
++		var q *Param
++		switch format {
++		case "q8":
++			q = quantizeTestParam(t, p)
++		case "q4":
++			q = quantizeQ4TestParam(t, p)
++		default:
++			t.Fatalf("unknown format %q", format)
++		}
++		*p = *q
++	}
++	return m
++}
++
++func BenchmarkPostSingleExpGeneration(b *testing.B) {
++	for _, format := range []string{"f32", "q8", "q4"} {
++		b.Run(format, func(b *testing.B) {
++			m := postSingleExpModel(b, format)
++			for _, workers := range []int{1, 4} {
++				b.Run(fmt.Sprintf("workers%d", workers), func(b *testing.B) {
++					for _, shape := range [][2]int{{257, 1}, {33, 8}, {33, 128}} {
++						b.Run(fmt.Sprintf("prefix%d/tokens%d", shape[0], shape[1]), func(b *testing.B) {
++							old := runtime.GOMAXPROCS(workers)
++							defer runtime.GOMAXPROCS(old)
++							_, planned := planGenerationPrompt(m, shape[0], shape[1])
++							if planned != workers {
++								b.Fatalf("planned %d workers, want %d", planned, workers)
++							}
++							want := decodeComparisonRun(b, m, Tokenizer{}, false, shape[0], shape[1])
++							if got := decodeComparisonRun(b, m, Tokenizer{}, false, shape[0], shape[1]); !reflect.DeepEqual(got, want) {
++								b.Fatal("completion is not deterministic")
++							}
++							b.ReportAllocs()
++							b.ResetTimer()
++							for i := 0; i < b.N; i++ {
++								decodeComparisonRun(b, m, Tokenizer{}, false, shape[0], shape[1])
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/cmd/monolith/q4_call_overhead_test.go b/cmd/monolith/q4_call_overhead_test.go
+new file mode 100644
+index 0000000..17a38a3
+--- /dev/null
++++ b/cmd/monolith/q4_call_overhead_test.go
+@@ -0,0 +1,215 @@
++package main
++
++import (
++	"crypto/sha256"
++	"encoding/json"
++	"fmt"
++	"math"
++	"os"
++	"reflect"
++	"runtime"
++	"sort"
++	"sync"
++	"testing"
++	"time"
++)
++
++func frozenWideSumScan(x []float32) bool {
++	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
++	for _, v := range x {
++		if v > limit || v < -limit {
++			return true
++		}
++	}
++	return false
++}
++
++func boundedBitsWideSumScan(x []float32) bool {
++	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
++	limitBits := math.Float32bits(limit)
++	for _, v := range x {
++		magnitude := math.Float32bits(v) & 0x7fffffff
++		if magnitude > limitBits && magnitude <= 0x7f800000 {
++			return true
++		}
++	}
++	return false
++}
++
++func rangeBitsWideSumScan(x []float32) bool {
++	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
++	limitBits := math.Float32bits(limit)
++	for _, v := range x {
++		magnitude := math.Float32bits(v) & 0x7fffffff
++		if magnitude-(limitBits+1) < 0x7f800000-limitBits {
++			return true
++		}
++	}
++	return false
++}
++
++func TestWideSumScanPredicates(t *testing.T) {
++	const limit = float32(math.MaxFloat32 / (2 * q8Block * 127))
++	boundary := math.Float32bits(limit)
++	bits := []uint32{0, 1, 0x007fffff, 0x00800000, boundary - 1, boundary, boundary + 1, 0x7f7fffff, 0x7f800000, 0x7f800001, 0x7fc00000, 0x7fffffff}
++	check := func(x []float32) {
++		t.Helper()
++		want := frozenWideSumScan(x)
++		for _, fn := range []func([]float32) bool{q8NeedsWideSum, boundedBitsWideSumScan, rangeBitsWideSumScan} {
++			if fn(x) != want {
++				t.Fatalf("wide predicate mismatch for %v", x)
++			}
++		}
++	}
++	check(nil)
++	for _, magnitude := range bits {
++		for _, sign := range []uint32{0, 0x80000000} {
++			v := math.Float32frombits(magnitude | sign)
++			check([]float32{v})
++			for _, length := range []int{2, 63, 64, 65, 257} {
++				for _, pos := range []int{0, length / 2, length - 1} {
++					x := make([]float32, length)
++					x[pos] = v
++					check(x)
++				}
++			}
++		}
++	}
++	r := RNG{State: 23}
++	var x [17]float32
++	for trial := 0; trial < 65536; trial++ {
++		for i := range x {
++			x[i] = math.Float32frombits(uint32(r.Uint64()))
++		}
++		check(x[:])
++	}
++}
++
++type compactProjectionLayout struct {
++	workers              int
++	jobs                 chan kernelJob
++	completed            chan struct{}
++	lifetime             sync.WaitGroup
++	linear               fp32Kernel
++	linearFn, q4Fn, q8Fn func(lo, hi int)
++}
++
++func TestProjectionDescriptorFootprint(t *testing.T) {
++	actual, compact := reflect.TypeOf(kernelExecutor{}).Size(), reflect.TypeOf(compactProjectionLayout{}).Size()
++	t.Logf("executor %d bytes; compact layout %d bytes", actual, compact)
++	if actual > compact {
++		t.Fatalf("executor size %d exceeds shared descriptor layout %d", actual, compact)
++	}
++}
++
++func TestProjectionCallbacksStartLazy(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		if e.linearFn != nil || e.q4Fn != nil || e.q8Fn != nil {
++			e.close()
++			t.Fatal("unused projection callback allocated at construction")
++		}
++		e.close()
++	}
++}
++
++func TestSharedProjectionAlternatingFormats(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		for _, rows := range []int{1, 3, 4, 5, 17} {
++			x, dense, _ := linearFixture(rows, 513, 259)
++			q4, q8 := quantizeQ4TestParam(t, dense), quantizeTestParam(t, dense)
++			for _, w := range []*Param{q4, dense, q8, q4, dense, q4} {
++				y, want := make([]float32, rows*w.Rows), make([]float32, rows*w.Rows)
++				linearIntoWithExecutor(nil, want, x, w, rows)
++				linearIntoWithExecutor(e, y, x, w, rows)
++				exactWorkerFloats(t, y, want)
++				assertQ4InvocationCleared(t, e)
++				if workers == 1 && (e.q4Fn != nil || e.linearFn != nil || e.q8Fn != nil) {
++					t.Fatal("serial projection initialized a callback")
++				}
++			}
++		}
++		e.close()
++	}
++}
++
++var wideScanSink bool
++
++func TestWideSumScanTiming(t *testing.T) {
++	output := os.Getenv("MONOLITH_WIDE_SCAN_OUTPUT")
++	if output == "" {
++		t.Skip("opt-in wide scan comparison")
++	}
++	old := runtime.GOMAXPROCS(1)
++	defer runtime.GOMAXPROCS(old)
++	type result struct {
++		Length       int
++		NS           [3][]float64
++		Ratios       [2][]float64
++		MedianRatios [2]float64
++	}
++	artifact := struct {
++		Protocol, GoVersion, GOOS, GOARCH string
++		Hashes                            map[string]string
++		Results                           []result
++	}{Protocol: "wide-scan-three-way-rotating-v1", GoVersion: runtime.Version(), GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Hashes: make(map[string]string)}
++	for _, path := range []string{"cmd/monolith/monolith.go", "cmd/monolith/q4_call_overhead_test.go"} {
++		data, err := os.ReadFile(path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		artifact.Hashes[path] = fmt.Sprintf("%x", sha256.Sum256(data))
++	}
++	functions := []func([]float32) bool{frozenWideSumScan, boundedBitsWideSumScan, rangeBitsWideSumScan}
++	for _, length := range []int{64, 256, 704, 1536, 3584, 16384} {
++		x := make([]float32, length)
++		r := RNG{State: uint64(length)}
++		for i := range x {
++			x[i] = float32(r.Normal())
++		}
++		iterations := max(1, (1<<20)/length)
++		run := func(variant int) {
++			for i := 0; i < iterations; i++ {
++				wideScanSink = functions[variant](x)
++			}
++		}
++		for variant := range functions {
++			run(variant)
++		}
++		row := result{Length: length}
++		for trial := 0; trial < 32; trial++ {
++			var elapsed [3]float64
++			for leg := 0; leg < 3; leg++ {
++				variant := (trial + leg) % 3
++				start := time.Now()
++				run(variant)
++				elapsed[variant] = float64(time.Since(start).Nanoseconds()) / float64(iterations)
++				row.NS[variant] = append(row.NS[variant], elapsed[variant])
++			}
++			for candidate := 0; candidate < 2; candidate++ {
++				row.Ratios[candidate] = append(row.Ratios[candidate], elapsed[candidate+1]/elapsed[0])
++			}
++		}
++		for candidate := 0; candidate < 2; candidate++ {
++			sorted := append([]float64(nil), row.Ratios[candidate]...)
++			sort.Float64s(sorted)
++			row.MedianRatios[candidate] = (sorted[15] + sorted[16]) / 2
++		}
++		artifact.Results = append(artifact.Results, row)
++		t.Logf("length%d bounded %.4f, range %.4f", length, row.MedianRatios[0], row.MedianRatios[1])
++	}
++	data, err := json.MarshalIndent(artifact, "", "  ")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, writeErr := f.Write(append(data, '\n'))
++	closeErr := f.Close()
++	if writeErr != nil || closeErr != nil {
++		t.Fatal(writeErr, closeErr)
++	}
++}
+diff --git a/cmd/monolith/q4_invocation_test.go b/cmd/monolith/q4_invocation_test.go
+new file mode 100644
+index 0000000..69e9295
+--- /dev/null
++++ b/cmd/monolith/q4_invocation_test.go
+@@ -0,0 +1,162 @@
++package main
++
++import (
++	"fmt"
++	"math"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestQ4InvocationSteadyAllocation(t *testing.T) {
++	for _, workers := range []int{1, 2, 4} {
++		for _, rows := range []int{1, 2, 3, 4, 5, 17} {
++			t.Run(fmt.Sprintf("workers%d/rows%d", workers, rows), func(t *testing.T) {
++				e := newKernelExecutor(workers)
++				defer e.close()
++				x, dense, _ := linearFixture(rows, 513, 259)
++				w := quantizeQ4TestParam(t, dense)
++				y := make([]float32, rows*w.Rows)
++				linearQ4Into(e, y, x, w, rows)
++				if got := testing.AllocsPerRun(20, func() { linearQ4Into(e, y, x, w, rows) }); got != 0 {
++					t.Fatalf("warm Q4 kernel allocated %.1f objects, want zero", got)
++				}
++			})
++		}
++	}
++}
++
++func TestQ4InvocationExact(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		for _, rows := range []int{0, 1, 2, 3, 4, 5, 7, 8, 17} {
++			for _, in := range []int{1, 3, 63, 64, 65, 129, 513} {
++				for _, out := range []int{1, 2, 31, 32, 33, 65, 259} {
++					x, dense, _ := linearFixture(rows, in, out)
++					w := quantizeQ4TestParam(t, dense)
++					want := make([]float32, rows*out)
++					guarded := make([]float32, rows*out+2)
++					for i := range guarded {
++						guarded[i] = -777
++					}
++					got := guarded[1 : len(guarded)-1]
++					blockBaselineLinearQ4Into(e, want, x, w, rows)
++					linearQ4Into(e, got, x, w, rows)
++					assertQ4InvocationCleared(t, e)
++					if guarded[0] != -777 || guarded[len(guarded)-1] != -777 {
++						t.Fatal("Q4 wrote beyond output range")
++					}
++					for i := range want {
++						if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
++							t.Fatalf("workers%d/rows%d/in%d/out%d element%d", workers, rows, in, out, i)
++						}
++					}
++				}
++			}
++		}
++		e.close()
++	}
++}
++
++func assertQ4InvocationCleared(t *testing.T, e *kernelExecutor) {
++	t.Helper()
++	if e.linear.x != nil || e.linear.y != nil || e.linear.w != nil || e.linear.n != 0 || e.linear.in != 0 || e.linear.out != 0 || e.linear.groups != 0 || e.linear.tiles != 0 {
++		t.Fatal("executor retained Q4 inputs after join")
++	}
++}
++
++func TestQ4InvocationWaitsBeforeClearing(t *testing.T) {
++	e := newKernelExecutor(4)
++	x, dense, _ := linearFixture(4, 513, 259)
++	w := quantizeQ4TestParam(t, dense)
++	y, want := make([]float32, 4*w.Rows), make([]float32, 4*w.Rows)
++	blockBaselineLinearQ4Into(e, want, x, w, 4)
++	linearQ4Into(e, y, x, w, 4)
++	standard := e.q4Fn
++	if standard == nil {
++		e.close()
++		t.Fatal("parallel Q4 callback not initialized")
++	}
++	started, release, done := make(chan struct{}, 4), make(chan struct{}), make(chan struct{})
++	e.q4Fn = func(lo, hi int) { started <- struct{}{}; <-release; standard(lo, hi) }
++	go func() { linearQ4Into(e, y, x, w, 4); close(done) }()
++	t.Cleanup(func() {
++		select {
++		case <-release:
++		default:
++			close(release)
++		}
++		<-done
++		e.close()
++	})
++	for i := 0; i < 4; i++ {
++		select {
++		case <-started:
++		case <-time.After(5 * time.Second):
++			t.Fatal("Q4 worker did not start")
++		}
++	}
++	select {
++	case <-done:
++		t.Fatal("Q4 returned while workers borrowed state")
++	default:
++	}
++	if e.linear.w != w || e.linear.n != 4 || len(e.linear.x) != len(x) || len(e.linear.y) != len(y) {
++		t.Fatal("Q4 state cleared before worker completion")
++	}
++	close(release)
++	select {
++	case <-done:
++	case <-time.After(5 * time.Second):
++		t.Fatal("Q4 workers did not join")
++	}
++	assertQ4InvocationCleared(t, e)
++	exactWorkerFloats(t, y, want)
++	e.q4Fn = standard
++	linearQ4Into(e, y, x, w, 4)
++	exactWorkerFloats(t, y, want)
++	assertQ4InvocationCleared(t, e)
++}
++
++func TestQ4InvocationWideAndIndependentOwners(t *testing.T) {
++	x, dense, _ := linearFixture(4, 513, 259)
++	w := quantizeQ4TestParam(t, dense)
++	want := make([]float32, 4*w.Rows)
++	blockBaselineLinearQ4Into(nil, want, x, w, 4)
++	var wg sync.WaitGroup
++	for i := 0; i < 4; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			e := newKernelExecutor(4)
++			defer e.close()
++			y := make([]float32, len(want))
++			for repeat := 0; repeat < 5; repeat++ {
++				linearQ4Into(e, y, x, w, 4)
++				exactWorkerFloats(t, y, want)
++				assertQ4InvocationCleared(t, e)
++			}
++		}()
++	}
++	wg.Wait()
++	e := newKernelExecutor(4)
++	defer e.close()
++	for i := range x {
++		x[i] = math.MaxFloat32 / 4
++	}
++	if !q8NeedsWideSum(x) {
++		t.Fatal("wide fixture did not select fallback")
++	}
++	y := make([]float32, len(want))
++	blockBaselineLinearQ4Into(e, want, x, w, 4)
++	linearQ4Into(e, y, x, w, 4)
++	for i := range y {
++		if math.Float32bits(y[i]) != math.Float32bits(want[i]) {
++			t.Fatalf("wide Q4 bits differ at %d", i)
++		}
++	}
++	assertQ4InvocationCleared(t, e)
++	if e.q4Fn != nil {
++		t.Fatal("wide fallback initialized ordinary Q4 callback")
++	}
++}
+diff --git a/cmd/monolith/q4_nibble_probe_test.go b/cmd/monolith/q4_nibble_probe_test.go
+new file mode 100644
+index 0000000..fbe9a43
+--- /dev/null
++++ b/cmd/monolith/q4_nibble_probe_test.go
+@@ -0,0 +1,223 @@
++package main
++
++import (
++	"crypto/sha256"
++	"encoding/json"
++	"fmt"
++	"math"
++	"os"
++	"runtime"
++	"sort"
++	"testing"
++	"time"
++)
++
++func nibbleQ4Pair(v byte) (float32, float32) {
++	return float32(int8(v<<4) >> 4), float32(int8(v) >> 4)
++}
++
++func nibbleQ4Block64(x *[64]float32, w *[32]byte) float32 {
++	var a, b, c, d float32
++	p0, p1 := nibbleQ4Pair(w[0])
++	q0, q1 := nibbleQ4Pair(w[1])
++	a += x[0] * p0
++	b += x[1] * p1
++	c += x[2] * q0
++	d += x[3] * q1
++	p0, p1 = nibbleQ4Pair(w[2])
++	q0, q1 = nibbleQ4Pair(w[3])
++	a += x[4] * p0
++	b += x[5] * p1
++	c += x[6] * q0
++	d += x[7] * q1
++	p0, p1 = nibbleQ4Pair(w[4])
++	q0, q1 = nibbleQ4Pair(w[5])
++	a += x[8] * p0
++	b += x[9] * p1
++	c += x[10] * q0
++	d += x[11] * q1
++	p0, p1 = nibbleQ4Pair(w[6])
++	q0, q1 = nibbleQ4Pair(w[7])
++	a += x[12] * p0
++	b += x[13] * p1
++	c += x[14] * q0
++	d += x[15] * q1
++	p0, p1 = nibbleQ4Pair(w[8])
++	q0, q1 = nibbleQ4Pair(w[9])
++	a += x[16] * p0
++	b += x[17] * p1
++	c += x[18] * q0
++	d += x[19] * q1
++	p0, p1 = nibbleQ4Pair(w[10])
++	q0, q1 = nibbleQ4Pair(w[11])
++	a += x[20] * p0
++	b += x[21] * p1
++	c += x[22] * q0
++	d += x[23] * q1
++	p0, p1 = nibbleQ4Pair(w[12])
++	q0, q1 = nibbleQ4Pair(w[13])
++	a += x[24] * p0
++	b += x[25] * p1
++	c += x[26] * q0
++	d += x[27] * q1
++	p0, p1 = nibbleQ4Pair(w[14])
++	q0, q1 = nibbleQ4Pair(w[15])
++	a += x[28] * p0
++	b += x[29] * p1
++	c += x[30] * q0
++	d += x[31] * q1
++	p0, p1 = nibbleQ4Pair(w[16])
++	q0, q1 = nibbleQ4Pair(w[17])
++	a += x[32] * p0
++	b += x[33] * p1
++	c += x[34] * q0
++	d += x[35] * q1
++	p0, p1 = nibbleQ4Pair(w[18])
++	q0, q1 = nibbleQ4Pair(w[19])
++	a += x[36] * p0
++	b += x[37] * p1
++	c += x[38] * q0
++	d += x[39] * q1
++	p0, p1 = nibbleQ4Pair(w[20])
++	q0, q1 = nibbleQ4Pair(w[21])
++	a += x[40] * p0
++	b += x[41] * p1
++	c += x[42] * q0
++	d += x[43] * q1
++	p0, p1 = nibbleQ4Pair(w[22])
++	q0, q1 = nibbleQ4Pair(w[23])
++	a += x[44] * p0
++	b += x[45] * p1
++	c += x[46] * q0
++	d += x[47] * q1
++	p0, p1 = nibbleQ4Pair(w[24])
++	q0, q1 = nibbleQ4Pair(w[25])
++	a += x[48] * p0
++	b += x[49] * p1
++	c += x[50] * q0
++	d += x[51] * q1
++	p0, p1 = nibbleQ4Pair(w[26])
++	q0, q1 = nibbleQ4Pair(w[27])
++	a += x[52] * p0
++	b += x[53] * p1
++	c += x[54] * q0
++	d += x[55] * q1
++	p0, p1 = nibbleQ4Pair(w[28])
++	q0, q1 = nibbleQ4Pair(w[29])
++	a += x[56] * p0
++	b += x[57] * p1
++	c += x[58] * q0
++	d += x[59] * q1
++	p0, p1 = nibbleQ4Pair(w[30])
++	q0, q1 = nibbleQ4Pair(w[31])
++	a += x[60] * p0
++	b += x[61] * p1
++	c += x[62] * q0
++	d += x[63] * q1
++	return (a + b) + (c + d)
++}
++
++func TestNibbleQ4BlockExact(t *testing.T) {
++	r := RNG{State: 19}
++	for code := 0; code < 256; code++ {
++		lo, hi := nibbleQ4Pair(byte(code))
++		if lo != q4Pairs[code][0] || hi != q4Pairs[code][1] {
++			t.Fatalf("decode byte %d", code)
++		}
++		var x [64]float32
++		var w [32]byte
++		for i := range x {
++			x[i] = float32(r.Normal())
++		}
++		for i := range w {
++			w[i] = byte(code + i*37)
++		}
++		want, got := dotQ4Block64(&x, &w), nibbleQ4Block64(&x, &w)
++		if math.Float32bits(got) != math.Float32bits(want) {
++			t.Fatalf("code %d: %08x != %08x", code, math.Float32bits(got), math.Float32bits(want))
++		}
++	}
++}
++
++var nibbleQ4Sink float32
++
++func TestNibbleQ4Timing(t *testing.T) {
++	output := os.Getenv("MONOLITH_Q4_NIBBLE_OUTPUT")
++	if output == "" {
++		t.Skip("opt-in nibble versus lookup comparison")
++	}
++	old := runtime.GOMAXPROCS(1)
++	defer runtime.GOMAXPROCS(old)
++	r := RNG{State: 19}
++	var x [256][64]float32
++	var w [256][32]byte
++	for i := range x {
++		for j := range x[i] {
++			x[i][j] = float32(r.Normal())
++		}
++		for j := range w[i] {
++			w[i][j] = byte(r.Uint64())
++		}
++		if math.Float32bits(dotQ4Block64(&x[i], &w[i])) != math.Float32bits(nibbleQ4Block64(&x[i], &w[i])) {
++			t.Fatal("fixture differs")
++		}
++	}
++	functions := []func(*[64]float32, *[32]byte) float32{dotQ4Block64, nibbleQ4Block64}
++	run := func(variant int) {
++		var sum float32
++		for repeat := 0; repeat < 1024; repeat++ {
++			for i := range x {
++				sum += functions[variant](&x[i], &w[i])
++			}
++		}
++		nibbleQ4Sink = sum
++	}
++	run(0)
++	run(1)
++	var before, after, ratios []float64
++	for trial := 0; trial < 32; trial++ {
++		var elapsed [2]float64
++		for leg := 0; leg < 2; leg++ {
++			variant := (trial + leg) % 2
++			start := time.Now()
++			run(variant)
++			elapsed[variant] = float64(time.Since(start).Nanoseconds()) / (1024 * 256)
++		}
++		before = append(before, elapsed[0])
++		after = append(after, elapsed[1])
++		ratios = append(ratios, elapsed[1]/elapsed[0])
++	}
++	sorted := append([]float64(nil), ratios...)
++	sort.Float64s(sorted)
++	hashes := make(map[string]string)
++	for _, path := range []string{"cmd/monolith/monolith.go", "cmd/monolith/q4_nibble_probe_test.go"} {
++		data, err := os.ReadFile(path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		hashes[path] = fmt.Sprintf("%x", sha256.Sum256(data))
++	}
++	artifact := struct {
++		Protocol, GoVersion, GOOS, GOARCH string
++		SourceSHA256                      map[string]string
++		BeforeNS, AfterNS, Ratios         []float64
++		MedianRatio                       float64
++		Allocs                            [2]float64
++	}{"q4-nibble-block64-alternating-v1", runtime.Version(), runtime.GOOS, runtime.GOARCH, hashes,
++		before, after, ratios, (sorted[15] + sorted[16]) / 2,
++		[2]float64{testing.AllocsPerRun(5, func() { run(0) }), testing.AllocsPerRun(5, func() { run(1) })}}
++	data, err := json.MarshalIndent(artifact, "", "  ")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, writeErr := f.Write(append(data, '\n'))
++	closeErr := f.Close()
++	if writeErr != nil || closeErr != nil {
++		t.Fatal(writeErr, closeErr)
++	}
++	t.Logf("nibble/lookup ratio %.4f; allocs %v", artifact.MedianRatio, artifact.Allocs)
++}
+diff --git a/cmd/monolith/q8_invocation_test.go b/cmd/monolith/q8_invocation_test.go
+new file mode 100644
+index 0000000..fac278c
+--- /dev/null
++++ b/cmd/monolith/q8_invocation_test.go
+@@ -0,0 +1,171 @@
++package main
++
++import (
++	"fmt"
++	"math"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestQ8InvocationSteadyAllocation(t *testing.T) {
++	for _, workers := range []int{1, 2, 4} {
++		for _, rows := range []int{1, 2, 3, 4, 5, 17} {
++			t.Run(fmt.Sprintf("workers%d/rows%d", workers, rows), func(t *testing.T) {
++				e := newKernelExecutor(workers)
++				defer e.close()
++				x, dense, _ := linearFixture(rows, 513, 259)
++				w := quantizeTestParam(t, dense)
++				y := make([]float32, rows*w.Rows)
++				linearQ8Into(e, y, x, w, rows)
++				got := testing.AllocsPerRun(20, func() { linearQ8Into(e, y, x, w, rows) })
++				if got != 0 {
++					t.Fatalf("warm Q8 kernel allocated %.1f objects", got)
++				}
++			})
++		}
++	}
++}
++
++func TestQ8InvocationWideAndIndependentOwners(t *testing.T) {
++	x, dense, _ := linearFixture(4, 513, 259)
++	w := quantizeTestParam(t, dense)
++	want := make([]float32, 4*w.Rows)
++	baselineLinearQ8Into(nil, want, x, w, 4)
++	var wg sync.WaitGroup
++	for i := 0; i < 4; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			e := newKernelExecutor(4)
++			defer e.close()
++			y := make([]float32, len(want))
++			for repeat := 0; repeat < 5; repeat++ {
++				linearQ8Into(e, y, x, w, 4)
++				exactWorkerFloats(t, y, want)
++				assertQ4InvocationCleared(t, e)
++			}
++		}()
++	}
++	wg.Wait()
++	e := newKernelExecutor(4)
++	defer e.close()
++	for i := range x {
++		x[i] = math.MaxFloat32 / 4
++	}
++	y := make([]float32, len(want))
++	baselineLinearQ8Into(e, want, x, w, 4)
++	linearQ8Into(e, y, x, w, 4)
++	for i := range y {
++		if math.Float32bits(y[i]) != math.Float32bits(want[i]) {
++			t.Fatalf("wide Q8 bits differ at %d", i)
++		}
++	}
++	assertQ4InvocationCleared(t, e)
++	if e.q8Fn != nil {
++		t.Fatal("wide fallback initialized ordinary Q8 callback")
++	}
++}
++
++func TestQ8InvocationWaitsBeforeClearing(t *testing.T) {
++	e := newKernelExecutor(4)
++	x, dense, _ := linearFixture(4, 513, 259)
++	w := quantizeTestParam(t, dense)
++	y, want := make([]float32, 4*w.Rows), make([]float32, 4*w.Rows)
++	baselineLinearQ8Into(e, want, x, w, 4)
++	linearQ8Into(e, y, x, w, 4)
++	standard := e.q8Fn
++	if standard == nil {
++		e.close()
++		t.Fatal("parallel Q8 callback not initialized")
++	}
++	started, release, done := make(chan struct{}, 4), make(chan struct{}), make(chan struct{})
++	e.q8Fn = func(lo, hi int) { started <- struct{}{}; <-release; standard(lo, hi) }
++	go func() { linearQ8Into(e, y, x, w, 4); close(done) }()
++	t.Cleanup(func() {
++		select {
++		case <-release:
++		default:
++			close(release)
++		}
++		<-done
++		e.close()
++	})
++	for i := 0; i < 4; i++ {
++		select {
++		case <-started:
++		case <-time.After(5 * time.Second):
++			t.Fatal("Q8 worker did not start")
++		}
++	}
++	select {
++	case <-done:
++		t.Fatal("Q8 returned before worker release")
++	default:
++	}
++	if e.linear.w != w || e.linear.n != 4 || e.linear.in != 513 || e.linear.out != 259 || e.linear.groups != 9 || e.linear.tiles != 9 {
++		t.Fatal("Q8 descriptor changed before completion")
++	}
++	close(release)
++	select {
++	case <-done:
++	case <-time.After(5 * time.Second):
++		t.Fatal("Q8 workers did not join")
++	}
++	assertQ4InvocationCleared(t, e)
++	exactWorkerFloats(t, y, want)
++	e.q8Fn = standard
++	linearQ8Into(e, y, x, w, 4)
++	exactWorkerFloats(t, y, want)
++	assertQ4InvocationCleared(t, e)
++}
++
++func TestQ8InvocationInlineDoesNotInitializeCallback(t *testing.T) {
++	for _, shape := range [][3]int{{1, 65, 33}, {4, 4096, 32}} {
++		e := newKernelExecutor(4)
++		x, dense, _ := linearFixture(shape[0], shape[1], shape[2])
++		w := quantizeTestParam(t, dense)
++		y, want := make([]float32, shape[0]*shape[2]), make([]float32, shape[0]*shape[2])
++		baselineLinearQ8Into(e, want, x, w, shape[0])
++		linearQ8Into(e, y, x, w, shape[0])
++		exactWorkerFloats(t, y, want)
++		assertQ4InvocationCleared(t, e)
++		if e.q8Fn != nil {
++			e.close()
++			t.Fatal("inline Q8 initialized a callback")
++		}
++		e.close()
++	}
++}
++
++func TestQ8InvocationExact(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		for _, rows := range []int{0, 1, 2, 3, 4, 5, 7, 8, 17} {
++			for _, in := range []int{1, 3, 63, 64, 65, 129, 513} {
++				for _, out := range []int{1, 2, 31, 32, 33, 65, 259} {
++					x, dense, _ := linearFixture(rows, in, out)
++					w := quantizeTestParam(t, dense)
++					want := make([]float32, rows*out)
++					guarded := make([]float32, rows*out+2)
++					for i := range guarded {
++						guarded[i] = -777
++					}
++					got := guarded[1 : len(guarded)-1]
++					baselineLinearQ8Into(e, want, x, w, rows)
++					linearQ8Into(e, got, x, w, rows)
++					assertQ4InvocationCleared(t, e)
++					if guarded[0] != -777 || guarded[len(guarded)-1] != -777 {
++						t.Fatal("Q8 output guard changed")
++					}
++					for i := range want {
++						if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
++							t.Fatalf("workers%d/rows%d/in%d/out%d element%d", workers, rows, in, out, i)
++						}
++					}
++				}
++			}
++		}
++		e.close()
++	}
++}
+diff --git a/cmd/monolith/q8_codegen_test.go b/cmd/monolith/q8_codegen_test.go
+new file mode 100644
+index 0000000..0be3a06
+--- /dev/null
++++ b/cmd/monolith/q8_codegen_test.go
+@@ -0,0 +1,288 @@
++package main
++
++import (
++	"fmt"
++	"math"
++	"os"
++	"reflect"
++	"runtime"
++	"testing"
++	"time"
++)
++
++type q8CodegenProbe struct {
++	e                      *kernelExecutor
++	job                    fp32Kernel
++	fn                     func(int, int)
++	in, out, groups, tiles int
++}
++
++func newQ8CodegenProbe(e *kernelExecutor) *q8CodegenProbe {
++	p := &q8CodegenProbe{e: e}
++	p.fn = func(lo, hi int) { q8CachedRangeProbe(p, lo, hi) }
++	return p
++}
++
++func q8CachedRangeProbe(p *q8CodegenProbe, lo, hi int) {
++	y, x, w, n := p.job.y, p.job.x, p.job.w, p.job.n
++	in, out, groups, tiles := p.in, p.out, p.groups, p.tiles
++	for task := lo; task < hi; task++ {
++		r, o0 := (task/tiles)*4, (task%tiles)*32
++		for o := o0; o < min(o0+32, out); o++ {
++			wr := w.Q8.Values[o*in : (o+1)*in]
++			scales := w.Q8.Scales[o*groups : (o+1)*groups]
++			if r+4 <= n {
++				x0, x1 := x[r*in:(r+1)*in], x[(r+1)*in:(r+2)*in]
++				x2, x3 := x[(r+2)*in:(r+3)*in], x[(r+3)*in:(r+4)*in]
++				var s0, s1, s2, s3 float32
++				for g, scale := range scales {
++					var a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3 float32
++					j, end := g*q8Block, min((g+1)*q8Block, in)
++					for ; j+4 <= end; j += 4 {
++						v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
++						a0 += x0[j] * v0
++						b0 += x0[j+1] * v1
++						c0 += x0[j+2] * v2
++						d0 += x0[j+3] * v3
++						a1 += x1[j] * v0
++						b1 += x1[j+1] * v1
++						c1 += x1[j+2] * v2
++						d1 += x1[j+3] * v3
++						a2 += x2[j] * v0
++						b2 += x2[j+1] * v1
++						c2 += x2[j+2] * v2
++						d2 += x2[j+3] * v3
++						a3 += x3[j] * v0
++						b3 += x3[j+1] * v1
++						c3 += x3[j+2] * v2
++						d3 += x3[j+3] * v3
++					}
++					p0, p1, p2, p3 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1), (a2+b2)+(c2+d2), (a3+b3)+(c3+d3)
++					for ; j < end; j++ {
++						v := float32(wr[j])
++						p0 += x0[j] * v
++						p1 += x1[j] * v
++						p2 += x2[j] * v
++						p3 += x3[j] * v
++					}
++					s0 += p0 * scale
++					s1 += p1 * scale
++					s2 += p2 * scale
++					s3 += p3 * scale
++				}
++				y[r*out+o], y[(r+1)*out+o] = s0, s1
++				y[(r+2)*out+o], y[(r+3)*out+o] = s2, s3
++			} else {
++				row := r
++				if row+2 <= n {
++					x0, x1 := x[row*in:(row+1)*in], x[(row+1)*in:(row+2)*in]
++					var s0, s1 float32
++					for g, scale := range scales {
++						j, end := g*q8Block, min((g+1)*q8Block, in)
++						if end-j == 64 {
++							p0, p1 := dotQ8PairBlock64((*[64]float32)(x0[j:end]), (*[64]float32)(x1[j:end]), (*[64]int8)(wr[j:end]))
++							s0 += p0 * scale
++							s1 += p1 * scale
++							continue
++						}
++						var a0, b0, c0, d0, a1, b1, c1, d1 float32
++						for ; j+4 <= end; j += 4 {
++							v0, v1, v2, v3 := float32(wr[j]), float32(wr[j+1]), float32(wr[j+2]), float32(wr[j+3])
++							a0 += x0[j] * v0
++							b0 += x0[j+1] * v1
++							c0 += x0[j+2] * v2
++							d0 += x0[j+3] * v3
++							a1 += x1[j] * v0
++							b1 += x1[j+1] * v1
++							c1 += x1[j+2] * v2
++							d1 += x1[j+3] * v3
++						}
++						p0, p1 := (a0+b0)+(c0+d0), (a1+b1)+(c1+d1)
++						for ; j < end; j++ {
++							v := float32(wr[j])
++							p0 += x0[j] * v
++							p1 += x1[j] * v
++						}
++						s0 += p0 * scale
++						s1 += p1 * scale
++					}
++					y[row*out+o], y[(row+1)*out+o] = s0, s1
++					row += 2
++				}
++				for ; row < min(r+4, n); row++ {
++					xr := x[row*in : (row+1)*in]
++					var sum float32
++					for g, scale := range scales {
++						j, end := g*q8Block, min((g+1)*q8Block, in)
++						var a, b, c, d float32
++						for ; j+4 <= end; j += 4 {
++							a += xr[j] * float32(wr[j])
++							b += xr[j+1] * float32(wr[j+1])
++							c += xr[j+2] * float32(wr[j+2])
++							d += xr[j+3] * float32(wr[j+3])
++						}
++						part := (a + b) + (c + d)
++						for ; j < end; j++ {
++							part += xr[j] * float32(wr[j])
++						}
++						sum += part * scale
++					}
++					y[row*out+o] = sum
++				}
++			}
++		}
++	}
++}
++
++func (p *q8CodegenProbe) run(y, x []float32, w *Param, n int) {
++	in, out := w.Cols, w.Rows
++	if q8NeedsWideSum(x[:n*in]) {
++		linearQ8WideInto(p.e, y, x, w, n)
++		return
++	}
++	p.job = fp32Kernel{x: x, y: y, w: w, n: n}
++	p.in, p.out, p.groups, p.tiles = in, out, (in+q8Block-1)/q8Block, (out+31)/32
++	p.e.parallel(((n+3)/4)*((out+31)/32), n*in*out, p.fn)
++	p.job = fp32Kernel{}
++}
++
++func TestQ8CodegenProbeLifetimeAndWide(t *testing.T) {
++	e := newKernelExecutor(4)
++	p := newQ8CodegenProbe(e)
++	t.Logf("probe state: %d bytes excluding executor and callback", reflect.TypeOf(*p).Size())
++	x, dense, _ := linearFixture(4, 513, 259)
++	w := quantizeTestParam(t, dense)
++	y, want := make([]float32, 4*w.Rows), make([]float32, 4*w.Rows)
++	linearQ8Into(e, want, x, w, 4)
++	standard := p.fn
++	started, release, done := make(chan struct{}, 4), make(chan struct{}), make(chan struct{})
++	p.fn = func(lo, hi int) { started <- struct{}{}; <-release; standard(lo, hi) }
++	go func() { p.run(y, x, w, 4); close(done) }()
++	t.Cleanup(func() {
++		select {
++		case <-release:
++		default:
++			close(release)
++		}
++		<-done
++		e.close()
++	})
++	for i := 0; i < 4; i++ {
++		select {
++		case <-started:
++		case <-time.After(5 * time.Second):
++			t.Fatal("worker did not start")
++		}
++	}
++	if p.job.w != w || p.job.n != 4 {
++		t.Fatal("probe cleared active state")
++	}
++	select {
++	case <-done:
++		t.Fatal("probe returned before release")
++	default:
++	}
++	close(release)
++	select {
++	case <-done:
++	case <-time.After(5 * time.Second):
++		t.Fatal("workers did not join")
++	}
++	exactWorkerFloats(t, y, want)
++	if p.job.x != nil || p.job.y != nil || p.job.w != nil || p.job.n != 0 {
++		t.Fatal("probe retained references")
++	}
++	ordinary := make(chan struct{}, 4)
++	p.fn = func(int, int) { ordinary <- struct{}{} }
++	for i := range x {
++		x[i] = math.MaxFloat32 / 4
++	}
++	linearQ8Into(e, want, x, w, 4)
++	p.run(y, x, w, 4)
++	select {
++	case <-ordinary:
++		t.Fatal("wide path used ordinary callback")
++	default:
++	}
++	for i := range y {
++		if math.Float32bits(y[i]) != math.Float32bits(want[i]) {
++			t.Fatalf("wide bits differ at %d", i)
++		}
++	}
++}
++
++func TestQ8CodegenProbe(t *testing.T) {
++	for _, workers := range []int{1, 4} {
++		e := newKernelExecutor(workers)
++		p := newQ8CodegenProbe(e)
++		for _, rows := range []int{0, 1, 2, 3, 4, 5, 7, 8, 17} {
++			for _, in := range []int{1, 3, 63, 64, 65, 129, 513} {
++				for _, out := range []int{1, 2, 31, 32, 33, 65, 259} {
++					x, dense, _ := linearFixture(rows, in, out)
++					w := quantizeTestParam(t, dense)
++					want := make([]float32, rows*out)
++					guard := make([]float32, rows*out+2)
++					guard[0], guard[len(guard)-1] = -777, -777
++					linearQ8Into(e, want, x, w, rows)
++					p.run(guard[1:len(guard)-1], x, w, rows)
++					for i := range want {
++						if math.Float32bits(want[i]) != math.Float32bits(guard[i+1]) {
++							t.Fatalf("workers%d/rows%d/in%d/out%d element%d", workers, rows, in, out, i)
++						}
++					}
++					if guard[0] != -777 || guard[len(guard)-1] != -777 {
++						t.Fatal("output guard changed")
++					}
++					if p.job.x != nil || p.job.y != nil || p.job.w != nil || p.job.n != 0 {
++						t.Fatal("probe retained references")
++					}
++				}
++			}
++		}
++		x, dense, _ := linearFixture(4, 513, 259)
++		w := quantizeTestParam(t, dense)
++		y := make([]float32, 4*w.Rows)
++		if got := testing.AllocsPerRun(20, func() { p.run(y, x, w, 4) }); got != 0 {
++			t.Fatalf("warm probe allocated %v", got)
++		}
++		e.close()
++	}
++}
++
++func BenchmarkQ8CodegenProbe(b *testing.B) {
++	for _, workers := range []int{1, 4} {
++		for _, rows := range []int{1, 3, 4} {
++			b.Run(fmt.Sprintf("workers%d/rows%d", workers, rows), func(b *testing.B) {
++				old := runtime.GOMAXPROCS(workers)
++				defer runtime.GOMAXPROCS(old)
++				x, dense, _ := linearFixture(rows, 1536, 513)
++				w := quantizeTestParam(b, dense)
++				y := make([]float32, rows*w.Rows)
++				e := newKernelExecutor(workers)
++				defer e.close()
++				p := newQ8CodegenProbe(e)
++				modes := []string{"baseline", "persistent"}
++				if os.Getenv("Q8_CODEGEN_REVERSE") == "1" {
++					modes[0], modes[1] = modes[1], modes[0]
++				}
++				for _, mode := range modes {
++					b.Run(mode, func(b *testing.B) {
++						old := runtime.GOMAXPROCS(workers)
++						defer runtime.GOMAXPROCS(old)
++						b.ReportAllocs()
++						b.ResetTimer()
++						if mode == "baseline" {
++							for i := 0; i < b.N; i++ {
++								linearQ8Into(e, y, x, w, rows)
++							}
++						} else {
++							for i := 0; i < b.N; i++ {
++								p.run(y, x, w, rows)
++							}
++						}
++					})
++				}
++			})
++		}
++	}
++}

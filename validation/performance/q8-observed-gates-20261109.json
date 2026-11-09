@@ -1,0 +1,23 @@
+{
+  "protocol": "q8-observed-resident-pilot-v1",
+  "purpose": "Separate same-code execution-condition variation from the cached-Q8 candidate effect. Never normalize latency by counters and call the normalized number a measured speedup.",
+  "pilot": "Same frozen CLIs, Q8 Llama-3.2-3B, four workers, prefix cache off, ABBA server sequence. One warmup and three measured32-token requests per server. This shorter diagnostic workload is not the previous64-token protocol and cannot independently authorize adoption.",
+  "screening_thresholds_declared_before_pilot": {
+    "same_code_request_wall_max_over_min_within_leg": 1.05,
+    "same_baseline_late_over_early_mean_wall_range": [0.97, 1.03],
+    "same_candidate_late_over_early_mean_wall_range": [0.97, 1.03],
+    "same_code_instructions_per_request_max_over_min": 1.01,
+    "same_code_performance_cpu_fraction_max_spread": 0.05,
+    "gc_and_io": "Retain all samples. Report GC cycle/pause, page-in and disk-read changes; do not silently discard or post-select clean samples. Different GC/I/O activity prevents a simple attribution to kernel code."
+  },
+  "interpretation": "These thresholds are operational screens, not statistical equivalence bounds or proof of a causal effect. Failure means the complete batch is ineligible for an adoption timing claim; individual samples remain diagnostic evidence.",
+  "bounded_followup_declared_before_execution": "If the first pilot shows a time-rate drift, allow exactly one extended-warmup pilot: eight warmups and three measured32-token requests per ABBA leg. Same thresholds, no sample selection and no timing normalization. Preserve the first pilot separately. If drift remains, stop timing-based adoption work rather than endlessly repeating until a favorable batch appears.",
+  "adoption_gate": "Only after a stable pilot: a separately identified64-token confirmation with same-code controls and at least three independent before/after blocks, plus FP32/Q4 and prefill checks for the larger shared descriptor. Require exact outputs/token IDs, lifecycle/race/compatibility checks and no reproducible material regression. Any3% non-regression screen is operational, not a statistical guarantee. Full source/receipt review before production application; no commit, push or merge implied.",
+  "counter_method": "Nonprivileged proc_pid_rusage RUSAGE_INFO_V6, own benchmark processes only. Official local SDK struct used by compiled C helper. CPU time fields are Mach ticks, converted using mach_timebase_info, and independently calibrated against a controlled Python child's process_time_ns. Preserve raw counters. P-only fields follow XNU performance-CPU accounting, not a thread-affinity guarantee. cycles_per_cpu_ns is an aggregate proxy, not a direct core-frequency measurement.",
+  "references": [
+    "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/task.c",
+    "https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/bsd_kern.c",
+    "https://fergofrog.com/code/codebrowser/xnu/osfmk/kern/recount.c.html",
+    "https://github.com/osquery/osquery/pull/7473"
+  ]
+}

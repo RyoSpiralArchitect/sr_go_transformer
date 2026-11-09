@@ -1,0 +1,793 @@
+{
+  "protocol": "q4-invocation-fresh-process-generation-v1",
+  "baseline_commit": "9af9a1c1bf8fc3b3797e8c0315031dc8fd270e50",
+  "process_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "measurement": "Go benchmark 200ms per leaf, count1, whole generation; worker count asserted inside leaf; 18 fixed-order format/worker/shape cases in each process",
+  "interpretation": "Each ratio divides independently calibrated ns/op estimates, not per-request matched pairs. Fixed format order and small synthetic model limit inference. FP32/Q8 are unchanged-path controls. No universal speedup or across-format completion equality is claimed.",
+  "source_and_binary_sha256": {
+    "cmd/monolith/monolith.go": "b544029fdac8bfdb3f5f4dcb610d94d28a930f89d795d4cb08cad65e6d1f9aa4",
+    "cmd/monolith/q4_invocation_test.go": "5fce8b00acdc74dbfc3d15e739cc6728fbc05263bc54db765dd87602b373c38a",
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "runs/post-singleexp-20261109-v2.test": "b2e6620c11e0295a9b930b89fad0637175b31ec1e856e93424fd26647cc3b5a4",
+    "runs/q4-invocation-candidate-20261109.test": "f7f719557e5c2cf8e3e1e00cfbe62edd30ebac37be4002621cead9cb1f4c21cf"
+  },
+  "raw_file_sha256": {
+    "q4-invocation-generation-before-20261109-run1.txt": "184746beb6fb3b52b5b2e7eb41997f80f1beed03fd8a28ef210252676906d859",
+    "q4-invocation-generation-after-20261109-run1.txt": "38f922b1e879a9c31895382f16a9c1568f71e98735134b4f8a5691409f8162c4",
+    "q4-invocation-generation-before-20261109-run2.txt": "4d202ef745c36a5d071d656684b3f4d6e6b13640f8a7427789b64113be940761",
+    "q4-invocation-generation-after-20261109-run2.txt": "823d27e1b75419d4ad7b1c59f57dfa76f9f6ac7238a9baf96b93067bd7264494",
+    "q4-invocation-generation-before-20261109-run3.txt": "9ed8b170781853bfe980853ed76cde9a04a69edc610d687da50541a58a26cf51",
+    "q4-invocation-generation-after-20261109-run3.txt": "35eeaf8073cb2f1830c4d6564e738e3362062a08e161d8faae846151d6051ba0"
+  },
+  "cases": {
+    "BenchmarkPostSingleExpGeneration/f32/workers1/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 26124417.0,
+          "bytes": 574314,
+          "allocs": 55
+        },
+        {
+          "ns": 27627604.0,
+          "bytes": 574314,
+          "allocs": 55
+        },
+        {
+          "ns": 27658854.0,
+          "bytes": 574314,
+          "allocs": 55
+        }
+      ],
+      "after": [
+        {
+          "ns": 26646562.0,
+          "bytes": 574394,
+          "allocs": 55
+        },
+        {
+          "ns": 27663115.0,
+          "bytes": 574394,
+          "allocs": 55
+        },
+        {
+          "ns": 27563214.0,
+          "bytes": 574394,
+          "allocs": 55
+        }
+      ],
+      "ratios": [
+        1.019986857505758,
+        1.0012853449035972,
+        0.9965421560849919
+      ],
+      "median_process_ratio": 1.0012853449035972
+    },
+    "BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 3567072.0,
+          "bytes": 333768,
+          "allocs": 33
+        },
+        {
+          "ns": 3806183.0,
+          "bytes": 333768,
+          "allocs": 33
+        },
+        {
+          "ns": 3855712.0,
+          "bytes": 333768,
+          "allocs": 33
+        }
+      ],
+      "after": [
+        {
+          "ns": 3780223.0,
+          "bytes": 333848,
+          "allocs": 33
+        },
+        {
+          "ns": 3794420.0,
+          "bytes": 333848,
+          "allocs": 33
+        },
+        {
+          "ns": 3847067.0,
+          "bytes": 333848,
+          "allocs": 33
+        }
+      ],
+      "ratios": [
+        1.059755171748706,
+        0.9969095022493664,
+        0.9977578719572416
+      ],
+      "median_process_ratio": 0.9977578719572416
+    },
+    "BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 18260016.0,
+          "bytes": 438728,
+          "allocs": 47
+        },
+        {
+          "ns": 18696698.0,
+          "bytes": 438729,
+          "allocs": 47
+        },
+        {
+          "ns": 18871774.0,
+          "bytes": 438729,
+          "allocs": 47
+        }
+      ],
+      "after": [
+        {
+          "ns": 18323608.0,
+          "bytes": 438809,
+          "allocs": 47
+        },
+        {
+          "ns": 19112680.0,
+          "bytes": 438809,
+          "allocs": 47
+        },
+        {
+          "ns": 18932042.0,
+          "bytes": 438809,
+          "allocs": 47
+        }
+      ],
+      "ratios": [
+        1.003482581833444,
+        1.022248955403783,
+        1.003193552445043
+      ],
+      "median_process_ratio": 1.003482581833444
+    },
+    "BenchmarkPostSingleExpGeneration/f32/workers4/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 10508321.0,
+          "bytes": 588262,
+          "allocs": 63
+        },
+        {
+          "ns": 10536530.0,
+          "bytes": 588368,
+          "allocs": 64
+        },
+        {
+          "ns": 10525931.0,
+          "bytes": 588269,
+          "allocs": 63
+        }
+      ],
+      "after": [
+        {
+          "ns": 10597333.0,
+          "bytes": 588427,
+          "allocs": 64
+        },
+        {
+          "ns": 10500829.0,
+          "bytes": 588378,
+          "allocs": 64
+        },
+        {
+          "ns": 10491337.0,
+          "bytes": 588404,
+          "allocs": 64
+        }
+      ],
+      "ratios": [
+        1.0084706205682146,
+        0.996611692843849,
+        0.9967134498601596
+      ],
+      "median_process_ratio": 0.9967134498601596
+    },
+    "BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 1925922.0,
+          "bytes": 334437,
+          "allocs": 41
+        },
+        {
+          "ns": 1936018.0,
+          "bytes": 334449,
+          "allocs": 41
+        },
+        {
+          "ns": 1937099.0,
+          "bytes": 334442,
+          "allocs": 41
+        }
+      ],
+      "after": [
+        {
+          "ns": 1941222.0,
+          "bytes": 334569,
+          "allocs": 41
+        },
+        {
+          "ns": 1925205.0,
+          "bytes": 334546,
+          "allocs": 41
+        },
+        {
+          "ns": 1919441.0,
+          "bytes": 334534,
+          "allocs": 41
+        }
+      ],
+      "ratios": [
+        1.0079442469632727,
+        0.9944148246555559,
+        0.9908843068939688
+      ],
+      "median_process_ratio": 0.9944148246555559
+    },
+    "BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 15839554.0,
+          "bytes": 438546,
+          "allocs": 53
+        },
+        {
+          "ns": 15910801.0,
+          "bytes": 438514,
+          "allocs": 53
+        },
+        {
+          "ns": 15942475.0,
+          "bytes": 438489,
+          "allocs": 53
+        }
+      ],
+      "after": [
+        {
+          "ns": 15877952.0,
+          "bytes": 438697,
+          "allocs": 54
+        },
+        {
+          "ns": 15957673.0,
+          "bytes": 438570,
+          "allocs": 53
+        },
+        {
+          "ns": 15839211.0,
+          "bytes": 438570,
+          "allocs": 53
+        }
+      ],
+      "ratios": [
+        1.002424184418324,
+        1.0029459233384919,
+        0.9935227121259403
+      ],
+      "median_process_ratio": 1.002424184418324
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 45106592.0,
+          "bytes": 587753,
+          "allocs": 175
+        },
+        {
+          "ns": 45814842.0,
+          "bytes": 587753,
+          "allocs": 175
+        },
+        {
+          "ns": 46296542.0,
+          "bytes": 587753,
+          "allocs": 175
+        }
+      ],
+      "after": [
+        {
+          "ns": 45543658.0,
+          "bytes": 587833,
+          "allocs": 175
+        },
+        {
+          "ns": 45816642.0,
+          "bytes": 587833,
+          "allocs": 175
+        },
+        {
+          "ns": 46048108.0,
+          "bytes": 587833,
+          "allocs": 175
+        }
+      ],
+      "ratios": [
+        1.0096896258533565,
+        1.0000392885781424,
+        0.9946338540792097
+      ],
+      "median_process_ratio": 1.0000392885781424
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 6850219.0,
+          "bytes": 342504,
+          "allocs": 111
+        },
+        {
+          "ns": 6998987.0,
+          "bytes": 342504,
+          "allocs": 111
+        },
+        {
+          "ns": 6984072.0,
+          "bytes": 342504,
+          "allocs": 111
+        }
+      ],
+      "after": [
+        {
+          "ns": 6906283.0,
+          "bytes": 342584,
+          "allocs": 111
+        },
+        {
+          "ns": 6949627.0,
+          "bytes": 342584,
+          "allocs": 111
+        },
+        {
+          "ns": 6999229.0,
+          "bytes": 342584,
+          "allocs": 111
+        }
+      ],
+      "ratios": [
+        1.0081842638899574,
+        0.9929475508384284,
+        1.0021702239037626
+      ],
+      "median_process_ratio": 1.0021702239037626
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 33936576.0,
+          "bytes": 554986,
+          "allocs": 1085
+        },
+        {
+          "ns": 34771438.0,
+          "bytes": 554986,
+          "allocs": 1085
+        },
+        {
+          "ns": 34852500.0,
+          "bytes": 554986,
+          "allocs": 1085
+        }
+      ],
+      "after": [
+        {
+          "ns": 34656340.0,
+          "bytes": 555066,
+          "allocs": 1085
+        },
+        {
+          "ns": 34642396.0,
+          "bytes": 555066,
+          "allocs": 1085
+        },
+        {
+          "ns": 34766958.0,
+          "bytes": 555066,
+          "allocs": 1085
+        }
+      ],
+      "ratios": [
+        1.021209093103559,
+        0.9962888506365483,
+        0.9975455993113836
+      ],
+      "median_process_ratio": 0.9975455993113836
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers4/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 15995801.0,
+          "bytes": 601782,
+          "allocs": 184
+        },
+        {
+          "ns": 16671932.0,
+          "bytes": 601700,
+          "allocs": 183
+        },
+        {
+          "ns": 16169318.0,
+          "bytes": 601718,
+          "allocs": 184
+        }
+      ],
+      "after": [
+        {
+          "ns": 16060786.0,
+          "bytes": 601892,
+          "allocs": 185
+        },
+        {
+          "ns": 16105188.0,
+          "bytes": 601837,
+          "allocs": 184
+        },
+        {
+          "ns": 16153256.0,
+          "bytes": 601781,
+          "allocs": 184
+        }
+      ],
+      "ratios": [
+        1.0040626286861158,
+        0.9660060993530923,
+        0.9990066371383134
+      ],
+      "median_process_ratio": 0.9990066371383134
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 3227968.0,
+          "bytes": 343183,
+          "allocs": 119
+        },
+        {
+          "ns": 3249189.0,
+          "bytes": 343213,
+          "allocs": 119
+        },
+        {
+          "ns": 3236465.0,
+          "bytes": 343207,
+          "allocs": 119
+        }
+      ],
+      "after": [
+        {
+          "ns": 3240276.0,
+          "bytes": 343270,
+          "allocs": 119
+        },
+        {
+          "ns": 3234310.0,
+          "bytes": 343284,
+          "allocs": 119
+        },
+        {
+          "ns": 3138409.0,
+          "bytes": 343301,
+          "allocs": 119
+        }
+      ],
+      "ratios": [
+        1.0038129250351924,
+        0.9954207034432284,
+        0.9697027466695917
+      ],
+      "median_process_ratio": 0.9954207034432284
+    },
+    "BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 25018495.0,
+          "bytes": 554972,
+          "allocs": 1093
+        },
+        {
+          "ns": 25020046.0,
+          "bytes": 554849,
+          "allocs": 1091
+        },
+        {
+          "ns": 25048573.0,
+          "bytes": 554876,
+          "allocs": 1092
+        }
+      ],
+      "after": [
+        {
+          "ns": 24851583.0,
+          "bytes": 554832,
+          "allocs": 1091
+        },
+        {
+          "ns": 24850435.0,
+          "bytes": 555015,
+          "allocs": 1092
+        },
+        {
+          "ns": 24982028.0,
+          "bytes": 554869,
+          "allocs": 1091
+        }
+      ],
+      "ratios": [
+        0.9933284556085408,
+        0.9932209956768265,
+        0.9973433616358105
+      ],
+      "median_process_ratio": 0.9933284556085408
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers1/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 35589125.0,
+          "bytes": 587752,
+          "allocs": 175
+        },
+        {
+          "ns": 35634326.0,
+          "bytes": 587754,
+          "allocs": 175
+        },
+        {
+          "ns": 35648215.0,
+          "bytes": 587754,
+          "allocs": 175
+        }
+      ],
+      "after": [
+        {
+          "ns": 35661896.0,
+          "bytes": 574392,
+          "allocs": 55
+        },
+        {
+          "ns": 35669715.0,
+          "bytes": 574394,
+          "allocs": 55
+        },
+        {
+          "ns": 35551333.0,
+          "bytes": 574394,
+          "allocs": 55
+        }
+      ],
+      "ratios": [
+        1.0020447538398316,
+        1.0009931154583926,
+        0.9972822762654455
+      ],
+      "median_process_ratio": 1.0009931154583926
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 5247878.0,
+          "bytes": 342504,
+          "allocs": 111
+        },
+        {
+          "ns": 5328623.0,
+          "bytes": 342504,
+          "allocs": 111
+        },
+        {
+          "ns": 5339088.0,
+          "bytes": 342504,
+          "allocs": 111
+        }
+      ],
+      "after": [
+        {
+          "ns": 5287320.0,
+          "bytes": 333848,
+          "allocs": 33
+        },
+        {
+          "ns": 5322464.0,
+          "bytes": 333848,
+          "allocs": 33
+        },
+        {
+          "ns": 5308021.0,
+          "bytes": 333848,
+          "allocs": 33
+        }
+      ],
+      "ratios": [
+        1.0075157997194295,
+        0.9988441666824619,
+        0.9941812159679706
+      ],
+      "median_process_ratio": 0.9988441666824619
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 27381182.0,
+          "bytes": 554698,
+          "allocs": 1084
+        },
+        {
+          "ns": 27905073.0,
+          "bytes": 554698,
+          "allocs": 1084
+        },
+        {
+          "ns": 27731891.0,
+          "bytes": 554698,
+          "allocs": 1084
+        }
+      ],
+      "after": [
+        {
+          "ns": 27533094.0,
+          "bytes": 438522,
+          "allocs": 46
+        },
+        {
+          "ns": 27746911.0,
+          "bytes": 438522,
+          "allocs": 46
+        },
+        {
+          "ns": 27686594.0,
+          "bytes": 438522,
+          "allocs": 46
+        }
+      ],
+      "ratios": [
+        1.005548043908404,
+        0.9943321416862088,
+        0.9983666097634669
+      ],
+      "median_process_ratio": 0.9983666097634669
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers4/prefix257/tokens1": {
+      "before": [
+        {
+          "ns": 13285688.0,
+          "bytes": 601787,
+          "allocs": 184
+        },
+        {
+          "ns": 13868307.0,
+          "bytes": 601716,
+          "allocs": 184
+        },
+        {
+          "ns": 13381491.0,
+          "bytes": 601714,
+          "allocs": 184
+        }
+      ],
+      "after": [
+        {
+          "ns": 13378025.0,
+          "bytes": 588349,
+          "allocs": 64
+        },
+        {
+          "ns": 13346565.0,
+          "bytes": 588330,
+          "allocs": 64
+        },
+        {
+          "ns": 13386289.0,
+          "bytes": 588512,
+          "allocs": 66
+        }
+      ],
+      "ratios": [
+        1.0069501105249499,
+        0.9623788253317438,
+        1.0003585549622236
+      ],
+      "median_process_ratio": 1.0003585549622236
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens8": {
+      "before": [
+        {
+          "ns": 2633006.0,
+          "bytes": 343212,
+          "allocs": 119
+        },
+        {
+          "ns": 2652147.0,
+          "bytes": 343176,
+          "allocs": 119
+        },
+        {
+          "ns": 2670112.0,
+          "bytes": 343208,
+          "allocs": 119
+        }
+      ],
+      "after": [
+        {
+          "ns": 2635818.0,
+          "bytes": 334555,
+          "allocs": 42
+        },
+        {
+          "ns": 2648995.0,
+          "bytes": 334569,
+          "allocs": 42
+        },
+        {
+          "ns": 2650372.0,
+          "bytes": 334537,
+          "allocs": 42
+        }
+      ],
+      "ratios": [
+        1.0010679808553418,
+        0.9988115289235476,
+        0.9926070516892175
+      ],
+      "median_process_ratio": 0.9988115289235476
+    },
+    "BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128": {
+      "before": [
+        {
+          "ns": 19679424.0,
+          "bytes": 554460,
+          "allocs": 1090
+        },
+        {
+          "ns": 19719910.0,
+          "bytes": 554580,
+          "allocs": 1091
+        },
+        {
+          "ns": 19905205.0,
+          "bytes": 554556,
+          "allocs": 1090
+        }
+      ],
+      "after": [
+        {
+          "ns": 20255288.0,
+          "bytes": 438302,
+          "allocs": 53
+        },
+        {
+          "ns": 19767545.0,
+          "bytes": 438336,
+          "allocs": 53
+        },
+        {
+          "ns": 19787569.0,
+          "bytes": 438334,
+          "allocs": 53
+        }
+      ],
+      "ratios": [
+        1.0292622385695842,
+        1.002415578975766,
+        0.9940901889731857
+      ],
+      "median_process_ratio": 1.002415578975766
+    }
+  }
+}

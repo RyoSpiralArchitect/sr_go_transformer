@@ -1,0 +1,23 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix257/tokens1-10         	      12	  27626920 ns/op	  574313 B/op	      54 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens8-10          	      92	   3841316 ns/op	  333768 B/op	      32 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers1/prefix33/tokens128-10        	      18	  18997877 ns/op	  438728 B/op	      46 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix257/tokens1-10         	      32	  10534736 ns/op	  588321 B/op	      64 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens8-10          	     184	   2037648 ns/op	  334466 B/op	      41 allocs/op
+BenchmarkPostSingleExpGeneration/f32/workers4/prefix33/tokens128-10        	      24	  15981266 ns/op	  438586 B/op	      53 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix257/tokens1-10          	       7	  46559464 ns/op	  587753 B/op	     174 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens8-10           	      50	   6999648 ns/op	  342504 B/op	     110 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers1/prefix33/tokens128-10         	       9	  34851620 ns/op	  554984 B/op	    1084 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix257/tokens1-10          	      21	  16494208 ns/op	  601835 B/op	     184 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens8-10           	     100	   3129825 ns/op	  343201 B/op	     118 allocs/op
+BenchmarkPostSingleExpGeneration/q8/workers4/prefix33/tokens128-10         	      14	  25386539 ns/op	  554846 B/op	    1090 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix257/tokens1-10          	       9	  35592602 ns/op	  574312 B/op	      54 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens8-10           	      67	   5312704 ns/op	  333768 B/op	      32 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers1/prefix33/tokens128-10         	      12	  27693316 ns/op	  438441 B/op	      45 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix257/tokens1-10          	      24	  13256997 ns/op	  588293 B/op	      64 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens8-10           	     135	   2776220 ns/op	  334450 B/op	      41 allocs/op
+BenchmarkPostSingleExpGeneration/q4/workers4/prefix33/tokens128-10         	      16	  19797943 ns/op	  438222 B/op	      52 allocs/op
+PASS

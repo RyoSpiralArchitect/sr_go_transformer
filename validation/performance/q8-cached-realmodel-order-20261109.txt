@@ -1,0 +1,28 @@
+2026-11-09T02:36:58Z start q8-precontrol-before runs/q4-refined-20261109 q8
+2026-11-09T02:37:51Z end q8-precontrol-before
+2026-11-09T02:37:51Z start q8-precontrol-after runs/q4-refined-20261109 q8
+2026-11-09T02:38:45Z end q8-precontrol-after
+2026-11-09T02:38:45Z start q8-before-run1 runs/q4-refined-20261109 q8
+2026-11-09T02:39:41Z end q8-before-run1
+2026-11-09T02:39:41Z start q8-after-run1 runs/q8-cached-invocation-20261109 q8
+2026-11-09T02:40:49Z end q8-after-run1
+2026-11-09T02:40:49Z start q8-after-run2 runs/q8-cached-invocation-20261109 q8
+2026-11-09T02:42:14Z end q8-after-run2
+2026-11-09T02:42:15Z start q8-before-run2 runs/q4-refined-20261109 q8
+2026-11-09T02:43:16Z end q8-before-run2
+2026-11-09T02:43:16Z start q8-before-run3 runs/q4-refined-20261109 q8
+2026-11-09T02:44:17Z end q8-before-run3
+2026-11-09T02:44:17Z start q8-after-run3 runs/q8-cached-invocation-20261109 q8
+2026-11-09T02:45:18Z end q8-after-run3
+2026-11-09T02:45:18Z start q4-before-run1 runs/q4-refined-20261109 q4
+2026-11-09T02:46:10Z end q4-before-run1
+2026-11-09T02:46:10Z start q4-after-run1 runs/q8-cached-invocation-20261109 q4
+2026-11-09T02:47:09Z end q4-after-run1
+2026-11-09T02:47:09Z start q4-after-run2 runs/q8-cached-invocation-20261109 q4
+2026-11-09T02:48:13Z end q4-after-run2
+2026-11-09T02:48:13Z start q4-before-run2 runs/q4-refined-20261109 q4
+2026-11-09T02:49:29Z end q4-before-run2
+2026-11-09T02:49:29Z start q8-postcontrol-before runs/q4-refined-20261109 q8
+2026-11-09T02:51:40Z end q8-postcontrol-before
+2026-11-09T02:51:40Z start q8-postcontrol-after runs/q4-refined-20261109 q8
+2026-11-09T02:53:42Z end q8-postcontrol-after
