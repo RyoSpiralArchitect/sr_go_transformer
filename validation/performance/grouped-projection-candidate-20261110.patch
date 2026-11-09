@@ -1,0 +1,314 @@
+diff --git a/cmd/monolith/grouped_projection_test.go b/cmd/monolith/grouped_projection_test.go
+new file mode 100644
+index 0000000..be54234
+--- /dev/null
++++ b/cmd/monolith/grouped_projection_test.go
+@@ -0,0 +1,149 @@
++// Copyright 2026 RyoSpiralArchitect
++// SPDX-License-Identifier: Apache-2.0
++package main
++
++import (
++	"fmt"
++	"math"
++	"testing"
++	"time"
++)
++
++func assertGroupCleared(t testing.TB, e *kernelExecutor) {
++	t.Helper()
++	if e.groupCount != 0 || e.groupEnds != [3]int{} {
++		t.Fatal("retained group bounds")
++	}
++	for _, g := range e.group {
++		if g.x != nil || g.y != nil || g.w != nil || g.n != 0 {
++			t.Fatal("retained group references")
++		}
++	}
++}
++
++func TestGroupedProjectionExactAndFallback(t *testing.T) {
++	for _, format := range []string{"f32", "q4", "q8", "mixed", "wide"} {
++		for _, n := range []int{1, 2, 4, 7, 17} {
++			for _, in := range []int{63, 64, 513, 2048} {
++				t.Run(fmt.Sprintf("%s/rows%d/in%d", format, n, in), func(t *testing.T) {
++					x, _, _ := linearFixture(n, in, 1)
++					if format == "wide" {
++						x[0] = math.MaxFloat32 / 4
++					}
++					var projections []inferenceProjection
++					var wants [][]float32
++					var guards [][]float32
++					for i, out := range []int{259, 33, 65} {
++						_, p, _ := linearFixture(n, in, out)
++						// Keep extreme fixture outputs representable.
++						if format == "wide" {
++							for j := range p.Data {
++								p.Data[j] *= 0.0001
++							}
++						}
++						if format == "q4" || format == "wide" || format == "mixed" && i == 1 {
++							p = quantizeQ4TestParam(t, p)
++						}
++						if format == "q8" {
++							p = quantizeTestParam(t, p)
++						}
++						want := make([]float32, n*out)
++						linearIntoWithExecutor(nil, want, x, p, n)
++						wants = append(wants, want)
++						g := make([]float32, n*out+2)
++						g[0], g[len(g)-1] = 987, 987
++						guards = append(guards, g)
++						projections = append(projections, inferenceProjection{g[1 : len(g)-1], p})
++					}
++					for _, workers := range []int{0, 1, 4} {
++						var e *kernelExecutor
++						if workers > 0 {
++							e = newKernelExecutor(workers)
++						}
++						for _, count := range []int{3, 2, 3} {
++							for _, p := range projections {
++								for j := range p.y {
++									p.y[j] = float32(math.NaN())
++								}
++							}
++							linearGroupInto(e, x, n, projections[:count]...)
++							if workers == 4 && in == 2048 && format == "q4" && e.groupFn == nil {
++								t.Fatal("aligned Q4 group did not dispatch")
++							}
++							for i, p := range projections[:count] {
++								exactWorkerFloats(t, p.y, wants[i])
++								if guards[i][0] != 987 || guards[i][len(guards[i])-1] != 987 {
++									t.Fatal("output overrun")
++								}
++							}
++							if e != nil {
++								assertGroupCleared(t, e)
++							}
++						}
++						if e != nil {
++							e.close()
++						}
++					}
++				})
++			}
++		}
++	}
++}
++
++func TestGroupedProjectionJoinsAndReuses(t *testing.T) {
++	e := newKernelExecutor(4)
++	x, p, _ := linearFixture(4, 513, 259)
++	q := quantizeQ4TestParam(t, p)
++	a, b := make([]float32, 4*259), make([]float32, 4*259)
++	projections := []inferenceProjection{{a, q}, {b, q}}
++	linearGroupInto(e, x, 4, projections...)
++	if e.groupFn == nil {
++		e.close()
++		t.Fatal("group did not dispatch")
++	}
++	if got := testing.AllocsPerRun(10, func() { linearGroupInto(e, x, 4, projections...) }); got != 0 {
++		e.close()
++		t.Fatal("warm allocations", got)
++	}
++	want := append([]float32(nil), a...)
++	for j := range a {
++		a[j], b[j] = float32(math.NaN()), float32(math.NaN())
++	}
++	original := e.groupFn
++	entered, release, done := make(chan struct{}, 4), make(chan struct{}), make(chan struct{})
++	e.groupFn = func(lo, hi int) { entered <- struct{}{}; <-release; original(lo, hi) }
++	go func() { linearGroupInto(e, x, 4, projections...); close(done) }()
++	t.Cleanup(func() {
++		select {
++		case <-release:
++		default:
++			close(release)
++		}
++		<-done
++		e.close()
++	})
++	for i := 0; i < 4; i++ {
++		select {
++		case <-entered:
++		case <-time.After(5 * time.Second):
++			t.Fatal("worker did not enter")
++		}
++	}
++	select {
++	case <-done:
++		t.Fatal("returned with borrowed outputs")
++	default:
++	}
++	if e.groupCount != 2 || e.group[0].w != q || e.group[1].w != q {
++		t.Fatal("cleared before join")
++	}
++	close(release)
++	select {
++	case <-done:
++	case <-time.After(5 * time.Second):
++		t.Fatal("join timeout")
++	}
++	assertGroupCleared(t, e)
++	exactWorkerFloats(t, a, want)
++	exactWorkerFloats(t, b, want)
++}
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index 8e455c3..e32a50c 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -3707,13 +3707,17 @@ func parallel(n, work int, fn func(lo, hi int)) {
+ // close must have a single caller,
+ // and callbacks must not recursively dispatch work through this executor.
+ type kernelExecutor struct {
+-	workers   int
+-	jobs      chan kernelJob
+-	completed chan struct{}
+-	lifetime  sync.WaitGroup
+-	linear    fp32Kernel
+-	linearFn  func(lo, hi int)
+-	q4Fn      func(lo, hi int)
++	workers    int
++	jobs       chan kernelJob
++	completed  chan struct{}
++	lifetime   sync.WaitGroup
++	linear     fp32Kernel
++	linearFn   func(lo, hi int)
++	q4Fn       func(lo, hi int)
++	group      [3]fp32Kernel
++	groupEnds  [3]int
++	groupCount int
++	groupFn    func(lo, hi int)
+ }
+ 
+ type fp32Kernel struct {
+@@ -3937,6 +3941,68 @@ func addBias(x []float32, bias *Param) {
+ 	}
+ }
+ 
++// Projections in a group borrow the same input and write disjoint outputs.
++// Only the owning actor may dispatch, and every worker joins before any output
++// is consumed. Q8 and extreme Q4 inputs retain their established fallbacks.
++type inferenceProjection struct {
++	y []float32
++	w *Param
++}
++
++func linearGroupInto(e *kernelExecutor, x []float32, n int, projections ...inferenceProjection) {
++	eligible := e != nil && e.workers > 1 && len(projections) >= 2 && len(projections) <= 3
++	work, tasks := 0, 0
++	hasQ4 := false
++	for _, p := range projections {
++		work += n * p.w.Rows * p.w.Cols
++		tasks += ((n + 3) / 4) * ((p.w.Rows + 31) / 32)
++		hasQ4 = hasQ4 || p.w.Q4 != nil
++		if p.w.Q8 != nil || p.w.Cols != projections[0].w.Cols {
++			eligible = false
++		}
++	}
++	if eligible && hasQ4 && q8NeedsWideSum(x[:n*projections[0].w.Cols]) {
++		eligible = false
++	}
++	if !eligible || work < 131072 || tasks < 2 {
++		for _, p := range projections {
++			linearIntoWithExecutor(e, p.y, x, p.w, n)
++		}
++		return
++	}
++	end := 0
++	for i, p := range projections {
++		e.group[i] = fp32Kernel{x: x, y: p.y, w: p.w, n: n}
++		end += ((n + 3) / 4) * ((p.w.Rows + 31) / 32)
++		e.groupEnds[i] = end
++	}
++	e.groupCount = len(projections)
++	if e.groupFn == nil {
++		e.groupFn = func(lo, hi int) { e.groupRange(lo, hi) }
++	}
++	e.parallel(tasks, work, e.groupFn)
++	// A worker clears its borrowed closure before acknowledging completion.
++	e.group = [3]fp32Kernel{}
++	e.groupEnds = [3]int{}
++	e.groupCount = 0
++}
++
++func (e *kernelExecutor) groupRange(lo, hi int) {
++	start := 0
++	for i := 0; i < e.groupCount; i++ {
++		end := e.groupEnds[i]
++		a, b := max(lo, start)-start, min(hi, end)-start
++		if a < b {
++			if e.group[i].w.Q4 != nil {
++				linearQ4Range(&e.group[i], a, b)
++			} else {
++				linearFP32Range(&e.group[i], a, b)
++			}
++		}
++		start = end
++	}
++}
++
+ func linearIntoWithExecutor(e *kernelExecutor, y, x []float32, w *Param, n int) {
+ 	if w.Q4 != nil {
+ 		linearQ4Into(e, y, x, w, n)
+@@ -6889,9 +6955,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 		}
+ 		region := trace.StartRegion(ctx, "monolith.prefill_layer")
+ 		inferenceNorm(w.N, w.X, b.N1, b.N1B, n, c.NormEps)
+-		linearIntoWithExecutor(executor, w.Q, w.N, b.Q, n)
+-		linearIntoWithExecutor(executor, w.K, w.N, b.K, n)
+-		linearIntoWithExecutor(executor, w.V, w.N, b.V, n)
++		linearGroupInto(executor, w.N, n, inferenceProjection{w.Q, b.Q}, inferenceProjection{w.K, b.K}, inferenceProjection{w.V, b.V})
+ 		addBias(w.Q, b.QB)
+ 		addBias(w.K, b.KB)
+ 		addBias(w.V, b.VB)
+@@ -6911,7 +6975,11 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 		addBias(w.Q, b.OB)
+ 		addInPlace(w.X, w.Q)
+ 		inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
+-		linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
++		if m.Position != nil {
++			linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
++		} else {
++			linearGroupInto(executor, w.N, n, inferenceProjection{w.G, b.Gate}, inferenceProjection{w.U, b.Up})
++		}
+ 		// Gate values are dead after activation. Overwrite them only after
+ 		// the projections join, preserving each element's arithmetic order.
+ 		if m.Position != nil {
+@@ -6921,7 +6989,6 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+ 				w.G[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
+ 			}
+ 		} else {
+-			linearIntoWithExecutor(executor, w.U, w.N, b.Up, n)
+ 			for i, v := range w.G {
+ 				w.G[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
+ 			}
+diff --git a/cmd/monolith/q4_call_overhead_test.go b/cmd/monolith/q4_call_overhead_test.go
+index 0a129ae..0852647 100644
+--- a/cmd/monolith/q4_call_overhead_test.go
++++ b/cmd/monolith/q4_call_overhead_test.go
+@@ -96,16 +96,20 @@ type compactProjectionLayout struct {
+ 
+ func TestProjectionDescriptorFootprint(t *testing.T) {
+ 	actual, compact := reflect.TypeOf(kernelExecutor{}).Size(), reflect.TypeOf(compactProjectionLayout{}).Size()
+-	t.Logf("executor %d bytes; compact layout %d bytes", actual, compact)
+-	if actual > compact {
+-		t.Fatalf("executor size %d exceeds shared descriptor layout %d", actual, compact)
++	// Grouped inference adds a bounded three-projection packet and one lazy
++	// callback. Keep the original singleton descriptor bound separate so the
++	// extra per-executor storage is explicit rather than hidden in a new cap.
++	group := 3*reflect.TypeOf(fp32Kernel{}).Size() + 4*reflect.TypeOf(int(0)).Size() + reflect.TypeOf((func(int, int))(nil)).Size()
++	t.Logf("executor %d bytes; singleton %d; grouped allowance %d", actual, compact, group)
++	if actual > compact+group {
++		t.Fatalf("executor size %d exceeds bounded layout %d", actual, compact+group)
+ 	}
+ }
+ 
+ func TestProjectionCallbacksStartLazy(t *testing.T) {
+ 	for _, workers := range []int{1, 4} {
+ 		e := newKernelExecutor(workers)
+-		if e.linearFn != nil || e.q4Fn != nil {
++		if e.linearFn != nil || e.q4Fn != nil || e.groupFn != nil {
+ 			e.close()
+ 			t.Fatal("unused projection callback allocated at construction")
+ 		}

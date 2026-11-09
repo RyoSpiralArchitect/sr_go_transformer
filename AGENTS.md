@@ -8,3 +8,5 @@
 - Q8 cached invocation reuse is an archived candidate, not a production change. Its adoption requires separate stable default-runtime confirmation and FP32/Q4/prefill/lifecycle/race/compatibility checks.
 - Reconstruct the historical Furnace CPU bundle with `python3 scripts/prepare_q8_furnace_bundle.py --output runs/NEW_DIRECTORY --go .tools/go/bin/go`. The output parent must exist; historical binary reproduction requires Go 1.27.3. Model assets must be supplied separately. This command only prepares local artifacts, not remote execution.
 - Furnace execution uses the existing `spiral` command. Inspect contention first, operate only on owned isolated artifacts/processes, and never change host policies or unrelated jobs to obtain benchmark stability.
+
+- Grouped Q/K/V and Gate/Up dispatch is an archived, unadopted candidate. Retain both first comparisons and require a fresh frozen performance confirmation plus compatibility checks before adoption; see `docs/grouped-projection-experiment.md`.
