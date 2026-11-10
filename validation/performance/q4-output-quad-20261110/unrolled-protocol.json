@@ -1,0 +1,7 @@
+{
+  "previous": "runs/q4-output-quad/protocol.json",
+  "difference": "Fully unroll the 16 iterations with constant indices. Repeat ABBA explicitly in one benchmark process, count=1. The compact variant's count=2 actually repeated each sub-benchmark consecutively (AABBBBAA).",
+  "gate": "Same four-worker target (at least 5% improvement in at least 3 of 4 shapes), 5% regression ceiling in all eight cells, exactness and zero allocs/op. No timing comparison across candidate runs.",
+  "bench_time": "200ms",
+  "reason": "Compact quad was slower on all eight cells. Disassembly has loop-internal FP stack spills and no bounds panic branch. Full unroll tests the width with less loop/register-allocation pressure."
+}

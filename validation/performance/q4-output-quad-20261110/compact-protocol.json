@@ -1,0 +1,11 @@
+{
+  "baseline": "2f351c1b8007a73e5abe82dee2e4db9c96eb0acb",
+  "comparison": "Identical one-row matrices, Q4 weights, worker executor and tiles. 2-output unrolled kernel vs compact 4-output loop. Pair/quad/quad/pair samples, repeated twice.",
+  "shapes_in_out": [[4096, 1024], [4096, 4096], [4096, 14336], [14336, 4096]],
+  "worker_counts": [1, 4],
+  "samples_per_variant_per_cell": 4,
+  "bench_time": "200ms",
+  "primary_gate": "Bit-exact outputs, zero per-op allocations, four-worker candidate/pair median at most 0.95 on at least 3 of 4 shapes and at most 1.05 on every shape and worker count.",
+  "next_gate": "Synthetic evidence only. If the primary gate passes, test as a separate runtime candidate with two frozen Mistral ABBA comparisons, same exactness and regression gates as PR 72.",
+  "rejection": "Retain all first samples and keep candidate out of runtime. Any revised candidate is separately identified."
+}

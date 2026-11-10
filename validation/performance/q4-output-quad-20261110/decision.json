@@ -1,0 +1,198 @@
+{
+  "base": "2f351c1b8007a73e5abe82dee2e4db9c96eb0acb",
+  "toolchain": "go version go1.27.1 darwin/arm64",
+  "host": "Apple M4 Mac16,1 darwin/arm64",
+  "runtime_sha256": "cd8fe55d6f790a755315feedea6ebcd39196638a4380bea0e5f899573e436998",
+  "GOMAXPROCS": 4,
+  "decision": "Both quad variants fail the frozen synthetic gate; retain the current pair in runtime. No real-model timing run for these candidates.",
+  "variants": {
+    "compact": {
+      "source_sha256": "56ec71dd8cc9c28050e0b9f38a55ee81067dcb2db6b93531092f49e16e329348",
+      "bench_sha256": "0ac612acde221a29000ad8bc811a8303126ea0aaa792f8c360e220aef776daae",
+      "exact_race_test": "ok  \tgithub.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\t1.830s",
+      "actual_sample_order": "AABBBBAA",
+      "passing_four_worker_shapes": 0,
+      "all_cells_within_regression_ceiling": false,
+      "disassembly": [
+        {
+          "symbol": "dotQ4OutputPair64",
+          "instruction_lines": 445,
+          "fp32_stack_moves": 0
+        },
+        {
+          "symbol": "dotQ4OutputQuad64",
+          "instruction_lines": 120,
+          "fp32_stack_moves": 8
+        }
+      ],
+      "cells": [
+        {
+          "input_columns": 4096,
+          "output_rows": 1024,
+          "workers": 1,
+          "pair_median_ns": 688573.5,
+          "quad_median_ns": 905719.5,
+          "ratio": 1.3153563127247854,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 1024,
+          "workers": 4,
+          "pair_median_ns": 206603.0,
+          "quad_median_ns": 256018.5,
+          "ratio": 1.239180941225442,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 4096,
+          "workers": 1,
+          "pair_median_ns": 2825356.0,
+          "quad_median_ns": 3905075.0,
+          "ratio": 1.3821532578549394,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 4096,
+          "workers": 4,
+          "pair_median_ns": 792907.0,
+          "quad_median_ns": 984587.5,
+          "ratio": 1.2417439876303273,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 14336,
+          "workers": 1,
+          "pair_median_ns": 9936685.5,
+          "quad_median_ns": 12986755.5,
+          "ratio": 1.306950441372025,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 14336,
+          "workers": 4,
+          "pair_median_ns": 2809596.0,
+          "quad_median_ns": 4085070.0,
+          "ratio": 1.45397060645018,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 14336,
+          "output_rows": 4096,
+          "workers": 1,
+          "pair_median_ns": 10322882.5,
+          "quad_median_ns": 13542668.0,
+          "ratio": 1.3119075994519942,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 14336,
+          "output_rows": 4096,
+          "workers": 4,
+          "pair_median_ns": 2935271.0,
+          "quad_median_ns": 3448456.5,
+          "ratio": 1.1748341124209656,
+          "zero_rounded_allocs_per_op": true
+        }
+      ]
+    },
+    "unrolled": {
+      "source_sha256": "d47b158e46a674ba1c378285a932493a70f856212fcb7a4de6b5a572e382b841",
+      "bench_sha256": "d7f740ace2c4009dd20434ebcd31b52937fcf3fb64eae3aa938a645c0df75728",
+      "exact_race_test": "ok  \tgithub.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\t2.286s",
+      "actual_sample_order": "ABBAABBA",
+      "passing_four_worker_shapes": 1,
+      "all_cells_within_regression_ceiling": true,
+      "disassembly": [
+        {
+          "symbol": "dotQ4OutputPair64",
+          "instruction_lines": 445,
+          "fp32_stack_moves": 0
+        },
+        {
+          "symbol": "dotQ4OutputQuad64",
+          "instruction_lines": 868,
+          "fp32_stack_moves": 0
+        }
+      ],
+      "cells": [
+        {
+          "input_columns": 4096,
+          "output_rows": 1024,
+          "workers": 1,
+          "pair_median_ns": 695388.0,
+          "quad_median_ns": 688049.5,
+          "ratio": 0.9894468987097851,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 1024,
+          "workers": 4,
+          "pair_median_ns": 203217.5,
+          "quad_median_ns": 201105.0,
+          "ratio": 0.9896047338442802,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 4096,
+          "workers": 1,
+          "pair_median_ns": 2813668.0,
+          "quad_median_ns": 2783466.5,
+          "ratio": 0.9892661465389662,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 4096,
+          "workers": 4,
+          "pair_median_ns": 744572.5,
+          "quad_median_ns": 752914.0,
+          "ratio": 1.0112030729042505,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 14336,
+          "workers": 1,
+          "pair_median_ns": 9888406.5,
+          "quad_median_ns": 9787095.5,
+          "ratio": 0.9897545676343301,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 4096,
+          "output_rows": 14336,
+          "workers": 4,
+          "pair_median_ns": 2557737.0,
+          "quad_median_ns": 2542305.0,
+          "ratio": 0.9939665415169738,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 14336,
+          "output_rows": 4096,
+          "workers": 1,
+          "pair_median_ns": 9784930.5,
+          "quad_median_ns": 9861075.5,
+          "ratio": 1.0077818641634706,
+          "zero_rounded_allocs_per_op": true
+        },
+        {
+          "input_columns": 14336,
+          "output_rows": 4096,
+          "workers": 4,
+          "pair_median_ns": 2796041.0,
+          "quad_median_ns": 2595989.5,
+          "ratio": 0.9284518717715513,
+          "zero_rounded_allocs_per_op": true
+        }
+      ]
+    }
+  }
+}
