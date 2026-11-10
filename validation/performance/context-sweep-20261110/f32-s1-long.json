@@ -1,0 +1,264 @@
+{
+  "format": "monolith-context-sweep-v1",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "model_files": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "15d11887152b52ade561a0294f5cabc3f9b38f4e6edf86600a5d05e4925e74d9",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/context_sweep_perf_test.go": "b663744eda82413d91190951885729dcc7724e975096b4f934e31eb576392387",
+    "scripts/measure_context_sweep.py": "b2aa40021b204878f5dc1554871ed31ea2c944fd6bcbfe35e2df4858dbd0fcd0",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0"
+  },
+  "binary_sha256": "58d0f3ca9114a0d81e46b977ec1928c755d867715244dda688e47cb4d9cf75b1",
+  "host": "macOS-26.4.1-arm64-arm-64bit",
+  "cpu": "arm64",
+  "lengths": [
+    128,
+    1024,
+    4096
+  ],
+  "schedule": [
+    [
+      "f32",
+      1
+    ]
+  ],
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "runs": [
+    {
+      "kv_format": "f32",
+      "sessions": 1,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 3940155392,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 825.4407219999994,
+        "user_cpu_seconds": 3189.547414,
+        "system_cpu_seconds": 5.496715
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f32",
+          "lengths": [
+            128,
+            1024,
+            4096
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 4103,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 2100736,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 941129728,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 1,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.1429915,
+              0.142234875,
+              0.141731459,
+              0.142116917,
+              0.141421041,
+              0.142379667,
+              0.142724292
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ]
+            ],
+            "logits_sha256": "d813345e3a15bd913fe826e48079229c17e6e2a065377855fe1eca4bc934cd09",
+            "kv_sha256": "fcfa839eb6f03d6ff39276f4320fc6d719e8558d39a46bac80ece0480bad3b63",
+            "kv_payload_bytes": 36700160,
+            "workspace_bytes": 638464
+          },
+          "event": "measurement",
+          "prefill_seconds": 16.457400958,
+          "prefill_workspace_bytes": 4447232,
+          "prefix": 128,
+          "prompt_sha256": "b06f838d28fa83caab950ba07db4da1ee068086417305696e46467e1bcdd66c0",
+          "decode_median_ms": 142.23487500000002
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.17033375,
+              0.169889875,
+              0.171422375,
+              0.180968125,
+              0.17568725,
+              0.172239917,
+              0.174883709
+            ],
+            "token_ids": [
+              [
+                311,
+                1373,
+                13,
+                3296,
+                6740,
+                11,
+                1475,
+                2199
+              ]
+            ],
+            "logits_sha256": "5ac847d45f9333036d5eff440e6011c5c1ebc343d3e27461fad80dd1b0606ffc",
+            "kv_sha256": "5565dbc680afa7ff1c98ae31f5e3db024ee6df7041d6b8c89d399287b3319881",
+            "kv_payload_bytes": 242221056,
+            "workspace_bytes": 652800
+          },
+          "event": "measurement",
+          "prefill_seconds": 154.11567474799998,
+          "prefill_workspace_bytes": 4461568,
+          "prefix": 1024,
+          "prompt_sha256": "202996dad0e91d5c89e7561cde604f5060defdfbd7f2d6e4cd582a77fc626add",
+          "decode_median_ms": 172.239917
+        },
+        {
+          "event": "profile",
+          "file": "decode-1024.cpu",
+          "prefix": 1024
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.300916375,
+              0.291833416,
+              0.292414,
+              0.289298667,
+              0.293723417,
+              0.288835625,
+              0.299141708
+            ],
+            "token_ids": [
+              [
+                1373,
+                13,
+                3296,
+                6740,
+                11,
+                1475,
+                2199,
+                13282
+              ]
+            ],
+            "logits_sha256": "753d7b69e9ff0eb29a1e5f39351c7fac6ae8add8bf0bf4442eb496341c8aba27",
+            "kv_sha256": "b815ba252e067e9e9e66a72297bea5c936bfabc1494cbb1524660e3ae46b95b2",
+            "kv_payload_bytes": 946864128,
+            "workspace_bytes": 701552
+          },
+          "event": "measurement",
+          "prefill_seconds": 796.3166520779997,
+          "prefill_workspace_bytes": 4510720,
+          "prefix": 4096,
+          "prompt_sha256": "4425b85d5d2fc7d99879e42a3abc823f8f86d77ea1d372c4b6a0d1c7d5337aa3",
+          "decode_median_ms": 292.414
+        },
+        {
+          "event": "profile",
+          "file": "decode-4096.cpu",
+          "prefix": 4096
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "3c7bc2d3d11651dd2abd3232da48da55c30f376b0c78ab606f14e0c3466d7e8f",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 3500.0,
+          "q4_range_cpu_ms": 230.0,
+          "q8_worker_cpu_ms": 650.0,
+          "attention_range_cpu_ms": 0.0,
+          "cpu_profile_sha256": "bf9a796a4126c73fc965d0e5c83abc812077eae670b370e666f8f9499c4a6214"
+        },
+        "1024": {
+          "total_cpu_ms": 4090.0,
+          "q4_range_cpu_ms": 130.0,
+          "q8_worker_cpu_ms": 610.0,
+          "attention_range_cpu_ms": 40.0,
+          "cpu_profile_sha256": "672d45d28bf2b8ead67578271b030a41195c742ed1b28b427c159c7208ec3c63"
+        },
+        "4096": {
+          "total_cpu_ms": 5010.0,
+          "q4_range_cpu_ms": 20.0,
+          "q8_worker_cpu_ms": 640.0,
+          "attention_range_cpu_ms": 270.0,
+          "cpu_profile_sha256": "19ebf353a8624616b2728db2f732db606f674bc1dd0591a9aa4da8c1ab0a5148"
+        }
+      }
+    }
+  ],
+  "identities_unchanged": true
+}

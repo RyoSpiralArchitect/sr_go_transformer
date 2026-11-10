@@ -42,3 +42,29 @@ Each case's timing and profile completion are synced to a journal. The
 driver retains complete events after a failure or timeout and marks the
 run incomplete. The output also records binary and source hashes and
 rechecks the pinned model and build identity after execution.
+
+The first Apple M4 baseline used Go 1.27.1 and the pinned Llama 3.2 3B
+Q4-mixed snapshot. One FP32 session reached all three lengths. The
+128-token pilot also covered two sessions and both KV formats.
+
+| Input tokens | Accumulated prefill | Median decode call | KV payload after decode | Q8 worker samples | Attention worker samples |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 16.46 s | 142.24 ms | 35 MiB | 650 ms | 0 sampled |
+| 1,024 | 154.12 s | 172.24 ms | 231 MiB | 610 ms | 40 ms |
+| 4,096 | 796.32 s | 292.41 ms | 903 MiB | 640 ms | 270 ms |
+
+The two independent 128-token FP32 single-session runs matched prompt
+hashes, logits hashes, stored KV hashes and generated IDs. In the
+128-token pilot, FP16 halved the KV payload from 35 to 17.5 MiB for one
+session and from 70 to 35 MiB for two. The long baseline covers FP32
+with one session. The preflight pilot used an earlier driver without
+Q8 profile aggregation, with the same runtime and Go harness.
+
+At 4,096 tokens the profile records more attention samples, and the Q8
+worker still has more samples than attention. The brief CPU replays
+recorded substantial scheduler samples and uneven Q4 samples across
+lengths. Use the sampled breakdown to choose a follow-up measurement,
+with paired wall-clock comparisons for any optimization decision.
+
+The receipts are in
+[`validation/performance/context-sweep-20261110`](../validation/performance/context-sweep-20261110/).
