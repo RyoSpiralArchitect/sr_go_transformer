@@ -1,0 +1,67 @@
+{
+  "candidate_commit": "eaff99b055489657aa01bf73ca17851adf61ed2c",
+  "runtime_sha256": "1f38618fafecc6b43f7ca3092311e4ee1595ba2bb5986a6ca54e9c1133830bc9",
+  "baseline": "2f351c1b8007a73e5abe82dee2e4db9c96eb0acb",
+  "decision": "Retain the locally validated candidate for review. Both Llama repeats pass their own gates. Mistral acceptance remains open.",
+  "scope": "M4 host, cached Llama 3.2 3B Q4-mixed, fixed one- and two-session workload, short prefixes, 7 decode calls. No general throughput claim.",
+  "mistral": "Interrupted with the working directory unavailable. The restart reached the missing pinned model directory before running any probe. See mistral-interrupted.md.",
+  "checks": "Full local format/race/vet/Python/probe/cgo-free/CLI validation completed before the interruption. The original logs were in the unavailable worktree.",
+  "runs": [
+    {
+      "receipt": "llama32-run1.json",
+      "receipt_sha256": "32d3dc696f9d14979ee2269a6fbd40293364f1eedd680180fb658d62323ba2b6",
+      "trial_count": 24,
+      "exact": true,
+      "measurements": {
+        "single_decode": {
+          "before_median_seconds": 1.6665046665,
+          "after_median_seconds": 1.293377332,
+          "ratio": 0.7761018363761059
+        },
+        "single_prefill": {
+          "before_median_seconds": 1.3948618124999999,
+          "after_median_seconds": 1.3966125835,
+          "ratio": 1.001255157309714
+        },
+        "two_decode": {
+          "before_median_seconds": 2.5750659794999997,
+          "after_median_seconds": 2.2878056255,
+          "ratio": 0.8884454393452951
+        },
+        "two_prefill": {
+          "before_median_seconds": 2.880467167,
+          "after_median_seconds": 2.6632989795,
+          "ratio": 0.9246066089598306
+        }
+      }
+    },
+    {
+      "receipt": "llama32-run2.json",
+      "receipt_sha256": "55b11009e0db1762bc831dca4d7c909606d620d10042757482be3323e01721ab",
+      "trial_count": 24,
+      "exact": true,
+      "measurements": {
+        "single_decode": {
+          "before_median_seconds": 1.3284159165,
+          "after_median_seconds": 1.0599642500000002,
+          "ratio": 0.7979159514986135
+        },
+        "single_prefill": {
+          "before_median_seconds": 1.1522172705,
+          "after_median_seconds": 1.1753989790000001,
+          "ratio": 1.0201192163088655
+        },
+        "two_decode": {
+          "before_median_seconds": 1.931322375,
+          "after_median_seconds": 1.9034334995000002,
+          "ratio": 0.9855596994779291
+        },
+        "two_prefill": {
+          "before_median_seconds": 2.3504194165,
+          "after_median_seconds": 2.3379994585,
+          "ratio": 0.9947158545777782
+        }
+      }
+    }
+  ]
+}
