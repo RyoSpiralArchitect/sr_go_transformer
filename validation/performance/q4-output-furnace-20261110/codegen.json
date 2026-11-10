@@ -1,0 +1,29 @@
+{
+  "compiler": "Go 1.27.1, linux/amd64 GOAMD64=v1 CGO_ENABLED=0",
+  "split_micro_source_sha256": "480088785ffde7976bf4d90dc9705d13623ca10cdb78f2f133da794c6ccd1124",
+  "split_micro_binary_sha256": "45945992dfe7943fc3d097e7c9ade35ed5d4ccd27bc3a459ec82e819e2ae2ff3",
+  "small_micro_source_sha256": "9a8ac5ab8125c68bf67b8e3286b0504eb848424798841d775afe33695f088759",
+  "small_micro_binary_sha256": "47bd1bf486df711589ab10eae63aaa6925a645a0077ba763866d7bb698bd2d1b",
+  "functions": [
+    {
+      "symbol": "dotQ4OutputPair64",
+      "instruction_lines": 683,
+      "stack_ref_lines": 151
+    },
+    {
+      "symbol": "dotQ4OutputPairDirect64",
+      "instruction_lines": 715,
+      "stack_ref_lines": 0
+    },
+    {
+      "symbol": "dotQ4OutputQuadDirect64",
+      "instruction_lines": 1495,
+      "stack_ref_lines": 128
+    },
+    {
+      "symbol": "dotQ4OutputQuadSplit64",
+      "instruction_lines": 1361,
+      "stack_ref_lines": 0
+    }
+  ]
+}

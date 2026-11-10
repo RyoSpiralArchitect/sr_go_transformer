@@ -1,0 +1,10 @@
+{
+  "reason": "P-core collision observed with an unrelated busy process. Preserve interrupted P-core trials and use one E-core cluster for the complete model screen.",
+  "affinity": [16,17,18,19],
+  "models_in_order": ["gpt2","llama32-3b","mistral-7b-v03"],
+  "variant": "after (original direct quad). Split did not meet the E-core micro gate.",
+  "schedule": [["before",[1,2]],["after",[1,2]],["after",[2,1]],["before",[2,1]]],
+  "gate": "Bit-exact per case; single decode median ratio <=0.95; all three controls <=1.05. One screen per model, no automatic runtime adoption.",
+  "contention": "Record 1-second CPU/tick samples for the previously observed background process during each probe. If a sample lands on affinity with at least 0.2 CPU seconds, flag the model screen as contended. Preserve partial or negative results.",
+  "scope": "Same Q4-mixed core-forward workload, fixed 8-token prefix, 7 decode calls, four workers. Include pinned GPT-2 from a read-only local artifact directory. Separate Qwen input-contract failure."
+}

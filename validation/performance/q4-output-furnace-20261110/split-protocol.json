@@ -1,0 +1,9 @@
+{
+  "hypothesis": "Evaluate independent modulo-4 input lanes in two phases. Phase one reduces a+b per output before phase two computes c+d. This preserves each lane's additions and final (a+b)+(c+d) order, with fewer live partial sums and no duplicate reads of a packed byte.",
+  "variants": ["pair","quadSplit","pairDirect","quadDirect"],
+  "order": [0,1,2,3,3,2,1,0,2,0,3,1,1,3,0,2],
+  "shapes_in_out": [[4096,1024],[4096,4096],[4096,14336],[14336,4096]],
+  "gate": "Exactness, zero reported allocations, at least 5% improvement vs main pair on at least three 4-worker shapes, and no >5% regression vs main pair in any cell. To replace the current direct-quad candidate on this host, additionally improve on it by >=5% in at least three 4-worker cells, with no >5% regression on any cell.",
+  "execution": "Furnace P-cores 4–7, GOMAXPROCS=4. Same 200ms bench time and four samples per cell and variant. Separate Mac M4 diagnostic using the same harness.",
+  "followup": "If Linux micro gate passes, compare split candidate against main on the same cached models and retain the original comparison separately."
+}
