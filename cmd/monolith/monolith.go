@@ -4500,7 +4500,13 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 	y, x, w, n := job.y, job.x, job.w, job.n
 	in, out := w.Cols, w.Rows
 	if n == 1 && in%64 == 0 {
-		linearQ4OutputQuadDirectRange(job, lo, hi)
+		// Apple Silicon benefits from the wider tile. Keep the paired kernel
+		// elsewhere, where the four-output path has not cleared the speed gate.
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+			linearQ4OutputQuadDirectRange(job, lo, hi)
+		} else {
+			linearQ4OutputPairRange(job, lo, hi)
+		}
 		return
 	}
 	groups, tiles := (in+q8Block-1)/q8Block, (out+31)/32

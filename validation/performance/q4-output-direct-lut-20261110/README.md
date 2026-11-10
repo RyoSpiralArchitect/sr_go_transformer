@@ -16,8 +16,9 @@ and about 12–13% faster than the revised pair. Both use the same packed
 weights, lookup table, worker tile sizes and synthetic input. See
 `bench.txt`, `micro-decision.json` and `protocol.json`.
 
-The inference candidate routes one-row Q4 projections with complete
-64-column blocks through the new kernel. The pair handles the remaining
+The runtime selects the four-output kernel on darwin/arm64 for one-row
+Q4 projections with complete 64-column blocks. Other platforms use
+the paired kernel. The pair handles the remaining
 one to three output channels. The same wide-input guard, multi-row code
 and worker ranges apply. The tests exercise the ordinary inference
 entry, incomplete output tiles, guarded buffers and descriptor cleanup.
@@ -52,5 +53,6 @@ candidate with the current pair.
 All 48 case trials matched logits, KV and token IDs. These results use
 short prompts and seven decode steps. The two-session controls varied
 between runs. The measured single-session gains apply to this workload.
-The Mistral adoption gate remains open. The runtime candidate and both
-Llama receipts are retained on a local branch for review.
+These Llama results support adoption on Apple Silicon. The Mac Mistral
+comparison was interrupted. The separate Furnace results support keeping
+the paired default on Linux/amd64. See [the Furnace record](../q4-output-furnace-20261110/README.md).
