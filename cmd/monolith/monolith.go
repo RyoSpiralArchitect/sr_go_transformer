@@ -273,6 +273,12 @@ func readHFConfig(dir string, contextLimit int) (hfConfig, Config, error) {
 		for _, k := range strings.Fields("use_sliding_window sliding_window max_window_layers layer_types") {
 			keys[k] = true
 		}
+		// Some Qwen2.5 text checkpoints explicitly disable multimodal RoPE.
+		// Only a literal false is equivalent to the standard text path.
+		if v, ok := raw["use_mrope"]; ok && !bytes.Equal(bytes.TrimSpace(v), []byte("false")) {
+			return h, Config{}, errors.New("Qwen2 use_mrope must be false when present")
+		}
+		keys["use_mrope"] = true
 	}
 	if modelType == "llama" {
 		keys["head_dim"], keys["rope_scaling"] = true, true

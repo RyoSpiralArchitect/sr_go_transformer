@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -42,6 +44,42 @@ func TestHFProfileLimitsAndBudget(t *testing.T) {
 		if _, _, err := readHFConfig(dir, 32); err == nil {
 			t.Fatal("accepted", field)
 		}
+	}
+}
+
+func TestHFQwenDisabledMRoPE(t *testing.T) {
+	source := "testdata/hf-qwen2/f32"
+	want, wantConfig, err := readHFConfig(source, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]json.RawMessage
+	if err := readBoundedJSON(filepath.Join(source, "config.json"), 1<<20, &raw); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	raw["use_mrope"] = json.RawMessage("false")
+	hfWriteJSON(t, path, raw)
+	got, gotConfig, err := readHFConfig(dir, 64)
+	if err != nil || !reflect.DeepEqual(got, want) || gotConfig != wantConfig {
+		t.Fatalf("disabled mRoPE changed text config: %+v %+v %v", got, gotConfig, err)
+	}
+	for _, value := range []string{"true", "null", "0", `"false"`, "{}"} {
+		raw["use_mrope"] = json.RawMessage(value)
+		hfWriteJSON(t, path, raw)
+		if _, _, err := readHFConfig(dir, 64); err == nil || !strings.Contains(err.Error(), "use_mrope") {
+			t.Errorf("use_mrope=%s: got %v", value, err)
+		}
+	}
+	raw = nil
+	if err := readBoundedJSON("testdata/hf-llama/f32/config.json", 1<<20, &raw); err != nil {
+		t.Fatal(err)
+	}
+	raw["use_mrope"] = json.RawMessage("false")
+	hfWriteJSON(t, path, raw)
+	if _, _, err := readHFConfig(dir, 64); err == nil || !strings.Contains(err.Error(), "use_mrope") {
+		t.Fatalf("accepted Qwen field on Llama: %v", err)
 	}
 }
 
