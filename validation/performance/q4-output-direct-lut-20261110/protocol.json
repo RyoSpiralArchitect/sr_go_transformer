@@ -1,0 +1,12 @@
+{
+  "base": "2f351c1b8007a73e5abe82dee2e4db9c96eb0acb",
+  "hypothesis": "Using pointers into the existing pair table and consuming each lookup immediately can avoid stack copies of two-float aggregates. Four-output arithmetic still shares one activation load across four channels.",
+  "variants": ["pair", "quad (previous full unroll)", "pairDirect", "quadDirect"],
+  "order": [0,1,2,3,3,2,1,0,2,0,3,1,1,3,0,2],
+  "shapes_in_out": [[4096,1024],[4096,4096],[4096,14336],[14336,4096]],
+  "workers": [1,4],
+  "bench_time": "200ms",
+  "process_repetitions": 1,
+  "primary_gate": "QuadDirect vs current pair: exactness, zero reported allocs/op, 4-worker median ratio <= 0.95 in at least three shapes and ratio <= 1.05 in all eight cells. Only then advance to real Mistral verification.",
+  "diagnostics": "Compare both direct variants and the prior unrolled quad in the same process to separate compiler/code shape gains from widening. Inspect all RSP references, including integer aggregate copies. Preserve all first samples."
+}

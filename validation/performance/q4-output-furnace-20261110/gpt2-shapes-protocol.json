@@ -1,0 +1,6 @@
+{
+  "reason": "Pinned GPT-2 was bit-exact but showed a small single-decode regression with the original direct quad. Investigate the dimensions actually used by this model.",
+  "shapes_in_out": [[768,768],[768,2304],[768,3072],[3072,768]],
+  "execution": "Same E-core cluster 16–19 and GOMAXPROCS=4. Same four-way 200ms benchmark, sample order and 1/4 worker counts.",
+  "decision": "A candidate may advance to a separate GPT-2 real-model comparison only if its candidate/pair median is <=0.95 in at least three of four four-worker shapes and <=1.05 in all eight cells. This does not replace the previously frozen multi-model comparison."
+}

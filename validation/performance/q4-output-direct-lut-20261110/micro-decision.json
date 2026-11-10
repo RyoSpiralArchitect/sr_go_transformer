@@ -1,0 +1,138 @@
+{
+  "host": "Apple M4 darwin/arm64",
+  "go": "go1.27.1",
+  "gomaxprocs": 4,
+  "bench_sha256": "4d84d0ca928c09d81387bded2fcae5d21ea1ee766c54928ec808925bbfd1d7b6",
+  "source_sha256": "ddd5d057d7b4588ef85e3e18b835b4c101973662e4f32b762a1910ff1f2b20e2",
+  "baseline_runtime_sha256": "cd8fe55d6f790a755315feedea6ebcd39196638a4380bea0e5f899573e436998",
+  "exact_race_test": "ok  \tgithub.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\t1.827s",
+  "cells": [
+    {
+      "in_cols": 4096,
+      "out_rows": 1024,
+      "workers": 1,
+      "median_ns": {
+        "pair": 691937.0,
+        "quad": 685221.5,
+        "pairDirect": 553090.5,
+        "quadDirect": 481873.5
+      },
+      "quad_direct_vs_pair": 0.6964123901453456,
+      "quad_direct_vs_pair_direct": 0.8712380704423598
+    },
+    {
+      "in_cols": 4096,
+      "out_rows": 1024,
+      "workers": 4,
+      "median_ns": {
+        "pair": 203250.0,
+        "quad": 199403.0,
+        "pairDirect": 165572.5,
+        "quadDirect": 145487.5
+      },
+      "quad_direct_vs_pair": 0.7158056580565806,
+      "quad_direct_vs_pair_direct": 0.8786936236391913
+    },
+    {
+      "in_cols": 4096,
+      "out_rows": 4096,
+      "workers": 1,
+      "median_ns": {
+        "pair": 2807268.5,
+        "quad": 2780785.0,
+        "pairDirect": 2246347.0,
+        "quadDirect": 1957246.5
+      },
+      "quad_direct_vs_pair": 0.697206733164284,
+      "quad_direct_vs_pair_direct": 0.8713019404392999
+    },
+    {
+      "in_cols": 4096,
+      "out_rows": 4096,
+      "workers": 4,
+      "median_ns": {
+        "pair": 743223.5,
+        "quad": 736435.5,
+        "pairDirect": 597311.5,
+        "quadDirect": 522649.5
+      },
+      "quad_direct_vs_pair": 0.7032198255302745,
+      "quad_direct_vs_pair_direct": 0.8750032437011509
+    },
+    {
+      "in_cols": 4096,
+      "out_rows": 14336,
+      "workers": 1,
+      "median_ns": {
+        "pair": 9849610.0,
+        "quad": 9774174.5,
+        "pairDirect": 7920076.5,
+        "quadDirect": 6894640.5
+      },
+      "quad_direct_vs_pair": 0.6999912179263951,
+      "quad_direct_vs_pair_direct": 0.870527008167156
+    },
+    {
+      "in_cols": 4096,
+      "out_rows": 14336,
+      "workers": 4,
+      "median_ns": {
+        "pair": 2554625.0,
+        "quad": 2532442.0,
+        "pairDirect": 2058747.5,
+        "quadDirect": 1790494.0
+      },
+      "quad_direct_vs_pair": 0.7008832998972452,
+      "quad_direct_vs_pair_direct": 0.8697006310875909
+    },
+    {
+      "in_cols": 14336,
+      "out_rows": 4096,
+      "workers": 1,
+      "median_ns": {
+        "pair": 9768929.0,
+        "quad": 9790957.0,
+        "pairDirect": 7818329.0,
+        "quadDirect": 6848124.0
+      },
+      "quad_direct_vs_pair": 0.7010107249218415,
+      "quad_direct_vs_pair_direct": 0.8759063477630578
+    },
+    {
+      "in_cols": 14336,
+      "out_rows": 4096,
+      "workers": 4,
+      "median_ns": {
+        "pair": 2533375.5,
+        "quad": 2528841.5,
+        "pairDirect": 2035890.0,
+        "quadDirect": 1790989.0
+      },
+      "quad_direct_vs_pair": 0.706957574982469,
+      "quad_direct_vs_pair_direct": 0.8797081374730462
+    }
+  ],
+  "disassembly": [
+    {
+      "symbol": "dotQ4OutputPair64",
+      "instruction_lines": 445,
+      "sp_reference_lines": 106
+    },
+    {
+      "symbol": "dotQ4OutputQuad64",
+      "instruction_lines": 869,
+      "sp_reference_lines": 204
+    },
+    {
+      "symbol": "dotQ4OutputPairDirect64",
+      "instruction_lines": 365,
+      "sp_reference_lines": 0
+    },
+    {
+      "symbol": "dotQ4OutputQuadDirect64",
+      "instruction_lines": 688,
+      "sp_reference_lines": 0
+    }
+  ],
+  "decision": "Advance quadDirect to real-model confirmation"
+}

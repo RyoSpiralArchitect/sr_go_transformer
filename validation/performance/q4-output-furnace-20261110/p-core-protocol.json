@@ -1,0 +1,8 @@
+{
+  "models_in_order": ["qwen25-base-1.5b","llama32-3b","mistral-7b-v03"],
+  "scope": "One balanced CPU confirmation screen per cached model. Pinned existing revisions. Four P-cores 4–7, GOMAXPROCS=4, 4 kernel workers, one resident model process, fixed 8-token prompt and 7 decode steps.",
+  "schedule": [["before",[1,2]],["after",[1,2]],["after",[2,1]],["before",[2,1]]],
+  "screen": "Exact logits, KV and token IDs in all 24 trials per model. Candidate/baseline single-decode median ratio <=0.95; each of single prefill, two decode and two prefill <=1.05. No forced promotion from one screen.",
+  "micro": "Existing four-way matrix benchmark with four samples per variant, at 1 and 4 workers. Same exactness and frozen sample ordering as previous direct LUT screen.",
+  "followup": "If assembly or measurements indicate four-output register pressure, compare a register-fitting tile with the same arithmetic and measure its real-model followup independently. Keep all original results."
+}

@@ -273,6 +273,12 @@ func readHFConfig(dir string, contextLimit int) (hfConfig, Config, error) {
 		for _, k := range strings.Fields("use_sliding_window sliding_window max_window_layers layer_types") {
 			keys[k] = true
 		}
+		// Some Qwen2.5 text checkpoints explicitly disable multimodal RoPE.
+		// Only a literal false is equivalent to the standard text path.
+		if v, ok := raw["use_mrope"]; ok && !bytes.Equal(bytes.TrimSpace(v), []byte("false")) {
+			return h, Config{}, errors.New("Qwen2 use_mrope must be false when present")
+		}
+		keys["use_mrope"] = true
 	}
 	if modelType == "llama" {
 		keys["head_dim"], keys["rope_scaling"] = true, true
@@ -4500,7 +4506,13 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 	y, x, w, n := job.y, job.x, job.w, job.n
 	in, out := w.Cols, w.Rows
 	if n == 1 && in%64 == 0 {
-		linearQ4OutputPairRange(job, lo, hi)
+		// Apple Silicon benefits from the wider tile. Keep the paired kernel
+		// elsewhere, where the four-output path has not cleared the speed gate.
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+			linearQ4OutputQuadDirectRange(job, lo, hi)
+		} else {
+			linearQ4OutputPairRange(job, lo, hi)
+		}
 		return
 	}
 	groups, tiles := (in+q8Block-1)/q8Block, (out+31)/32
@@ -4618,6 +4630,539 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 			}
 		}
 	}
+}
+
+// A full single-row tile shares input loads across four outputs. The range
+// writes disjoint 32-output tiles, with the paired kernel for the short tail.
+func linearQ4OutputQuadDirectRange(job *fp32Kernel, lo, hi int) {
+	x, y, w := job.x, job.y, job.w
+	groups, stride := w.Cols/64, w.Cols/2
+	for tile := lo; tile < hi; tile++ {
+		end := min((tile+1)*32, w.Rows)
+		o := tile * 32
+		for ; o+3 < end; o += 4 {
+			w0 := w.Q4.Values[o*stride : (o+1)*stride]
+			w1 := w.Q4.Values[(o+1)*stride : (o+2)*stride]
+			w2 := w.Q4.Values[(o+2)*stride : (o+3)*stride]
+			w3 := w.Q4.Values[(o+3)*stride : (o+4)*stride]
+			sc0 := w.Q4.Scales[o*groups : (o+1)*groups]
+			sc1 := w.Q4.Scales[(o+1)*groups : (o+2)*groups]
+			sc2 := w.Q4.Scales[(o+2)*groups : (o+3)*groups]
+			sc3 := w.Q4.Scales[(o+3)*groups : (o+4)*groups]
+			var a, b, c, d float32
+			for g := 0; g < groups; g++ {
+				block := (*[64]float32)(x[g*64 : (g+1)*64])
+				start, stop := g*32, (g+1)*32
+				p, q, r, s := dotQ4OutputQuadDirect64(block, (*[32]byte)(w0[start:stop]), (*[32]byte)(w1[start:stop]), (*[32]byte)(w2[start:stop]), (*[32]byte)(w3[start:stop]))
+				a += p * sc0[g]
+				b += q * sc1[g]
+				c += r * sc2[g]
+				d += s * sc3[g]
+			}
+			y[o], y[o+1], y[o+2], y[o+3] = a, b, c, d
+		}
+		// Rebase just the short suffix so the existing pair kernel owns tails.
+		if o < end {
+			param := Param{Cols: w.Cols, Rows: end - o, Q4: &q4Weights{
+				Values: w.Q4.Values[o*stride : end*stride],
+				Scales: w.Q4.Scales[o*groups : end*groups],
+			}}
+			tail := fp32Kernel{x: x, y: y[o:end], w: &param, n: 1}
+			linearQ4OutputPairRange(&tail, 0, 1)
+		}
+	}
+}
+
+// Taking the address of each LUT entry lets the compiler read both weights
+// directly. Copying the two-element array can materialize a stack temporary.
+// The unrolled schedule keeps each output's original four reduction lanes.
+// Reproduce the dot function with the recorded direct LUT experiment generator.
+func dotQ4OutputQuadDirect64(x *[64]float32, w0, w1, w2, w3 *[32]byte) (float32, float32, float32, float32) {
+	var a0, b0, c0, d0 float32
+	var a1, b1, c1, d1 float32
+	var a2, b2, c2, d2 float32
+	var a3, b3, c3, d3 float32
+	{
+		x0, x1 := x[0], x[1]
+		p0 := &q4Pairs[w0[0]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[0]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[0]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[0]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[2], x[3]
+		p0 := &q4Pairs[w0[1]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[1]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[1]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[1]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[4], x[5]
+		p0 := &q4Pairs[w0[2]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[2]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[2]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[2]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[6], x[7]
+		p0 := &q4Pairs[w0[3]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[3]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[3]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[3]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[8], x[9]
+		p0 := &q4Pairs[w0[4]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[4]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[4]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[4]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[10], x[11]
+		p0 := &q4Pairs[w0[5]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[5]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[5]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[5]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[12], x[13]
+		p0 := &q4Pairs[w0[6]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[6]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[6]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[6]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[14], x[15]
+		p0 := &q4Pairs[w0[7]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[7]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[7]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[7]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[16], x[17]
+		p0 := &q4Pairs[w0[8]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[8]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[8]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[8]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[18], x[19]
+		p0 := &q4Pairs[w0[9]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[9]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[9]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[9]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[20], x[21]
+		p0 := &q4Pairs[w0[10]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[10]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[10]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[10]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[22], x[23]
+		p0 := &q4Pairs[w0[11]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[11]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[11]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[11]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[24], x[25]
+		p0 := &q4Pairs[w0[12]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[12]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[12]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[12]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[26], x[27]
+		p0 := &q4Pairs[w0[13]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[13]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[13]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[13]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[28], x[29]
+		p0 := &q4Pairs[w0[14]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[14]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[14]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[14]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[30], x[31]
+		p0 := &q4Pairs[w0[15]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[15]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[15]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[15]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[32], x[33]
+		p0 := &q4Pairs[w0[16]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[16]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[16]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[16]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[34], x[35]
+		p0 := &q4Pairs[w0[17]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[17]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[17]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[17]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[36], x[37]
+		p0 := &q4Pairs[w0[18]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[18]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[18]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[18]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[38], x[39]
+		p0 := &q4Pairs[w0[19]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[19]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[19]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[19]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[40], x[41]
+		p0 := &q4Pairs[w0[20]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[20]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[20]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[20]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[42], x[43]
+		p0 := &q4Pairs[w0[21]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[21]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[21]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[21]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[44], x[45]
+		p0 := &q4Pairs[w0[22]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[22]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[22]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[22]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[46], x[47]
+		p0 := &q4Pairs[w0[23]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[23]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[23]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[23]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[48], x[49]
+		p0 := &q4Pairs[w0[24]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[24]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[24]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[24]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[50], x[51]
+		p0 := &q4Pairs[w0[25]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[25]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[25]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[25]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[52], x[53]
+		p0 := &q4Pairs[w0[26]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[26]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[26]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[26]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[54], x[55]
+		p0 := &q4Pairs[w0[27]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[27]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[27]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[27]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[56], x[57]
+		p0 := &q4Pairs[w0[28]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[28]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[28]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[28]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[58], x[59]
+		p0 := &q4Pairs[w0[29]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[29]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[29]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[29]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[60], x[61]
+		p0 := &q4Pairs[w0[30]]
+		a0 += x0 * p0[0]
+		b0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[30]]
+		a1 += x0 * p1[0]
+		b1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[30]]
+		a2 += x0 * p2[0]
+		b2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[30]]
+		a3 += x0 * p3[0]
+		b3 += x1 * p3[1]
+	}
+	{
+		x0, x1 := x[62], x[63]
+		p0 := &q4Pairs[w0[31]]
+		c0 += x0 * p0[0]
+		d0 += x1 * p0[1]
+		p1 := &q4Pairs[w1[31]]
+		c1 += x0 * p1[0]
+		d1 += x1 * p1[1]
+		p2 := &q4Pairs[w2[31]]
+		c2 += x0 * p2[0]
+		d2 += x1 * p2[1]
+		p3 := &q4Pairs[w3[31]]
+		c3 += x0 * p3[0]
+		d3 += x1 * p3[1]
+	}
+	return (a0 + b0) + (c0 + d0), (a1 + b1) + (c1 + d1), (a2 + b2) + (c2 + d2), (a3 + b3) + (c3 + d3)
 }
 
 // A single decode row shares each activation load across two independent

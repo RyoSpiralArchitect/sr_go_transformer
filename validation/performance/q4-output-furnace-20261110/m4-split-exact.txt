@@ -1,0 +1,1 @@
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith	1.323s

@@ -1,0 +1,70 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample0/pair-4         	     325	    691974 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample0/pair-4         	     351	    688368 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample1/quad-4         	     266	    909079 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample1/quad-4         	     266	    900305 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample2/quad-4         	     262	    902587 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample2/quad-4         	     265	    908852 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample3/pair-4         	     346	    688779 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w1/sample3/pair-4         	     348	    686565 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample0/pair-4         	    1111	    203664 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample0/pair-4         	    1200	    212937 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample1/quad-4         	     936	    256513 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample1/quad-4         	     936	    256328 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample2/quad-4         	     937	    255709 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample2/quad-4         	     939	    255580 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample3/pair-4         	    1204	    199235 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out1024/w4/sample3/pair-4         	    1202	    209542 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample0/pair-4         	      90	   2837596 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample0/pair-4         	      85	   2813116 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample1/quad-4         	      64	   3695654 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample1/quad-4         	      66	   3716024 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample2/quad-4         	      67	   4094126 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample2/quad-4         	      62	   4244110 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample3/pair-4         	      85	   2784381 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w1/sample3/pair-4         	      88	   2923096 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample0/pair-4         	     265	    813756 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample0/pair-4         	     298	    772058 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample1/quad-4         	     229	    969031 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample1/quad-4         	     235	    973357 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample2/quad-4         	     247	    995818 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample2/quad-4         	     226	   1027094 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample3/pair-4         	     322	    763670 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out4096/w4/sample3/pair-4         	     284	    999039 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample0/pair-4        	      22	   9943155 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample0/pair-4        	      22	   9930216 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample1/quad-4        	      18	  13026160 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample1/quad-4        	      18	  12993201 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample2/quad-4        	      18	  12980310 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample2/quad-4        	      18	  12934903 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample3/pair-4        	      24	   9819783 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w1/sample3/pair-4        	      20	  10595742 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample0/pair-4        	      87	   2848915 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample0/pair-4        	      86	   3759723 ns/op	       1 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample1/quad-4        	      52	   4276120 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample1/quad-4        	      63	   3688767 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample2/quad-4        	      69	   4891458 ns/op	       1 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample2/quad-4        	      55	   3894020 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample3/pair-4        	      91	   2738918 ns/op	       1 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in4096/out14336/w4/sample3/pair-4        	      86	   2770277 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample0/pair-4        	      22	  10025627 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample0/pair-4        	      24	   9849276 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample1/quad-4        	      18	  13285368 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample1/quad-4        	      16	  13247779 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample2/quad-4        	      18	  13799968 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample2/quad-4        	      15	  15212200 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample3/pair-4        	      21	  21348863 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w1/sample3/pair-4        	      20	  10620138 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample0/pair-4        	      87	   3119054 ns/op	       1 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample0/pair-4        	      57	   3969534 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample1/quad-4        	      49	   5022680 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample1/quad-4        	      70	   3458990 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample2/quad-4        	      70	   3437923 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample2/quad-4        	      70	   3430983 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample3/pair-4        	      91	   2558082 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4OutputQuad/in14336/out4096/w4/sample3/pair-4        	      93	   2751488 ns/op	       1 B/op	       0 allocs/op
+PASS
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith	20.322s
