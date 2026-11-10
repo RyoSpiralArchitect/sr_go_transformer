@@ -1,0 +1,374 @@
+{
+  "source": "496207e73d7a8bbaaa492922d64c8ce917709a77",
+  "build_target": "linux/amd64 GOAMD64=v1 CGO_ENABLED=0",
+  "go": "go version go1.27.1 darwin/arm64",
+  "files": {
+    "compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "monolith": "e100cf5953b82243f66204083802f6c4afddb2d75a40a93105c1c9ec095db866",
+    "probe.test": "9d3d455e08b55649cff36f0cec28a8d6b40628cffaf23ab739759ffe546e6cd2",
+    "quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca"
+  },
+  "inputs": {
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "monolith.go": "15d11887152b52ade561a0294f5cabc3f9b38f4e6edf86600a5d05e4925e74d9"
+  },
+  "model": {
+    "id": "qwen25-base-1.5b",
+    "repo": "Qwen/Qwen2.5-1.5B",
+    "revision": "8faed761d45a263340a0528343f099c05c9a4323",
+    "files": {
+      "config.json": "0e8c8aa86468aba09c9d32157ff4bc2301c7e6c50e4398960425b2ea71e66f77",
+      "generation_config.json": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8",
+      "model.safetensors": "a961db72e75d52b18e6b0c9d379e51a26973b233385e0e127fdda7d648aec796",
+      "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "tokenizer_config.json": "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    },
+    "dimensions": {
+      "model_type": "qwen2",
+      "hidden_size": 1536,
+      "intermediate_size": 8960,
+      "num_hidden_layers": 28,
+      "vocab_size": 151936
+    }
+  },
+  "format": "monolith-qwen-disabled-mrope-verification-v1",
+  "affinity": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "host": "Furnace Linux/amd64",
+  "inputs_verified_before_after": true,
+  "probe": {
+    "case_order": [
+      1,
+      2
+    ],
+    "cases": [
+      {
+        "sessions": 1,
+        "prompt_ids": [
+          [
+            785,
+            94207,
+            9099,
+            264,
+            2613,
+            6176,
+            37166,
+            29388
+          ]
+        ],
+        "trials": [
+          {
+            "prefill_seconds": 0.845323523,
+            "decode_seconds": 0.811909149,
+            "decode_step_seconds": [
+              0.11390045,
+              0.115723755,
+              0.117769278,
+              0.115869592,
+              0.11606788,
+              0.115017391,
+              0.117560803
+            ],
+            "allocated_bytes": 1868968,
+            "allocations": 24,
+            "workspace_bytes": 1394304,
+            "logits_sha256": "cfe0eee70ca56186ced6f859e6f7635e6ab5ae71020b86bab4c7c4e4a59d9c63",
+            "kv_sha256": "cc626c364d5bf5fdca84c0782b32f3b659441d8b4707d03eefeb1d35bbf57c76",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ]
+            ]
+          },
+          {
+            "prefill_seconds": 0.843165204,
+            "decode_seconds": 0.8119662100000001,
+            "decode_step_seconds": [
+              0.116987795,
+              0.115405994,
+              0.115874337,
+              0.116134036,
+              0.113152347,
+              0.115655907,
+              0.118755794
+            ],
+            "allocated_bytes": 1868856,
+            "allocations": 23,
+            "workspace_bytes": 1394304,
+            "logits_sha256": "cfe0eee70ca56186ced6f859e6f7635e6ab5ae71020b86bab4c7c4e4a59d9c63",
+            "kv_sha256": "cc626c364d5bf5fdca84c0782b32f3b659441d8b4707d03eefeb1d35bbf57c76",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ]
+            ]
+          },
+          {
+            "prefill_seconds": 0.840767418,
+            "decode_seconds": 0.801289749,
+            "decode_step_seconds": [
+              0.115784557,
+              0.117828267,
+              0.113976009,
+              0.113525408,
+              0.114748634,
+              0.109632794,
+              0.11579408
+            ],
+            "allocated_bytes": 1868856,
+            "allocations": 23,
+            "workspace_bytes": 1394304,
+            "logits_sha256": "cfe0eee70ca56186ced6f859e6f7635e6ab5ae71020b86bab4c7c4e4a59d9c63",
+            "kv_sha256": "cc626c364d5bf5fdca84c0782b32f3b659441d8b4707d03eefeb1d35bbf57c76",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "sessions": 2,
+        "prompt_ids": [
+          [
+            785,
+            94207,
+            9099,
+            264,
+            2613,
+            6176,
+            37166,
+            29388
+          ],
+          [
+            32,
+            15026,
+            1815,
+            17779,
+            279,
+            13551,
+            1119,
+            1378
+          ]
+        ],
+        "trials": [
+          {
+            "prefill_seconds": 1.625383187,
+            "decode_seconds": 1.214792617,
+            "decode_step_seconds": [
+              0.173339317,
+              0.173539362,
+              0.173735364,
+              0.174542215,
+              0.169348975,
+              0.176711548,
+              0.173575836
+            ],
+            "allocated_bytes": 3704384,
+            "allocations": 34,
+            "workspace_bytes": 2788864,
+            "logits_sha256": "3fec85e8528e9536cbfca00bcf5a300cca6bcfc9272fa295e31cb69d7845a4f1",
+            "kv_sha256": "b7990a52d1c77acaace9cc29e4110ce162e7fa8e8fdbb4c9c8ea111409d82cd6",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ],
+              [
+                6144,
+                5479,
+                13,
+                576,
+                1815,
+                374,
+                220,
+                16
+              ]
+            ]
+          },
+          {
+            "prefill_seconds": 1.625423209,
+            "decode_seconds": 1.2156876699999999,
+            "decode_step_seconds": [
+              0.176853694,
+              0.171235162,
+              0.172222159,
+              0.175640055,
+              0.171993877,
+              0.173211676,
+              0.174531047
+            ],
+            "allocated_bytes": 3704144,
+            "allocations": 31,
+            "workspace_bytes": 2788864,
+            "logits_sha256": "3fec85e8528e9536cbfca00bcf5a300cca6bcfc9272fa295e31cb69d7845a4f1",
+            "kv_sha256": "b7990a52d1c77acaace9cc29e4110ce162e7fa8e8fdbb4c9c8ea111409d82cd6",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ],
+              [
+                6144,
+                5479,
+                13,
+                576,
+                1815,
+                374,
+                220,
+                16
+              ]
+            ]
+          },
+          {
+            "prefill_seconds": 1.62698666,
+            "decode_seconds": 1.21869855,
+            "decode_step_seconds": [
+              0.17079637,
+              0.175519376,
+              0.178664074,
+              0.177006977,
+              0.171741412,
+              0.172260354,
+              0.172709987
+            ],
+            "allocated_bytes": 3704032,
+            "allocations": 30,
+            "workspace_bytes": 2788864,
+            "logits_sha256": "3fec85e8528e9536cbfca00bcf5a300cca6bcfc9272fa295e31cb69d7845a4f1",
+            "kv_sha256": "b7990a52d1c77acaace9cc29e4110ce162e7fa8e8fdbb4c9c8ea111409d82cd6",
+            "token_ids": [
+              [
+                1817,
+                315,
+                279,
+                6467,
+                304,
+                279,
+                6733,
+                13
+              ],
+              [
+                6144,
+                5479,
+                13,
+                576,
+                1815,
+                374,
+                220,
+                16
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "context": 128,
+    "decode_steps": 7,
+    "format": "monolith-core-performance-v2",
+    "generated_ids_per_session": 8,
+    "kernel_workers": 4,
+    "note": "Core forward intervals only: excludes loading, tokenization, hashing, sampling, HTTP and SSE. Fixed-step probe does not stop at EOS.",
+    "plan": {
+      "format": "monolith-hf-plan-v1",
+      "model_type": "qwen2",
+      "tied_embeddings": true,
+      "eos_token_ids": [
+        151643
+      ],
+      "config": {
+        "vocab": 151936,
+        "dim": 1536,
+        "hidden": 8960,
+        "layers": 28,
+        "heads": 12,
+        "kv_heads": 2,
+        "context": 128,
+        "rope_theta": 1000000,
+        "norm_eps": 1e-06
+      },
+      "parameters": 1543714304,
+      "weight_bytes": 985524224,
+      "weight_format": "q4-mixed",
+      "fp32_weight_bytes": 6174857216,
+      "quantized_parameters": 1543569408,
+      "q8_parameters": 233373696,
+      "q4_parameters": 1310195712,
+      "scale_bytes": 96473088,
+      "quantization_block": 64,
+      "quantization_buffer_bytes": 256,
+      "rope_bytes": 65536,
+      "kv_bytes_per_token": 57344,
+      "full_context_kv_bytes": 7340032,
+      "conversion_buffer_bytes": 65536,
+      "source_bytes": 3087467144,
+      "shards": 1,
+      "tensor_dtypes": {
+        "BF16": 338
+      }
+    },
+    "prefill_tokens_per_session": 8,
+    "threads": 4,
+    "warmup_runs_per_case": 1
+  },
+  "cli": {
+    "text": " Paris, which has a population of ",
+    "token_ids": [
+      12095,
+      11,
+      892,
+      702,
+      264,
+      7042,
+      315,
+      220
+    ],
+    "prompt_tokens": 5,
+    "completion_tokens": 8,
+    "finish_reason": "length"
+  },
+  "scope": "Compatibility check of the pinned unmodified checkpoint. No timing improvement or language quality claim."
+}

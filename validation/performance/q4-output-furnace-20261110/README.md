@@ -75,3 +75,10 @@ is `runs/furnace-q4-direct-20261110/received/furnace-results.tgz`.
 Recalculate the compact ratios with `summarize.py` against this
 directory. The final conclusion and archive hash in `decision.json`
 are operator annotations.
+
+The disabled-mRoPE compatibility fix later loaded the same Qwen2.5-1.5B
+Base revision with the original config and weights. Literal
+`"use_mrope": false` keeps the standard text RoPE path. The regular CLI
+generated eight tokens, and the core probe completed the one- and
+two-session cases with exact repeat parity. See
+`qwen25-base-disabled-mrope-verification.json`.
