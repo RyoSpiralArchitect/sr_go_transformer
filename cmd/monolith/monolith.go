@@ -36,6 +36,7 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -7411,7 +7412,11 @@ func (w *decodeWorkspace) attend(e *kernelExecutor, c Config, layer, rows int, p
 
 func attentionRange(job *attentionKernel, lo, hi int) {
 	if job.plan.sharedKV {
-		attentionSharedKVRange(job, lo, hi)
+		if job.w.rowCaches[0].format == "f16" {
+			attentionSharedKVRange(job, lo, hi, func(page *kvPage) []uint16 { return page.F16 })
+		} else {
+			attentionSharedKVRange(job, lo, hi, func(page *kvPage) []float32 { return page.Data })
+		}
 		return
 	}
 	w, d, hd, group, layer, plan := job.w, job.dim, job.headDim, job.group, job.layer, job.plan
@@ -7441,9 +7446,20 @@ func attentionRange(job *attentionKernel, lo, hi int) {
 
 const sharedKVHeadDim = 128
 
+type attentionKVWord interface{ float32 | uint16 }
+
+// Each instantiation has a fixed storage width. The size comparison lets
+// the compiler select the conversion without a type switch in the dot loop.
+func attentionKVValue[T attentionKVWord](value T) float32 {
+	if unsafe.Sizeof(value) == unsafe.Sizeof(uint16(0)) {
+		return fromF16(uint16(value))
+	}
+	return float32(value)
+}
+
 // Each lane owns complete three-head groups. The output projection owns
 // Logits after attention joins, so two score vectors can borrow it here.
-func attentionSharedKVRange(job *attentionKernel, lo, hi int) {
+func attentionSharedKVRange[T attentionKVWord](job *attentionKernel, lo, hi int, pageData func(*kvPage) []T) {
 	w, plan := job.w, job.plan
 	cache, length := w.rowCaches[0], w.positions[0]+1
 	groups := job.heads / 3
@@ -7454,7 +7470,7 @@ func attentionSharedKVRange(job *attentionKernel, lo, hi int) {
 		third := w.Logits[(2*lane+1)*plan.stride : (2*lane+1)*plan.stride+length]
 		for head := groups * lane / plan.lanes; head < groups*(lane+1)/plan.lanes; head++ {
 			start := head * width
-			attendSharedKV3F32(w.Q[start:start+width], w.A[start:start+width], first, second, third, cache, job.layer, head)
+			attendSharedKV3(w.Q[start:start+width], w.A[start:start+width], first, second, third, cache, job.layer, head, pageData)
 		}
 	}
 }
@@ -7462,7 +7478,7 @@ func attentionSharedKVRange(job *attentionKernel, lo, hi int) {
 // The key and value passes each visit a page once per KV head. Four adjacent
 // positions give the dot products independent accumulators while every
 // query head retains its original dimension and position reduction order.
-func attendSharedKV3F32(q, out, s0, s1, s2 []float32, cache *KVCache, layer, head int) {
+func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVCache, layer, head int, pageData func(*kvPage) []T) {
 	const hd = sharedKVHeadDim
 	q0, q1, q2 := (*[hd]float32)(q), (*[hd]float32)(q[hd:]), (*[hd]float32)(q[2*hd:])
 	stride := cache.Model.Config.KVDim()
@@ -7473,17 +7489,18 @@ func attendSharedKV3F32(q, out, s0, s1, s2 []float32, cache *KVCache, layer, hea
 	for pageIndex, page := range pages {
 		start := pageIndex * pageTokens
 		rows := min(pageTokens, length-start)
-		keys := page.Data[base:]
+		keys := pageData(page)[base:]
 		r := 0
 		for ; r+3 < rows; r += 4 {
-			k0 := (*[hd]float32)(keys[r*stride:])
-			k1 := (*[hd]float32)(keys[(r+1)*stride:])
-			k2 := (*[hd]float32)(keys[(r+2)*stride:])
-			k3 := (*[hd]float32)(keys[(r+3)*stride:])
+			k0 := (*[hd]T)(keys[r*stride:])
+			k1 := (*[hd]T)(keys[(r+1)*stride:])
+			k2 := (*[hd]T)(keys[(r+2)*stride:])
+			k3 := (*[hd]T)(keys[(r+3)*stride:])
 			var d00, d01, d02, d03, d10, d11, d12, d13, d20, d21, d22, d23 float32
 			for j, x0 := range q0 {
 				x1, x2 := q1[j], q2[j]
-				a, b, c, d := k0[j], k1[j], k2[j], k3[j]
+				a, b := attentionKVValue(k0[j]), attentionKVValue(k1[j])
+				c, d := attentionKVValue(k2[j]), attentionKVValue(k3[j])
 				d00 += x0 * a
 				d01 += x0 * b
 				d02 += x0 * c
@@ -7503,9 +7520,10 @@ func attendSharedKV3F32(q, out, s0, s1, s2 []float32, cache *KVCache, layer, hea
 			s2[i], s2[i+1], s2[i+2], s2[i+3] = d20*scale, d21*scale, d22*scale, d23*scale
 		}
 		for ; r < rows; r++ {
-			k := (*[hd]float32)(keys[r*stride:])
+			k := (*[hd]T)(keys[r*stride:])
 			var d0, d1, d2 float32
-			for j, value := range k {
+			for j, stored := range k {
+				value := attentionKVValue(stored)
 				d0 += q0[j] * value
 				d1 += q1[j] * value
 				d2 += q2[j] * value
@@ -7521,19 +7539,20 @@ func attendSharedKV3F32(q, out, s0, s1, s2 []float32, cache *KVCache, layer, hea
 	for pageIndex, page := range pages {
 		start := pageIndex * pageTokens
 		rows := min(pageTokens, length-start)
-		values := page.Data[base+pageTokens*stride:]
+		values := pageData(page)[base+pageTokens*stride:]
 		r := 0
 		for ; r+3 < rows; r += 4 {
-			v0 := (*[hd]float32)(values[r*stride:])
-			v1 := (*[hd]float32)(values[(r+1)*stride:])
-			v2 := (*[hd]float32)(values[(r+2)*stride:])
-			v3 := (*[hd]float32)(values[(r+3)*stride:])
+			v0 := (*[hd]T)(values[r*stride:])
+			v1 := (*[hd]T)(values[(r+1)*stride:])
+			v2 := (*[hd]T)(values[(r+2)*stride:])
+			v3 := (*[hd]T)(values[(r+3)*stride:])
 			i := start + r
 			p00, p01, p02, p03 := s0[i], s0[i+1], s0[i+2], s0[i+3]
 			p10, p11, p12, p13 := s1[i], s1[i+1], s1[i+2], s1[i+3]
 			p20, p21, p22, p23 := s2[i], s2[i+1], s2[i+2], s2[i+3]
 			for j := range o0 {
-				a, b, c, d := v0[j], v1[j], v2[j], v3[j]
+				a, b := attentionKVValue(v0[j]), attentionKVValue(v1[j])
+				c, d := attentionKVValue(v2[j]), attentionKVValue(v3[j])
 				x0, x1, x2 := o0[j], o1[j], o2[j]
 				x0 += p00 * a
 				x0 += p01 * b
@@ -7551,9 +7570,10 @@ func attendSharedKV3F32(q, out, s0, s1, s2 []float32, cache *KVCache, layer, hea
 			}
 		}
 		for ; r < rows; r++ {
-			v := (*[hd]float32)(values[r*stride:])
+			v := (*[hd]T)(values[r*stride:])
 			p0, p1, p2 := s0[start+r], s1[start+r], s2[start+r]
-			for j, value := range v {
+			for j, stored := range v {
+				value := attentionKVValue(stored)
 				o0[j] += p0 * value
 				o1[j] += p1 * value
 				o2[j] += p2 * value
@@ -7783,7 +7803,8 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 	attention := planInferenceAttention(executor, c, n, maxPos)
 	sharedLanes := min(attention.lanes, c.KVHeads)
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 1 && maxPos >= 1024 &&
-		c.Heads == 3*c.KVHeads && c.Dim/c.Heads == sharedKVHeadDim && caches[0].format != "f16" &&
+		c.Heads == 3*c.KVHeads && c.Dim/c.Heads == sharedKVHeadDim &&
+		(caches[0].format != "f16" || sharedLanes == attention.lanes) &&
 		2*sharedLanes*attention.stride <= c.Vocab {
 		attention.sharedKV = true
 		attention.lanes = sharedLanes

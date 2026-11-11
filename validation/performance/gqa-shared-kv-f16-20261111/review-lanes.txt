@@ -1,0 +1,80 @@
+Runtime: 22f449088590c1cefb35d17489c3090972cd69f0 before lane guard
+GOMAXPROCS=4 go test ./cmd/monolith -run "^$" -bench "^BenchmarkSharedKVReducedLanes$" -benchtime 120x -count 3
+
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-first-4         	     120	    123128 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-first-4         	     120	    122662 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-first-4         	     120	    123060 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-second-4           	     120	     65768 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-second-4           	     120	     64123 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-second-4           	     120	     63764 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-first-4            	     120	     64286 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-first-4            	     120	     64093 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/shared-first-4            	     120	     64500 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-second-4        	     120	    122251 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-second-4        	     120	    123254 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix128/reference-second-4        	     120	    121530 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-first-4        	     120	    379260 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-first-4        	     120	    365675 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-first-4        	     120	    366206 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-second-4          	     120	    521692 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-second-4          	     120	    521735 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-second-4          	     120	    521951 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-first-4           	     120	    523377 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-first-4           	     120	    525997 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/shared-first-4           	     120	    522728 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-second-4       	     120	    365825 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-second-4       	     120	    375515 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix1024/reference-second-4       	     120	    370499 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-first-4        	     120	   1588931 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-first-4        	     120	   1521179 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-first-4        	     120	   1467718 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-second-4          	     120	   2233994 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-second-4          	     120	   2224630 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-second-4          	     120	   2224876 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-first-4           	     120	   2151290 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-first-4           	     120	   2101715 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/shared-first-4           	     120	   2149941 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-second-4       	     120	   1996419 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-second-4       	     120	   1805790 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv1/prefix4096/reference-second-4       	     120	   1620375 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-first-4         	     120	    252306 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-first-4         	     120	    250914 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-first-4         	     120	    250156 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-second-4           	     120	    132279 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-second-4           	     120	    131372 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-second-4           	     120	    132544 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-first-4            	     120	    133304 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-first-4            	     120	    133392 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/shared-first-4            	     120	    129220 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-second-4        	     120	    245434 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-second-4        	     120	    328933 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix128/reference-second-4        	     120	    460895 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-first-4        	     120	   1137068 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-first-4        	     120	    710053 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-first-4        	     120	    768032 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-second-4          	     120	    562264 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-second-4          	     120	    554809 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-second-4          	     120	    548676 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-first-4           	     120	    540132 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-first-4           	     120	    539701 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/shared-first-4           	     120	    538421 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-second-4       	     120	    732802 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-second-4       	     120	    739081 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix1024/reference-second-4       	     120	    864028 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-first-4        	     120	   5640922 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-first-4        	     120	   3129047 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-first-4        	     120	   3488833 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-second-4          	     120	   2190531 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-second-4          	     120	   2210884 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-second-4          	     120	   2218009 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-first-4           	     120	   2227349 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-first-4           	     120	   2227854 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/shared-first-4           	     120	   2279786 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-second-4       	     120	   3105568 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-second-4       	     120	   3048823 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVReducedLanes/kv2/prefix4096/reference-second-4       	     120	   3488074 ns/op	       0 B/op	       0 allocs/op
+PASS

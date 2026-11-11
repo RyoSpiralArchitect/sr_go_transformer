@@ -142,8 +142,8 @@ measurement. The receipt retains every replay, including the affected
 
 ## Shared KV reads for grouped-query attention
 
-Single-row forwards on Darwin arm64 can share FP32 KV reads across
-three query heads with a 128-element head dimension. Selection starts
+Single-row forwards on Darwin arm64 can share FP32 or FP16 KV reads
+across three query heads with a 128-element head dimension. Selection starts
 at a visible context of 1,024 positions and requires room for two
 score vectors per lane in the existing logits buffer. Each lane owns
 whole KV head groups. Its key and value passes traverse pages in tiles
@@ -179,7 +179,7 @@ kernel and 1.189 ms for shared KV. The benchmark selected the kernel
 directly at each length. The protocol and raw benchmark output are in
 [`validation/performance/gqa-shared-kv-20261111`](../validation/performance/gqa-shared-kv-20261111/).
 
-### Recorded M4 shared-KV comparison
+### Recorded M4 FP32 shared-KV comparison
 
 The paired run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
 weights, FP32 KV, one session and four workers on an Apple M4.
@@ -209,3 +209,56 @@ preceding stage sweep's prompt, logits, KV and generated IDs.
 Source, compiled copy, binary and pinned model hashes passed the
 identity checks. The full run is recorded in
 [`f32-s1-long.json`](../validation/performance/gqa-shared-kv-20261111/f32-s1-long.json).
+
+### Shared FP16 KV widening
+
+The grouped kernel specializes on the KV storage type. It widens
+each FP16 key or value once for the three query heads. Each head's
+dot product, softmax and value accumulation use the same arithmetic
+and reduction order as per-head FP16 attention. Score vectors borrow
+the same logits and attention workspace. FP16 sharing requires enough
+KV groups to preserve the per-head plan's lane count.
+
+Use `--formats f16 --sessions 1 --compare-shared-kv` to compare the
+shared and per-head paths on a single committed FP16 prefix. The
+exploratory one-layer M4 benchmark measured 8.201 ms and 4.208 ms
+per call for per-head and shared attention at 4,096 positions.
+The FP32 compatibility comparison used the same one-layer benchmark
+with a Go source overlay for the preceding runtime. Its median ratios
+for the shared path were 1.011 at 1,024 and 1.006 at 4,096 positions.
+Raw samples, binary hashes and the full-model protocol are in
+[`validation/performance/gqa-shared-kv-f16-20261111`](../validation/performance/gqa-shared-kv-f16-20261111/).
+
+The paired model run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
+weights, one FP16 KV session and four workers on an Apple M4. Timings
+are medians of four replay averages in milliseconds per decode call.
+
+| Prefix tokens | Per-head attention | Shared attention | Per-head total | Shared total | Workspace bytes per path | FP16 KV payload MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 8.740 | 8.679 | 149.514 | 147.806 | 638,464 | 17.5 |
+| 1,024 | 88.294 | 45.225 | 274.874 | 219.962 | 652,800 | 115.5 |
+| 4,096 | 302.814 | 148.903 | 459.135 | 300.968 | 701,552 | 451.5 |
+
+At 4,096 tokens the median attention time fell by 50.8% and the
+complete decode time fell by 34.4%. All four adjacent pairs favored
+shared KV. Their complete decode ratios ranged from 0.624 to 0.667.
+At 1,024 tokens three of four complete decode pairs favored shared
+KV, with one ratio of 1.018. Both lengths met the frozen timing
+criteria. The 128-token same-path control had a median ratio of
+0.989. The receipt retains every pair.
+
+All 24 FP16 replays matched their checkpoint's logits, stored KV,
+payload bytes and generated IDs. The 128-token reference matched
+the preceding FP16 pilot. Candidate replays at 1,024 and 4,096 each
+recorded 196 shared layer calls. Source, model, binary and journal
+identity checks passed. [Full FP16 receipt](../validation/performance/gqa-shared-kv-f16-20261111/f16-s1-long.json).
+
+The pre-merge review prompted a forced one-layer FP16 comparison
+with four workers and one or two KV heads. With one KV head, sharing
+reduced three lanes to one. Median attention time rose from 0.368 ms
+to 0.522 ms at 1,024 positions and from 1.605 ms to 2.188 ms at 4,096.
+The two-KV-head fixture shortened attention from 0.754 ms to 0.544 ms
+and from 3.309 ms to 2.223 ms at those lengths. The lane guard preserves
+the four-lane selection in the full-model comparison above. The
+benchmark directly selects both kernels to measure the lane change.
+[All lane samples](../validation/performance/gqa-shared-kv-f16-20261111/review-lanes.txt).
