@@ -843,17 +843,16 @@ func openHFArchiveFormat(dir string, contextLimit int, weightBudget int64, forma
 }
 
 func halfFloat(v uint16) float32 {
-	sign := uint32(v&0x8000) << 16
-	exp, frac := (v>>10)&31, uint32(v&1023)
-	if exp == 0 {
-		// Includes signed zero and exact half subnormals.
-		x := float32(math.Ldexp(float64(frac), -24))
-		return math.Float32frombits(math.Float32bits(x) | sign)
+	magnitude := uint32(v&0x7fff) << 13
+	if magnitude < 1<<23 {
+		// Each half subnormal is an exact multiple of 2^-24.
+		magnitude = math.Float32bits(float32(v&1023) * 0x1p-24)
+	} else if magnitude >= 31<<23 {
+		magnitude += (255 - 31) << 23
+	} else {
+		magnitude += (127 - 15) << 23
 	}
-	if exp == 31 {
-		return math.Float32frombits(sign | 0x7f800000 | frac<<13)
-	}
-	return math.Float32frombits(sign | uint32(exp+112)<<23 | frac<<13)
+	return math.Float32frombits(magnitude | uint32(v&0x8000)<<16)
 }
 func (a *hfArchive) readTensor(ctx context.Context, name string, dst []float32) error {
 	return a.readTensorValues(ctx, name, len(dst), func(i int, v float32) error { dst[i] = v; return nil })

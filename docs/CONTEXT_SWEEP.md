@@ -298,3 +298,41 @@ paired results varied, including a 1.139 ratio in one FP32 4,096 pair.
 The three-head record retains all pairs at 1,024 and 4,096 positions.
 The four-head benchmark also records a 128-position diagnostic.
 [Protocol and raw samples](../validation/performance/gqa-four-heads-20261111/).
+
+### Inline FP16 widening
+
+The half converter rebiases normal and special encodings with integer
+operations. Subnormals use an exact power-of-two scale. The exhaustive
+test checks all 65,536 encodings against the preceding conversion,
+including signed zero and NaN payloads. On the measured Go arm64 build,
+the per-head kernel and the two grouped FP16 kernels went from 38
+static calls to the converter to zero.
+
+The paired M4 comparison used synthetic one-layer attention with four
+workers. The table gives the median milliseconds per call across four
+processes per build at 4,096 positions. Each process contributes the
+median of two samples per path.
+
+| Query heads per KV head | Path | Previous converter | Inline converter | Median paired ratio |
+| ---: | --- | ---: | ---: | ---: |
+| 3 | Per-head | 12.460 | 6.422 | 0.513 |
+| 3 | Shared | 5.791 | 1.920 | 0.339 |
+| 4 | Per-head | 16.030 | 8.220 | 0.497 |
+| 4 | Shared | 6.418 | 2.256 | 0.350 |
+
+The first comparison used a direct call to the converter in the generic
+kernel and showed substantial variation in FP32. The confirmation
+changes only the converter and interleaves FP32 pairs using the same
+reference binary. FP32 median candidate/reference ratios in that run
+ranged from 0.900 to 1.033. The same-binary controls had median ratios
+of 0.896 to 1.116 and individual ratios of 0.376 to 1.274. That spread
+limits the resolution for small FP32 changes. Both runs and the
+[reproduction commands](../validation/performance/fp16-widening-20261111/README.md)
+are archived together.
+
+The ordinary build ran the pinned Llama 3.2 3B Q4-mixed model with one
+FP16 KV session and four workers. At 128 and 1,024 positions, prompt,
+logits and KV hashes, generated IDs and KV payload matched the archived
+FP16 comparison. The 1,031-position context cap reduces the four score
+strides from 1,056 to 1,031 elements at the 1,024 checkpoint, accounting
+for the 400-byte workspace difference. [Ordinary-build receipt](../validation/performance/fp16-widening-20261111/ordinary-f16-1024.json).

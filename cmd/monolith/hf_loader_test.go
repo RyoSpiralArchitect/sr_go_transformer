@@ -227,6 +227,27 @@ func TestHalfFloat(t *testing.T) {
 		t.Fatal("half special values")
 	}
 }
+func TestHalfFloatAllEncodings(t *testing.T) {
+	for raw := 0; raw < 1<<16; raw++ {
+		v := uint16(raw)
+		sign := uint32(v&0x8000) << 16
+		exp, fraction := int(v>>10)&31, uint32(v&1023)
+		var want uint32
+		switch exp {
+		case 0:
+			want = math.Float32bits(float32(math.Ldexp(float64(fraction), -24)))
+		case 31:
+			want = 0x7f800000 | fraction<<13
+		default:
+			want = uint32(exp+112)<<23 | fraction<<13
+		}
+		want |= sign
+		if got := math.Float32bits(halfFloat(v)); got != want {
+			t.Fatalf("half %04x produced %08x, want %08x", v, got, want)
+		}
+	}
+}
+
 func TestUniqueJSON(t *testing.T) {
 	for _, s := range []string{`{"a":1,"a":2}`, `{"a":{"b":1,"b":2}}`, `{} {}`, `{"x":`, strings.Repeat("[", 34) + strings.Repeat("]", 34), "{\"\xff\":1}"} {
 		var v any
