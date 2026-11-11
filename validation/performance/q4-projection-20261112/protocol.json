@@ -1,0 +1,37 @@
+{
+  "runtime_commit": "65e227d18a0121763c495124c573bbfb1d57d353",
+  "runtime_sha256": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+  "variants": {
+    "reference": "Current runtime",
+    "control": "Identical reference function in the same binary",
+    "direct": "Prior direct-address LUT candidate, scoped to aligned two-row jobs",
+    "tile": "Two input rows by two outputs, with direct LUT and shared activation loads. Aligned two-row jobs only."
+  },
+  "rounds": [
+    ["reference", "direct", "tile", "control"],
+    ["control", "tile", "direct", "reference"],
+    ["tile", "reference", "control", "direct"],
+    ["direct", "control", "reference", "tile"]
+  ],
+  "model": {
+    "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+    "weights": "Q4-mixed",
+    "kv": "f32",
+    "sessions_per_round": [[1, 2], [2, 1], [2, 1], [1, 2]],
+    "prefill_tokens_per_session": 8,
+    "decode_calls_per_trial": 7,
+    "workers": 4,
+    "warmups_per_group": 1,
+    "projection_spans": ["Gate", "Up", "Down"],
+    "controls": "Reference and control are identical for all cases. All four modes share the prefill and one-session paths.",
+    "report": "Retain every round, report medians and ranges of within-round ratios. Normalize elapsed decode and role spans per call for displayed milliseconds."
+  },
+  "kernel": {
+    "iterations_per_sample": 100,
+    "workers": [1, 4],
+    "shapes_in_out": [[3072, 8192], [8192, 3072]],
+    "input_rows": 2,
+    "report": "Compare direct and tile to reference within each round for each shape and worker count. Report same-path controls and all ratios."
+  },
+  "advance_gate": "Bitwise parity and matching workspace required. Two-session decode median of four within-round ratios at most 0.95, with at least three of four ratios below one. One-session decode and prefill median ratios at most 1.05. A same-path median outside 0.95–1.05 limits the run to exploratory evidence. This is a screen for a follow-up confirmation."
+}

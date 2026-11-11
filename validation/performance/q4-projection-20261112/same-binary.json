@@ -1,0 +1,1417 @@
+{
+  "format": "monolith-runtime-comparison-v2",
+  "baseline_commit": "65e227d18a0121763c495124c573bbfb1d57d353",
+  "case_order_protocol": "balanced",
+  "process_schedule": [
+    [
+      "before",
+      [
+        1,
+        2
+      ]
+    ],
+    [
+      "after",
+      [
+        1,
+        2
+      ]
+    ],
+    [
+      "after",
+      [
+        2,
+        1
+      ]
+    ],
+    [
+      "before",
+      [
+        2,
+        1
+      ]
+    ]
+  ],
+  "weight_format": "q4-mixed",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "files": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "host": "Darwin/arm64",
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "hf_hub_offline": true,
+  "builds": {
+    "before": {
+      "binary_sha256": "1310df42a197d0df3d060746e6897baf7b24963250645920b9f9fa95ced862c7",
+      "inputs_sha256": {
+        "monolith.go": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+        "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+        "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+        "inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9"
+      }
+    },
+    "after": {
+      "binary_sha256": "1310df42a197d0df3d060746e6897baf7b24963250645920b9f9fa95ced862c7",
+      "inputs_sha256": {
+        "monolith.go": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+        "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+        "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+        "inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9"
+      }
+    }
+  },
+  "source_inputs_sha256": {
+    "cmd/monolith/monolith.go": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0"
+  },
+  "numerical_identity": true,
+  "reports": [
+    {
+      "variant": "before",
+      "process_index": 0,
+      "report": {
+        "case_order": [
+          1,
+          2
+        ],
+        "cases": [
+          {
+            "sessions": 1,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 1.061234625,
+                "decode_seconds": 0.9466014989999999,
+                "decode_step_seconds": [
+                  0.136194875,
+                  0.134969,
+                  0.135049916,
+                  0.135001625,
+                  0.13383675,
+                  0.13628,
+                  0.135269333
+                ],
+                "allocated_bytes": 7373992,
+                "allocations": 24,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.080010458,
+                "decode_seconds": 0.9531579170000001,
+                "decode_step_seconds": [
+                  0.134313375,
+                  0.133840333,
+                  0.138991917,
+                  0.136600792,
+                  0.136780833,
+                  0.137072375,
+                  0.135558292
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.0446195,
+                "decode_seconds": 0.967320042,
+                "decode_step_seconds": [
+                  0.137717708,
+                  0.137592,
+                  0.138764167,
+                  0.138650542,
+                  0.137000083,
+                  0.139137292,
+                  0.13845825
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "sessions": 2,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ],
+              [
+                128000,
+                32,
+                15376,
+                1853,
+                18255,
+                279,
+                13863,
+                1139
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 2.154289666,
+                "decode_seconds": 2.008058709,
+                "decode_step_seconds": [
+                  0.254418167,
+                  0.258286458,
+                  0.256538417,
+                  0.255815708,
+                  0.258698292,
+                  0.368161417,
+                  0.35614025
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.258706375,
+                "decode_seconds": 1.82793225,
+                "decode_step_seconds": [
+                  0.261581459,
+                  0.257133958,
+                  0.262608667,
+                  0.260365416,
+                  0.257936875,
+                  0.264917042,
+                  0.263388833
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.338227916,
+                "decode_seconds": 1.866730543,
+                "decode_step_seconds": [
+                  0.264813041,
+                  0.265851625,
+                  0.267640667,
+                  0.264988709,
+                  0.264670125,
+                  0.266804667,
+                  0.271961709
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "context": 128,
+        "decode_steps": 7,
+        "format": "monolith-core-performance-v2",
+        "generated_ids_per_session": 8,
+        "kernel_workers": 4,
+        "note": "Core forward intervals only: excludes loading, tokenization, hashing, sampling, HTTP and SSE. Fixed-step probe does not stop at EOS.",
+        "plan": {
+          "format": "monolith-hf-plan-v1",
+          "model_type": "llama",
+          "tied_embeddings": true,
+          "rope_scaling": {
+            "rope_type": "llama3",
+            "factor": 32,
+            "low_freq_factor": 1,
+            "high_freq_factor": 4,
+            "original_max_position_embeddings": 8192
+          },
+          "eos_token_ids": [
+            128001
+          ],
+          "config": {
+            "vocab": 128256,
+            "dim": 3072,
+            "hidden": 8192,
+            "layers": 28,
+            "heads": 24,
+            "kv_heads": 8,
+            "context": 128,
+            "rope_theta": 500000,
+            "norm_eps": 1e-05
+          },
+          "parameters": 3212749824,
+          "weight_bytes": 2004774912,
+          "weight_format": "q4-mixed",
+          "fp32_weight_bytes": 12850999296,
+          "quantized_parameters": 3212574720,
+          "q8_parameters": 394002432,
+          "q4_parameters": 2818572288,
+          "scale_bytes": 200785920,
+          "quantization_block": 64,
+          "quantization_buffer_bytes": 256,
+          "rope_bytes": 65536,
+          "kv_bytes_per_token": 229376,
+          "full_context_kv_bytes": 29360128,
+          "conversion_buffer_bytes": 65536,
+          "source_bytes": 6425528971,
+          "shards": 2,
+          "tensor_dtypes": {
+            "BF16": 254
+          }
+        },
+        "prefill_tokens_per_session": 8,
+        "threads": 4,
+        "warmup_runs_per_case": 1
+      },
+      "process_resources": {
+        "peak_rss_bytes": 2275000320,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 42.34070554100617,
+        "user_cpu_seconds": 106.542374,
+        "system_cpu_seconds": 2.053947
+      }
+    },
+    {
+      "variant": "after",
+      "process_index": 1,
+      "report": {
+        "case_order": [
+          1,
+          2
+        ],
+        "cases": [
+          {
+            "sessions": 1,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 1.13853825,
+                "decode_seconds": 1.036323793,
+                "decode_step_seconds": [
+                  0.148363667,
+                  0.147167042,
+                  0.14839525,
+                  0.148967209,
+                  0.147449541,
+                  0.147357209,
+                  0.148623875
+                ],
+                "allocated_bytes": 7373992,
+                "allocations": 24,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.1662,
+                "decode_seconds": 1.044015502,
+                "decode_step_seconds": [
+                  0.147774959,
+                  0.148226417,
+                  0.151418584,
+                  0.149508583,
+                  0.147827417,
+                  0.149747709,
+                  0.149511833
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.181221958,
+                "decode_seconds": 1.08784954,
+                "decode_step_seconds": [
+                  0.1522795,
+                  0.151007041,
+                  0.154913125,
+                  0.1518535,
+                  0.15246975,
+                  0.150609208,
+                  0.174717416
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "sessions": 2,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ],
+              [
+                128000,
+                32,
+                15376,
+                1853,
+                18255,
+                279,
+                13863,
+                1139
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 2.411738583,
+                "decode_seconds": 1.9291040429999997,
+                "decode_step_seconds": [
+                  0.276827208,
+                  0.280920417,
+                  0.269300084,
+                  0.272039959,
+                  0.27909275,
+                  0.274764125,
+                  0.2761595
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.426703792,
+                "decode_seconds": 1.969805125,
+                "decode_step_seconds": [
+                  0.281169625,
+                  0.293759125,
+                  0.278871125,
+                  0.27913475,
+                  0.278354833,
+                  0.2773545,
+                  0.281161167
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.455805375,
+                "decode_seconds": 1.958200292,
+                "decode_step_seconds": [
+                  0.278584083,
+                  0.284283958,
+                  0.278592,
+                  0.279883042,
+                  0.281441,
+                  0.28030775,
+                  0.275108459
+                ],
+                "allocated_bytes": 14714192,
+                "allocations": 31,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "context": 128,
+        "decode_steps": 7,
+        "format": "monolith-core-performance-v2",
+        "generated_ids_per_session": 8,
+        "kernel_workers": 4,
+        "note": "Core forward intervals only: excludes loading, tokenization, hashing, sampling, HTTP and SSE. Fixed-step probe does not stop at EOS.",
+        "plan": {
+          "format": "monolith-hf-plan-v1",
+          "model_type": "llama",
+          "tied_embeddings": true,
+          "rope_scaling": {
+            "rope_type": "llama3",
+            "factor": 32,
+            "low_freq_factor": 1,
+            "high_freq_factor": 4,
+            "original_max_position_embeddings": 8192
+          },
+          "eos_token_ids": [
+            128001
+          ],
+          "config": {
+            "vocab": 128256,
+            "dim": 3072,
+            "hidden": 8192,
+            "layers": 28,
+            "heads": 24,
+            "kv_heads": 8,
+            "context": 128,
+            "rope_theta": 500000,
+            "norm_eps": 1e-05
+          },
+          "parameters": 3212749824,
+          "weight_bytes": 2004774912,
+          "weight_format": "q4-mixed",
+          "fp32_weight_bytes": 12850999296,
+          "quantized_parameters": 3212574720,
+          "q8_parameters": 394002432,
+          "q4_parameters": 2818572288,
+          "scale_bytes": 200785920,
+          "quantization_block": 64,
+          "quantization_buffer_bytes": 256,
+          "rope_bytes": 65536,
+          "kv_bytes_per_token": 229376,
+          "full_context_kv_bytes": 29360128,
+          "conversion_buffer_bytes": 65536,
+          "source_bytes": 6425528971,
+          "shards": 2,
+          "tensor_dtypes": {
+            "BF16": 254
+          }
+        },
+        "prefill_tokens_per_session": 8,
+        "threads": 4,
+        "warmup_runs_per_case": 1
+      },
+      "process_resources": {
+        "peak_rss_bytes": 2274721792,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 43.50244808400748,
+        "user_cpu_seconds": 113.808393,
+        "system_cpu_seconds": 1.950103
+      }
+    },
+    {
+      "variant": "after",
+      "process_index": 2,
+      "report": {
+        "case_order": [
+          2,
+          1
+        ],
+        "cases": [
+          {
+            "sessions": 2,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ],
+              [
+                128000,
+                32,
+                15376,
+                1853,
+                18255,
+                279,
+                13863,
+                1139
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 2.445107,
+                "decode_seconds": 1.860731959,
+                "decode_step_seconds": [
+                  0.265408083,
+                  0.264879209,
+                  0.26579325,
+                  0.266565458,
+                  0.264586375,
+                  0.267549417,
+                  0.265950167
+                ],
+                "allocated_bytes": 14714192,
+                "allocations": 31,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.356025667,
+                "decode_seconds": 1.8844000840000001,
+                "decode_step_seconds": [
+                  0.267518375,
+                  0.270293917,
+                  0.270744708,
+                  0.271663084,
+                  0.269272125,
+                  0.266723917,
+                  0.268183958
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.316404041,
+                "decode_seconds": 1.932460999,
+                "decode_step_seconds": [
+                  0.273084333,
+                  0.298275125,
+                  0.268481125,
+                  0.277715792,
+                  0.268606291,
+                  0.273923458,
+                  0.272374875
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "sessions": 1,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 1.179408083,
+                "decode_seconds": 1.0718989589999999,
+                "decode_step_seconds": [
+                  0.154988042,
+                  0.153263542,
+                  0.149234667,
+                  0.154472709,
+                  0.152371916,
+                  0.152635542,
+                  0.154932541
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.189768166,
+                "decode_seconds": 1.07667246,
+                "decode_step_seconds": [
+                  0.156626084,
+                  0.153647459,
+                  0.153128875,
+                  0.152181958,
+                  0.151738583,
+                  0.155506709,
+                  0.153842792
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.187873583,
+                "decode_seconds": 1.087190874,
+                "decode_step_seconds": [
+                  0.153609916,
+                  0.152195583,
+                  0.15935575,
+                  0.1579155,
+                  0.155033709,
+                  0.154233083,
+                  0.154847333
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "context": 128,
+        "decode_steps": 7,
+        "format": "monolith-core-performance-v2",
+        "generated_ids_per_session": 8,
+        "kernel_workers": 4,
+        "note": "Core forward intervals only: excludes loading, tokenization, hashing, sampling, HTTP and SSE. Fixed-step probe does not stop at EOS.",
+        "plan": {
+          "format": "monolith-hf-plan-v1",
+          "model_type": "llama",
+          "tied_embeddings": true,
+          "rope_scaling": {
+            "rope_type": "llama3",
+            "factor": 32,
+            "low_freq_factor": 1,
+            "high_freq_factor": 4,
+            "original_max_position_embeddings": 8192
+          },
+          "eos_token_ids": [
+            128001
+          ],
+          "config": {
+            "vocab": 128256,
+            "dim": 3072,
+            "hidden": 8192,
+            "layers": 28,
+            "heads": 24,
+            "kv_heads": 8,
+            "context": 128,
+            "rope_theta": 500000,
+            "norm_eps": 1e-05
+          },
+          "parameters": 3212749824,
+          "weight_bytes": 2004774912,
+          "weight_format": "q4-mixed",
+          "fp32_weight_bytes": 12850999296,
+          "quantized_parameters": 3212574720,
+          "q8_parameters": 394002432,
+          "q4_parameters": 2818572288,
+          "scale_bytes": 200785920,
+          "quantization_block": 64,
+          "quantization_buffer_bytes": 256,
+          "rope_bytes": 65536,
+          "kv_bytes_per_token": 229376,
+          "full_context_kv_bytes": 29360128,
+          "conversion_buffer_bytes": 65536,
+          "source_bytes": 6425528971,
+          "shards": 2,
+          "tensor_dtypes": {
+            "BF16": 254
+          }
+        },
+        "prefill_tokens_per_session": 8,
+        "threads": 4,
+        "warmup_runs_per_case": 1
+      },
+      "process_resources": {
+        "peak_rss_bytes": 2285633536,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 43.11359212499519,
+        "user_cpu_seconds": 113.485134,
+        "system_cpu_seconds": 1.6197409999999999
+      }
+    },
+    {
+      "variant": "before",
+      "process_index": 3,
+      "report": {
+        "case_order": [
+          2,
+          1
+        ],
+        "cases": [
+          {
+            "sessions": 2,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ],
+              [
+                128000,
+                32,
+                15376,
+                1853,
+                18255,
+                279,
+                13863,
+                1139
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 2.241577291,
+                "decode_seconds": 1.835423252,
+                "decode_step_seconds": [
+                  0.264135209,
+                  0.260179792,
+                  0.259548292,
+                  0.262686709,
+                  0.262006917,
+                  0.264373083,
+                  0.26249325
+                ],
+                "allocated_bytes": 14714192,
+                "allocations": 31,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.296360333,
+                "decode_seconds": 1.85243904,
+                "decode_step_seconds": [
+                  0.2648075,
+                  0.261307625,
+                  0.263250083,
+                  0.267570416,
+                  0.267519708,
+                  0.263020875,
+                  0.264962833
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 2.301213708,
+                "decode_seconds": 1.864020166,
+                "decode_step_seconds": [
+                  0.265991458,
+                  0.267454375,
+                  0.265432541,
+                  0.265686792,
+                  0.263823167,
+                  0.268346875,
+                  0.267284958
+                ],
+                "allocated_bytes": 14714080,
+                "allocations": 30,
+                "workspace_bytes": 2992640,
+                "logits_sha256": "122dc271a702f386e1fbba80ad6da3d93c09f41a84f86285a371c0354cb9c8c3",
+                "kv_sha256": "6a4ad0558b9bafc65ae969886e9b7b0b4988bd24a5244c9ead7ef609409b0f14",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ],
+                  [
+                    1403,
+                    5596,
+                    13,
+                    578,
+                    1853,
+                    574,
+                    77317,
+                    555
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "sessions": 1,
+            "prompt_ids": [
+              [
+                128000,
+                791,
+                95307,
+                9277,
+                264,
+                2678,
+                6307,
+                38266
+              ]
+            ],
+            "trials": [
+              {
+                "prefill_seconds": 1.176123625,
+                "decode_seconds": 1.067658084,
+                "decode_step_seconds": [
+                  0.153389791,
+                  0.152199792,
+                  0.152733292,
+                  0.150339042,
+                  0.154898333,
+                  0.152704959,
+                  0.151392875
+                ],
+                "allocated_bytes": 7373992,
+                "allocations": 24,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.18579075,
+                "decode_seconds": 1.068158459,
+                "decode_step_seconds": [
+                  0.151645375,
+                  0.1514715,
+                  0.152881417,
+                  0.152707375,
+                  0.151224167,
+                  0.153935,
+                  0.154293625
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              },
+              {
+                "prefill_seconds": 1.186956125,
+                "decode_seconds": 1.074010749,
+                "decode_step_seconds": [
+                  0.154517041,
+                  0.154317,
+                  0.153781375,
+                  0.152682625,
+                  0.153596875,
+                  0.153255041,
+                  0.151860792
+                ],
+                "allocated_bytes": 7373880,
+                "allocations": 23,
+                "workspace_bytes": 1496576,
+                "logits_sha256": "40ee1c13ea33195c163a06d563eb738acf8423a014b82cb454116c1b07b148e0",
+                "kv_sha256": "1c266c11ecc44241ae3b9b5d3f383dce01dfc40aae90e1ded2fa13fa1d9b5314",
+                "token_ids": [
+                  [
+                    389,
+                    279,
+                    18496,
+                    13,
+                    1054,
+                    2028,
+                    374,
+                    279
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        "context": 128,
+        "decode_steps": 7,
+        "format": "monolith-core-performance-v2",
+        "generated_ids_per_session": 8,
+        "kernel_workers": 4,
+        "note": "Core forward intervals only: excludes loading, tokenization, hashing, sampling, HTTP and SSE. Fixed-step probe does not stop at EOS.",
+        "plan": {
+          "format": "monolith-hf-plan-v1",
+          "model_type": "llama",
+          "tied_embeddings": true,
+          "rope_scaling": {
+            "rope_type": "llama3",
+            "factor": 32,
+            "low_freq_factor": 1,
+            "high_freq_factor": 4,
+            "original_max_position_embeddings": 8192
+          },
+          "eos_token_ids": [
+            128001
+          ],
+          "config": {
+            "vocab": 128256,
+            "dim": 3072,
+            "hidden": 8192,
+            "layers": 28,
+            "heads": 24,
+            "kv_heads": 8,
+            "context": 128,
+            "rope_theta": 500000,
+            "norm_eps": 1e-05
+          },
+          "parameters": 3212749824,
+          "weight_bytes": 2004774912,
+          "weight_format": "q4-mixed",
+          "fp32_weight_bytes": 12850999296,
+          "quantized_parameters": 3212574720,
+          "q8_parameters": 394002432,
+          "q4_parameters": 2818572288,
+          "scale_bytes": 200785920,
+          "quantization_block": 64,
+          "quantization_buffer_bytes": 256,
+          "rope_bytes": 65536,
+          "kv_bytes_per_token": 229376,
+          "full_context_kv_bytes": 29360128,
+          "conversion_buffer_bytes": 65536,
+          "source_bytes": 6425528971,
+          "shards": 2,
+          "tensor_dtypes": {
+            "BF16": 254
+          }
+        },
+        "prefill_tokens_per_session": 8,
+        "threads": 4,
+        "warmup_runs_per_case": 1
+      },
+      "process_resources": {
+        "peak_rss_bytes": 2283945984,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 42.3422879169957,
+        "user_cpu_seconds": 111.727046,
+        "system_cpu_seconds": 1.538136
+      }
+    }
+  ],
+  "effective_go_env": {
+    "GOARCH": "arm64",
+    "GOENV": "",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOOS": "darwin",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off"
+  },
+  "environment": {
+    "GOMAXPROCS": "4",
+    "CGO_ENABLED": "0",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOEXPERIMENT": "",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "note": "One resident model per process; fixed 8-token prefixes, 7 decode calls, 1/2 sessions. Core forward timing only; peak RSS spans each full process. Not HTTP throughput or a language-quality benchmark."
+}

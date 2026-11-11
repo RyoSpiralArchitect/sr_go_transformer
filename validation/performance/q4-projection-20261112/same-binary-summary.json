@@ -1,0 +1,65 @@
+{
+  "binary_identity": true,
+  "metrics": {
+    "1_sessions_prefill_seconds": {
+      "reference_process_median_ms": [
+        1061.234625,
+        1185.7907500000001
+      ],
+      "identical_process_median_ms": [
+        1166.1999999999998,
+        1187.873583
+      ],
+      "paired_ratios": [
+        1.0989087356624834,
+        1.0017564928719507
+      ],
+      "paired_ratio_median": 1.0503326142672171
+    },
+    "1_sessions_decode_seconds": {
+      "reference_process_median_ms": [
+        136.16541671428573,
+        152.59406557142856
+      ],
+      "identical_process_median_ms": [
+        149.1450717142857,
+        153.81035142857144
+      ],
+      "paired_ratios": [
+        1.0953226987674487,
+        1.0079707284329058
+      ],
+      "paired_ratio_median": 1.0516467136001773
+    },
+    "2_sessions_prefill_seconds": {
+      "reference_process_median_ms": [
+        2258.706375,
+        2296.360333
+      ],
+      "identical_process_median_ms": [
+        2426.7037920000002,
+        2356.025667
+      ],
+      "paired_ratios": [
+        1.0743777141019493,
+        1.0259825660383413
+      ],
+      "paired_ratio_median": 1.0501801400701454
+    },
+    "2_sessions_decode_seconds": {
+      "reference_process_median_ms": [
+        266.6757918571429,
+        264.63414857142857
+      ],
+      "identical_process_median_ms": [
+        279.74289885714285,
+        269.200012
+      ],
+      "paired_ratios": [
+        1.0489999744971226,
+        1.0172534929948356
+      ],
+      "paired_ratio_median": 1.033126733745979
+    }
+  }
+}
