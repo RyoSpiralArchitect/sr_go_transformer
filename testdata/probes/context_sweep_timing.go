@@ -17,6 +17,8 @@ type contextSweepTiming struct {
 	LayerProjections contextSweepSpan `json:"layer_projections"`
 	Attention        contextSweepSpan `json:"attention"`
 	OutputProjection contextSweepSpan `json:"output_projection"`
+	SharedKVCalls    int              `json:"shared_kv_calls,omitempty"`
+	referenceKV      bool
 }
 
 type contextSweepTimingKey struct{}
@@ -54,5 +56,8 @@ func contextSweepTimedAttention(timing *contextSweepTiming, w *decodeWorkspace, 
 	if timing != nil {
 		timing.Attention.Elapsed += time.Since(started)
 		timing.Attention.Calls++
+		if plan.sharedKV {
+			timing.SharedKVCalls++
+		}
 	}
 }

@@ -89,7 +89,9 @@ def main():
     parser.add_argument('--max-prefix', type=int, choices=(128, 1024, 4096), default=4096)
     parser.add_argument('--sessions', type=int, choices=(1, 2), nargs='+', default=[1, 2])
     parser.add_argument('--formats', choices=('f32', 'f16'), nargs='+', default=['f32', 'f16'])
-    parser.add_argument('--stage-timing', action='store_true', help='replay each prefix with paired wall-clock timers')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--stage-timing', action='store_true', help='replay each prefix with paired wall-clock timers')
+    modes.add_argument('--compare-shared-kv', action='store_true', help='compare shared and per-head KV reads with both timers enabled')
     args = parser.parse_args()
     if len(set(args.sessions)) != len(args.sessions) or len(set(args.formats)) != len(args.formats):
         parser.error('formats and session counts must be unique')
@@ -104,7 +106,8 @@ def main():
     verify_model()
     output.mkdir(parents=True, exist_ok=False)
     names = ('monolith.go', 'go.mod', 'go.sum', 'inference_perf_test.go', 'context_sweep_perf_test.go')
-    if args.stage_timing:
+    stage_timing = args.stage_timing or args.compare_shared_kv
+    if stage_timing:
         names += STAGE_PROBE_FILES
     corpus = root/'validation/quality/corpus.json'
     paths = [source_path(root, n) for n in names] + [Path(__file__), corpus, catalog,
@@ -117,8 +120,8 @@ def main():
     for name in names:
         source_file = source_path(root, name)
         (build/source_file.name).write_bytes(source_file.read_bytes())
-    if args.stage_timing:
-        instrument_context_sweep(build/'monolith.go')
+    if stage_timing:
+        instrument_context_sweep(build/'monolith.go', args.compare_shared_kv)
     compiled_source_hash = sha(build/'monolith.go')
     env = isolated_go_environment()
     goroot = subprocess.check_output([root/'scripts/go.sh', 'env', 'GOROOT'], cwd=root, env=env, text=True).strip()
@@ -134,7 +137,8 @@ def main():
     receipt = dict(format='monolith-context-sweep-v1', model=source['repo'], revision=source['revision'],
                    model_files=source['files'], inputs_sha256=inputs, binary_sha256=binary_hash,
                    host=platform.platform(), cpu=platform.machine(), lengths=lengths, schedule=schedule,
-                   stage_timing=args.stage_timing, compiled_source_sha256=compiled_source_hash,
+                   stage_timing=stage_timing, compare_shared_kv=args.compare_shared_kv,
+                   compiled_source_sha256=compiled_source_hash,
                    go_version=subprocess.check_output([go, 'version'], env=env, text=True).strip(),
                    runs=[])
     failure = False
@@ -143,7 +147,8 @@ def main():
         directory.mkdir()
         env.update(MONOLITH_SWEEP_MODEL=str(model), MONOLITH_SWEEP_CORPUS=str(corpus),
                    MONOLITH_SWEEP_OUTPUT=str(directory), MONOLITH_SWEEP_FORMAT=fmt,
-                   MONOLITH_SWEEP_SESSIONS=str(n), MONOLITH_SWEEP_LENGTHS=','.join(map(str, lengths)))
+                   MONOLITH_SWEEP_SESSIONS=str(n), MONOLITH_SWEEP_LENGTHS=','.join(map(str, lengths)),
+                   MONOLITH_SWEEP_COMPARE_SHARED_KV='1' if args.compare_shared_kv else '0')
         print(f'{fmt}, {n} sessions: starting', flush=True)
         run = dict(kv_format=fmt, sessions=n, error=None)
         with (directory/'probe.log').open('x') as log:
@@ -159,7 +164,7 @@ def main():
         run['complete'] = bool(events and events[-1].get('event') == 'complete' and not (error or run['error']))
         if run['complete']:
             try:
-                validate_completed(events, fmt, n, lengths, args.stage_timing)
+                validate_completed(events, fmt, n, lengths, stage_timing)
             except (ValueError, KeyError, TypeError) as exc:
                 run.update(complete=False, validation_error=str(exc))
         profiles = {}
@@ -168,8 +173,8 @@ def main():
                 event['decode_median_ms'] = statistics.median(event['decode']['decode_step_seconds'])*1000
             if event['event'] == 'stages':
                 try:
-                    event['summary'] = summarize_stages(event['replays'])
-                except (KeyError, TypeError, ValueError) as exc:
+                    event['summary'] = summarize_stages(event['replays'], args.compare_shared_kv)
+                except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
                     event['summary_error'] = str(exc)
                     failure = True
             if event['event'] == 'profile':

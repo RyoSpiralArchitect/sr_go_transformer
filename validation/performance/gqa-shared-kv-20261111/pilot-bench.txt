@@ -1,0 +1,42 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/prefix128/reference-first-4         	      40	    184269 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/reference-first-4         	      40	    193845 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/reference-first-4         	      40	    197286 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-second-4           	      40	     72293 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-second-4           	      40	     83242 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-second-4           	      40	     60094 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-first-4            	      40	     79107 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-first-4            	      40	     87662 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/shared-first-4            	      40	    112622 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/reference-second-4        	      40	    192331 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/reference-second-4        	      40	    164709 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix128/reference-second-4        	      40	    189165 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-first-4        	      40	    562612 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-first-4        	      40	    502547 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-first-4        	      40	    489798 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-second-4          	      40	    179235 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-second-4          	      40	    177652 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-second-4          	      40	    180230 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-first-4           	      40	    177648 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-first-4           	      40	    177603 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/shared-first-4           	      40	    178471 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-second-4       	      40	    461392 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-second-4       	      40	    492774 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix1024/reference-second-4       	      40	    460422 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-first-4        	      40	   4001621 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-first-4        	      40	   4508031 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-first-4        	      40	   4308259 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-second-4          	      40	   1174736 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-second-4          	      40	   1195558 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-second-4          	      40	   1163440 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-first-4           	      40	   1181532 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-first-4           	      40	   1228807 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/shared-first-4           	      40	   1278474 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-second-4       	      40	   4212814 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-second-4       	      40	   4321118 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/prefix4096/reference-second-4       	      40	   4592510 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith	3.029s

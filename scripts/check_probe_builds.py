@@ -33,7 +33,7 @@ def main():
                 (build / path.name).write_bytes(path.read_bytes())
             test = '^$'
             if name == 'context-sweep-stages':
-                instrument_context_sweep(build/'monolith.go')
+                instrument_context_sweep(build/'monolith.go', compare_shared_kv=True)
                 test = '^TestContextSweepAttributionFixture$'
             binary = build / 'probe.test'
             subprocess.run([go, 'test', '-c', '-trimpath', '-o', binary, '.'],

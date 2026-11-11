@@ -139,3 +139,73 @@ Shared GQA KV reads and page traversal are follow-up candidates for
 measurement. The receipt retains every replay, including the affected
 128-token case, together with the frozen protocol and pilot in
 [`validation/performance/context-stage-timing-20261111`](../validation/performance/context-stage-timing-20261111/).
+
+## Shared KV reads for grouped-query attention
+
+Single-row forwards on Darwin arm64 can share FP32 KV reads across
+three query heads with a 128-element head dimension. Selection starts
+at a visible context of 1,024 positions and requires room for two
+score vectors per lane in the existing logits buffer. Each lane owns
+whole KV head groups. Its key and value passes traverse pages in tiles
+of four positions, sharing each load across the three query heads.
+Each head keeps its dimension and position reduction order.
+
+The logits buffer supplies the two extra score vectors until the
+attention workers join. The output projection then writes the logits
+in their normal slots. Selective prefill clears the logits when it
+skips the projection. Workspace admission counts the same buffers.
+
+Run the paired comparison against the per-head path with both stage
+timers enabled.
+
+```sh
+python3 -S scripts/measure_context_sweep.py \
+  --model /path/to/pinned-llama32-3b \
+  --compare-shared-kv --formats f32 --sessions 1 \
+  --output-dir runs/gqa-f32-long
+```
+
+The copied build disables sharing for the reference arm and uses normal
+runtime selection for the candidate. Both arms use the same committed
+prefix, model, workspace and clock reads. The receipt includes the
+actual shared-path call count, workspace capacity, all eight replay
+records and adjacent-pair ratios. At 128 tokens both arms use per-head
+attention, giving a same-path timing control.
+
+The exploratory M4 microbenchmark used a synthetic one-layer KV cache
+with 24 query heads, eight KV heads, one row and four workers. At
+4,096 positions the per-call median was 4.315 ms for the per-head
+kernel and 1.189 ms for shared KV. The benchmark selected the kernel
+directly at each length. The protocol and raw benchmark output are in
+[`validation/performance/gqa-shared-kv-20261111`](../validation/performance/gqa-shared-kv-20261111/).
+
+### Recorded M4 shared-KV comparison
+
+The paired run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
+weights, FP32 KV, one session and four workers on an Apple M4.
+Each timing below is the median of four replay averages, in
+milliseconds per decode call.
+
+| Prefix tokens | Reference attention | Candidate attention | Reference total | Candidate total | Workspace bytes per path |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 128 | 2.822 | 2.893 | 153.979 | 158.105 | 638,464 |
+| 1,024 | 21.454 | 8.685 | 165.164 | 152.086 | 652,800 |
+| 4,096 | 139.019 | 37.045 | 274.235 | 178.251 | 701,552 |
+
+At 4,096 positions the median attention time fell by 73.4% and the
+complete decode time fell by 35.0%. All four adjacent pairs favored
+shared KV for both measurements. The complete decode ratios in
+those pairs ranged from 0.633 to 0.667. The 1,024-token comparison
+also passed the frozen timing criteria.
+
+The 128-token same-path control had a candidate/reference median
+ratio of 1.027 and adjacent-pair ratios of 0.973–1.102. The receipt
+retains every pair. The candidate recorded 196 shared attention
+calls per replay at 1,024 and 4,096 tokens and zero at 128 tokens.
+
+All 24 replays matched their checkpoint's logits, committed KV,
+payload bytes and generated IDs. Each checkpoint reproduced the
+preceding stage sweep's prompt, logits, KV and generated IDs.
+Source, compiled copy, binary and pinned model hashes passed the
+identity checks. The full run is recorded in
+[`f32-s1-long.json`](../validation/performance/gqa-shared-kv-20261111/f32-s1-long.json).
