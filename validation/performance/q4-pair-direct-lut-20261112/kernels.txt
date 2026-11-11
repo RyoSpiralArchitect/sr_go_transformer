@@ -1,0 +1,97 @@
+go version go1.27.1 darwin/arm64
+# Process 1 before
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    984146 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1773804 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4445639 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1795820 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    712967 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    243178 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 2 after
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	   1078034 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1646502 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   5265357 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   2325275 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    840739 ns/op	      44 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    312543 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 3 after
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	   1188732 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1826710 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4900786 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1883704 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    679097 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    220037 ns/op	      44 B/op	       0 allocs/op
+PASS
+# Process 4 before
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    902191 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1753304 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4401118 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1749477 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    649832 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    230141 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 5 after
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    882482 ns/op	      44 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1587919 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4317408 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1623186 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    620355 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    230922 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 6 before
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    904246 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1804112 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4561102 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1810372 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    688879 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    241319 ns/op	      44 B/op	       0 allocs/op
+PASS
+# Process 7 before
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    910451 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1870936 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4421250 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1781268 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    678126 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    240509 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 8 after
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer
+cpu: Apple M4
+BenchmarkQ4PairLUT/gate-up/rows1-4   	     120	    888512 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows2-4   	     120	   1680880 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/gate-up/rows4-4   	     120	   4548394 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/down/rows2-4      	     120	   1726658 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/query-output/rows2-4         	     120	    650593 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4PairLUT/key-value/rows2-4            	     120	    223870 ns/op	       0 B/op	       0 allocs/op
+PASS
