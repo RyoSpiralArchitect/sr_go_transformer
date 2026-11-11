@@ -227,3 +227,27 @@ with a Go source overlay for the preceding runtime. Its median ratios
 for the shared path were 1.011 at 1,024 and 1.006 at 4,096 positions.
 Raw samples, binary hashes and the full-model protocol are in
 [`validation/performance/gqa-shared-kv-f16-20261111`](../validation/performance/gqa-shared-kv-f16-20261111/).
+
+The paired model run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
+weights, one FP16 KV session and four workers on an Apple M4. Timings
+are medians of four replay averages in milliseconds per decode call.
+
+| Prefix tokens | Per-head attention | Shared attention | Per-head total | Shared total | Workspace bytes per path | FP16 KV payload MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 8.740 | 8.679 | 149.514 | 147.806 | 638,464 | 17.5 |
+| 1,024 | 88.294 | 45.225 | 274.874 | 219.962 | 652,800 | 115.5 |
+| 4,096 | 302.814 | 148.903 | 459.135 | 300.968 | 701,552 | 451.5 |
+
+At 4,096 tokens the median attention time fell by 50.8% and the
+complete decode time fell by 34.4%. All four adjacent pairs favored
+shared KV. Their complete decode ratios ranged from 0.624 to 0.667.
+At 1,024 tokens three of four complete decode pairs favored shared
+KV, with one ratio of 1.018. Both lengths met the frozen timing
+criteria. The 128-token same-path control had a median ratio of
+0.989. The receipt retains every pair.
+
+All 24 FP16 replays matched their checkpoint's logits, stored KV,
+payload bytes and generated IDs. The 128-token reference matched
+the preceding FP16 pilot. Candidate replays at 1,024 and 4,096 each
+recorded 196 shared layer calls. Source, model, binary and journal
+identity checks passed. [Full FP16 receipt](../validation/performance/gqa-shared-kv-f16-20261111/f16-s1-long.json).
