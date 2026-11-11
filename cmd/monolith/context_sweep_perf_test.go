@@ -25,6 +25,9 @@ import (
 const contextSweepChunk = 32
 const contextSweepSteps = 7
 
+// Only the isolated stage-timing build registers a replay.
+var contextSweepStageProbe func(context.Context, *Model, *kernelExecutor, *decodeWorkspace, []*KVCache, []float32, contextSweepDecode) (any, error)
+
 type contextSweepDecode struct {
 	Seconds     []float64 `json:"decode_step_seconds"`
 	IDs         [][]int   `json:"token_ids"`
@@ -266,6 +269,13 @@ func TestHFContextSweep(t *testing.T) {
 			t.Fatal("profile replay diverged", err)
 		}
 		record(map[string]any{"event": "profile", "prefix": length, "file": p.ProfileFile})
+		if contextSweepStageProbe != nil {
+			replays, err := contextSweepStageProbe(ctx, m, e, &decode, caches, logits, r)
+			record(map[string]any{"event": "stages", "prefix": length, "replays": replays})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 		t.Logf("%s %d sessions, %d-token prefix complete", format, sessions, length)
 	}
 	record(map[string]any{"event": "complete"})

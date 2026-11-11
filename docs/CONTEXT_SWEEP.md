@@ -68,3 +68,74 @@ with paired wall-clock comparisons for any optimization decision.
 
 The receipts are in
 [`validation/performance/context-sweep-20261110`](../validation/performance/context-sweep-20261110/).
+
+## Paired stage timings
+
+Use `--stage-timing` to replay each checkpoint eight times from the
+same committed KV prefix. Each replay checks all recorded logits,
+stored KV and generated IDs against that checkpoint's reference.
+The timer order is off/on/on/off/on/off/off/on. The first replay
+already has a warm decode workspace from the reference call.
+
+For this mode the driver wraps call sites in the copied standalone
+build source. The receipt includes the original source, compiled copy
+and binary hashes. The test-only
+timer context is read by the owner of each forward call. A stage
+finishes after its workers join, so each duration includes dispatch
+and synchronization as well as its computation.
+
+The stage summaries contain elapsed wall time for layer projections,
+attention, output projection and the remaining forward work. The
+output projection in the pinned Q4-mixed Llama profile uses Q8
+weights. Summaries use the median of four replay averages per mode
+and report milliseconds per batched decode call. They also retain
+all eight timing records and exactness hashes.
+
+Compare the timer-enabled total with the disabled total before
+interpreting the stage durations. A ratio outside 0.95–1.05 marks a
+timing disturbance to investigate. Preserve every case and the first
+completed attempt. Both modes execute the same instrumented binary,
+with clock reads enabled or disabled. Their ratio also includes
+replay-to-replay variation. Use the existing paired comparison drivers
+with the ordinary runtime to evaluate a future optimization.
+
+### Recorded M4 stage sweep
+
+The 2026-11-11 primary sweep completed all three checkpoints on an
+Apple M4 with four threads, four kernel workers, one session,
+Q4-mixed Llama 3.2 3B and FP32 KV. All 24 replays matched their
+checkpoint's logits, committed KV hash, payload bytes and generated
+IDs. Each checkpoint also reproduced the prompt, logits, KV and IDs
+from the preceding context-sweep receipt. Source, model, compiled
+copy and binary identities passed the before/after checks.
+
+Totals are medians of four replay averages in milliseconds per decode call.
+
+| Prefix tokens | Timers off | Timers on | On/off ratio | Ratio screen |
+| --- | ---: | ---: | ---: | --- |
+| 128 | 393.244 | 368.524 | 0.937 | Affected |
+| 1,024 | 539.884 | 539.132 | 0.999 | Within range |
+| 4,096 | 529.384 | 532.461 | 1.006 | Within range |
+
+Stage values are medians of the four timer-enabled replay averages.
+Compute each replay's remainder before taking its median.
+
+| Prefix tokens | Layer projections | Attention | Q8 output projection | Remainder |
+| --- | ---: | ---: | ---: | ---: |
+| 128 | 282.276 | 7.242 | 75.362 | 3.930 |
+| 1,024 | 350.920 | 100.114 | 84.218 | 5.351 |
+| 4,096 | 196.816 | 279.568 | 49.005 | 2.057 |
+
+The 128-token pilot used the same binary hash and recorded 141.129 ms
+with timers off and 138.087 ms with timers on, ratio 0.978. The primary
+process shows substantial elapsed-time variation. Its 4,096-token
+control averages span 362.075–634.042 ms. The ratio screen uses
+mode medians. These observations describe the
+recorded host and replay schedule. An optimization decision requires
+a fresh paired comparison using the ordinary runtime.
+
+Attention has the largest recorded stage median at 4,096 tokens.
+Shared GQA KV reads and page traversal are follow-up candidates for
+measurement. The receipt retains every replay, including the affected
+128-token case, together with the frozen protocol and pilot in
+[`validation/performance/context-stage-timing-20261111`](../validation/performance/context-stage-timing-20261111/).
