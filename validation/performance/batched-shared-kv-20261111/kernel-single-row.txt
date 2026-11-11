@@ -1,0 +1,176 @@
+# Process 1 reference
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1375564 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    430294 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    429666 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1286579 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   8453832 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   2535156 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   2330386 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   7006996 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   2538258 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    542086 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    541603 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1955733 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7778714 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   2021332 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2135336 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   7678957 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 2 candidate
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1528117 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    437465 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    437800 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1414104 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   5774938 ns/op	      88 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   1790958 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   1919096 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   5574506 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1915498 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    499847 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    513397 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1996048 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   8007269 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   2139077 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2127822 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   8240692 ns/op	       1 B/op	       0 allocs/op
+PASS
+# Process 3 candidate
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1430922 ns/op	      90 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    435283 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    473043 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1459292 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   5811347 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   2236699 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   2773261 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   5852387 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1968976 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    473974 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    490215 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1733939 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7553836 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   2004530 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2102386 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   8197947 ns/op	       1 B/op	       0 allocs/op
+PASS
+# Process 4 reference
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1524291 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    451097 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    461793 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1598457 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   7185861 ns/op	       3 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   2075169 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   2112842 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   6321219 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1945104 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    478008 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    488358 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1797099 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   8638022 ns/op	       3 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   2056387 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2138057 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   7400774 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 5 candidate
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1409847 ns/op	      90 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    433274 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    432510 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1439581 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   7001290 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   1970413 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   1924019 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   5857508 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1972820 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    506363 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    506358 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1879965 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7801813 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   1952430 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2110231 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   7743710 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 6 reference
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1308011 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    444903 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    451249 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1509715 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   5645229 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   2184293 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   1912674 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   5869102 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1957962 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    502997 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    507885 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1862441 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7425564 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   1967052 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2101513 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   7773010 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 7 reference
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1388769 ns/op	      88 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    445089 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    446917 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1489339 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   5667221 ns/op	       2 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   1858748 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   1852080 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   6887620 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1773102 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    490335 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    488983 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1857860 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7505015 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   1990590 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   2089953 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   7876728 ns/op	       0 B/op	       0 allocs/op
+PASS
+# Process 8 candidate
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         	      60	   1332875 ns/op	      90 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           	      60	    444671 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            	      60	    447456 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        	      60	   1452972 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         	      60	   5833715 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           	      60	   1913835 ns/op	      88 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            	      60	   1802170 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        	      60	   5654673 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         	      60	   1901067 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           	      60	    504041 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            	      60	    497377 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        	      60	   1900394 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         	      60	   7544502 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           	      60	   1979008 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            	      60	   1969019 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        	      60	   8271674 ns/op	       0 B/op	       0 allocs/op
+PASS

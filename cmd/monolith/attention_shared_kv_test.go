@@ -112,7 +112,7 @@ func TestFourHeadKVPlanPreservesLanesAndFitsWholeScoreSlots(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			reference := planInferenceAttention(&kernelExecutor{workers: tc.workers}, c, 1, tc.length)
 			for _, format := range []string{"f32", "f16"} {
-				plan := planSharedKVAttention(reference, c, format, tc.up)
+				plan := planSharedKVAttention(reference, c, format, 1, c.Vocab, tc.up)
 				if plan.sharedKV != tc.shared || plan.lanes != reference.lanes || plan.stride != reference.stride {
 					t.Fatalf("%s plan %+v does not match the expected dispatch", format, plan)
 				}
@@ -178,6 +178,66 @@ func TestSharedKVAttentionClearsUnselectedLogits(t *testing.T) {
 	}
 }
 
+func TestSharedKVBatchedPrefillMatchesPerHead(t *testing.T) {
+	for _, group := range []int{3, 4} {
+		for _, format := range []string{"f32", "f16"} {
+			t.Run(fmt.Sprintf("group%d/%s", group, format), func(t *testing.T) {
+				c := Config{Vocab: 1536, Dim: group * sharedKVHeadDim, Hidden: 1088, Heads: group, KVHeads: 1,
+					Layers: 1, Context: 1088, RopeTheta: 10000, NormEps: 1e-5}
+				m, err := NewModel(c, 17)
+				if err != nil {
+					t.Fatal(err)
+				}
+				m.kvFormat = format
+				e := newKernelExecutor(2)
+				defer e.close()
+				var candidate, reference []*KVCache
+				for _, position := range []int{1055, 1023, 1025} {
+					gotCache, wantCache := m.NewCache(), m.NewCache()
+					defer gotCache.Close()
+					defer wantCache.Close()
+					for _, cache := range []*KVCache{gotCache, wantCache} {
+						cache.Pos = position
+						cache.ensurePages(position)
+					}
+					candidate = append(candidate, gotCache)
+					reference = append(reference, wantCache)
+				}
+				// A short session keeps the reference batch on the per-head path.
+				short := m.NewCache()
+				defer short.Close()
+				reference = append(reference, short)
+				chunks := [][]int{{7}, {19}, {3}, {11}}
+				var shared, perHead decodeWorkspace
+				got, err := m.prefillSelected(context.Background(), candidate, chunks[:len(candidate)], e, &shared, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want, err := m.prefillSelected(context.Background(), reference, chunks, e, &perHead, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				exactWorkerFloats(t, got, want[:len(candidate)*c.Vocab])
+				assertWorkspaceReferencesCleared(t, &shared)
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+					plan := planInferenceAttention(e, c, len(candidate), candidate[0].Pos)
+					for lane := 0; lane < plan.lanes; lane++ {
+						lastRow := len(candidate)*(lane+1)/plan.lanes - 1
+						offset := lane * plan.stride
+						var sum float64
+						for _, score := range shared.Scores[offset : offset+candidate[lastRow].Pos] {
+							sum += float64(score)
+						}
+						if !(math.Abs(sum-1) <= 1e-6) {
+							t.Fatalf("lane %d expected normalized shared scores for row %d, sum %g", lane, lastRow, sum)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
 func checkSharedKVLogits(t *testing.T, format string, workers int) {
 	t.Helper()
 	c := Config{Vocab: 2080, Dim: 384, Hidden: 64, Heads: 3, KVHeads: 1, Layers: 1, Context: 1025, RopeTheta: 10000, NormEps: 1e-5}
@@ -223,25 +283,35 @@ func checkSharedKVLogits(t *testing.T, format string, workers int) {
 
 func BenchmarkSharedKVAttention(b *testing.B) {
 	for _, format := range []string{"f32", "f16"} {
-		b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format, 3, 8) })
+		b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format, 3, 8, 1) })
 	}
 }
 
 func BenchmarkSharedKVFourHeads(b *testing.B) {
 	for _, format := range []string{"f32", "f16"} {
-		b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format, 4, 8) })
+		b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format, 4, 8, 1) })
 	}
 }
 
 func BenchmarkSharedKVReducedLanes(b *testing.B) {
 	for _, kvHeads := range []int{1, 2} {
 		b.Run(fmt.Sprintf("kv%d", kvHeads), func(b *testing.B) {
-			benchmarkSharedKVAttention(b, "f16", 3, kvHeads)
+			benchmarkSharedKVAttention(b, "f16", 3, kvHeads, 1)
 		})
 	}
 }
 
-func benchmarkSharedKVAttention(b *testing.B, format string, group, kvHeads int) {
+func BenchmarkSharedKVTwoRows(b *testing.B) {
+	for _, group := range []int{3, 4} {
+		b.Run(fmt.Sprintf("group%d", group), func(b *testing.B) {
+			for _, format := range []string{"f32", "f16"} {
+				b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format, group, 8, 2) })
+			}
+		})
+	}
+}
+
+func benchmarkSharedKVAttention(b *testing.B, format string, group, kvHeads, rows int) {
 	heads := group * kvHeads
 	c := Config{Dim: heads * sharedKVHeadDim, Heads: heads, KVHeads: kvHeads, Layers: 1, Context: 4096}
 	if group == 4 {
@@ -251,28 +321,36 @@ func benchmarkSharedKVAttention(b *testing.B, format string, group, kvHeads int)
 		b.Run(fmt.Sprintf("prefix%d", length), func(b *testing.B) {
 			e := newKernelExecutor(4)
 			defer e.close()
-			w, cache := attentionLaneFixture(c, 1, length)
+			w, cache := attentionLaneFixture(c, rows, length)
 			defer cache.Close()
 			if format == "f16" {
 				convertAttentionFixtureToF16(cache)
 			}
-			reference := planInferenceAttention(e, c, 1, length)
+			for row := 1; row < rows; row++ {
+				_, independent := attentionLaneFixture(c, 1, length)
+				defer independent.Close()
+				if format == "f16" {
+					convertAttentionFixtureToF16(independent)
+				}
+				w.rowCaches[row] = independent
+			}
+			reference := planInferenceAttention(e, c, rows, length)
 			shared := reference
 			shared.sharedKV = true
-			shared.lanes = min(shared.lanes, c.KVHeads)
+			shared.lanes = min(shared.lanes, rows*c.KVHeads)
 			w.Scores = make([]float32, reference.lanes*reference.stride)
 			w.Logits = make([]float32, 2*shared.lanes*shared.stride)
 			if group == 4 {
-				shared = planSharedKVAttention(reference, c, format, c.Hidden)
+				shared = planSharedKVAttention(reference, c, format, rows, rows*c.Vocab, rows*c.Hidden)
 				if !shared.sharedKV {
 					b.Fatal("four-head fixture did not fit the shared score plan")
 				}
-				w.Logits = make([]float32, c.Vocab)
-				w.G, w.U = make([]float32, c.Hidden), make([]float32, c.Hidden)
+				w.Logits = make([]float32, rows*c.Vocab)
+				w.G, w.U = make([]float32, rows*c.Hidden), make([]float32, rows*c.Hidden)
 			}
-			w.attend(e, c, 0, 1, reference)
+			w.attend(e, c, 0, rows, reference)
 			want := append([]float32(nil), w.A...)
-			w.attend(e, c, 0, 1, shared)
+			w.attend(e, c, 0, rows, shared)
 			exactWorkerFloats(b, w.A, want)
 			for _, variant := range []struct {
 				name string
@@ -284,7 +362,7 @@ func benchmarkSharedKVAttention(b *testing.B, format string, group, kvHeads int)
 				b.Run(variant.name, func(b *testing.B) {
 					b.ReportAllocs()
 					for i := 0; i < b.N; i++ {
-						w.attend(e, c, 0, 1, variant.plan)
+						w.attend(e, c, 0, rows, variant.plan)
 					}
 				})
 			}
