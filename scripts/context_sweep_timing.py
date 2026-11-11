@@ -26,7 +26,7 @@ def instrument_context_sweep(runtime, compare_shared_kv=False):
     context_check = '\tif ctx == nil {\n\t\treturn nil, errors.New("nil inference context")\n\t}\n'
     replace_once(context_check, context_check+'\ttiming := contextSweepTimingFrom(ctx)\n')
     if compare_shared_kv:
-        gate = '\tsharedLanes := min(attention.lanes, c.KVHeads)\n\tif '
+        gate = '\tattention := planInferenceAttention(executor, c, n, maxPos)\n\tif '
         replace_once(gate, gate+'(timing == nil || !timing.referenceKV) && ')
     replace_once('w.attend(executor, c, l, n, attention)',
                  'contextSweepTimedAttention(timing, w, executor, c, l, n, attention)')

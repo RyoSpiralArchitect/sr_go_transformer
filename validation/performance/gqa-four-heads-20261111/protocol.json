@@ -1,0 +1,15 @@
+{
+  "baseline_commit": "99c5840557501f93af8d6a0928b802b75e1d00ed",
+  "host": "Apple M4 darwin/arm64",
+  "geometry_source": "validation/performance/q4-output-furnace-20261110/mistral-7b-v03-receipt.json",
+  "scope": "Synthetic one-layer attention with Mistral 7B v0.3 head and workspace dimensions. A seeded native model exercises full single-row prefill against a per-head batch reference.",
+  "shape": {"dim": 4096, "heads": 32, "kv_heads": 8, "head_dim": 128, "vocab": 32768, "hidden": 14336},
+  "formats": ["f32", "f16"],
+  "visible_positions": [128, 1024, 4096],
+  "threads": 4,
+  "workers": 4,
+  "primary": "BenchmarkSharedKVFourHeads with 120 iterations per sample and count 3. Run reference-first/shared-second/shared-first/reference-second for each shape. Retain raw timings and compare medians across both orders.",
+  "numerical_gate": "Match every output bit against the per-head kernel. Preserve lane count and activation buffer sizes. Exercise split score slots, partial pages, both formats, and full single-row prefill against batched prefill.",
+  "timing_gate": "Require shared/reference median ratios at most 0.90 at 1024 and 4096 for both formats. Record 128 as a forced-kernel diagnostic.",
+  "compatibility": "Use the baseline three-head benchmark source in both builds. Select the baseline and current monolith through source overlays. Measure 180 iterations per sample in reference/candidate/candidate/reference/candidate/reference/reference/candidate process order. Require median adjacent-pair ratios at most 1.05 at 1024 and 4096 for FP32 and FP16. Retain every sample."
+}
