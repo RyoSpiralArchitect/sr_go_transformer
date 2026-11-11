@@ -16,6 +16,7 @@ def main():
     probes = {
         'inference': ['inference_perf_test.go'],
         'kv16-quality': ['kv16_quality_test.go'],
+        'context-sweep': ['inference_perf_test.go', 'context_sweep_perf_test.go'],
         'long-generation': ['inference_perf_test.go', 'long_generation_perf_test.go'],
         'prompt-prefill': ['prompt_prefill_perf_test.go'],
         'prefix-chat': ['prefix_chat_perf_test.go'],

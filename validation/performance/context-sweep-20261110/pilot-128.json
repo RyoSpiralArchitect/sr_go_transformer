@@ -1,0 +1,566 @@
+{
+  "format": "monolith-context-sweep-v1",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "model_files": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "15d11887152b52ade561a0294f5cabc3f9b38f4e6edf86600a5d05e4925e74d9",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/context_sweep_perf_test.go": "b663744eda82413d91190951885729dcc7724e975096b4f934e31eb576392387",
+    "scripts/measure_context_sweep.py": "d8f53dc7f39056ec5ff874b57dc7562c46ec67589a85c6ddd9d4d4ec68b5f40b",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0"
+  },
+  "binary_sha256": "58d0f3ca9114a0d81e46b977ec1928c755d867715244dda688e47cb4d9cf75b1",
+  "host": "macOS-26.4.1-arm64-arm-64bit",
+  "cpu": "arm64",
+  "lengths": [
+    128
+  ],
+  "schedule": [
+    [
+      "f32",
+      1
+    ],
+    [
+      "f32",
+      2
+    ],
+    [
+      "f16",
+      2
+    ],
+    [
+      "f16",
+      1
+    ]
+  ],
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "runs": [
+    {
+      "kv_format": "f32",
+      "sessions": 1,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2293415936,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 35.4296597079956,
+        "user_cpu_seconds": 84.358869,
+        "system_cpu_seconds": 1.8927999999999998
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f32",
+          "lengths": [
+            128
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 135,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 69120,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 30965760,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 1,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.139945584,
+              0.139541708,
+              0.140895041,
+              0.141454333,
+              0.1504215,
+              0.147069542,
+              0.148971791
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ]
+            ],
+            "logits_sha256": "d813345e3a15bd913fe826e48079229c17e6e2a065377855fe1eca4bc934cd09",
+            "kv_sha256": "fcfa839eb6f03d6ff39276f4320fc6d719e8558d39a46bac80ece0480bad3b63",
+            "kv_payload_bytes": 36700160,
+            "workspace_bytes": 638064
+          },
+          "event": "measurement",
+          "prefill_seconds": 16.324145958000003,
+          "prefill_workspace_bytes": 4447232,
+          "prefix": 128,
+          "prompt_sha256": "b06f838d28fa83caab950ba07db4da1ee068086417305696e46467e1bcdd66c0",
+          "decode_median_ms": 141.454333
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "1bc22d0791cbd17b52db23570f3855983632800e5b57772e360c4b734598c07b",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 3430.0,
+          "q4_range_cpu_ms": 620.0,
+          "attention_range_cpu_ms": 10.0,
+          "cpu_profile_sha256": "6617e3a47d7519b1a49dae6262a55f3c6fe14b44c87385fcb5c14a8f8f483ec9"
+        }
+      }
+    },
+    {
+      "kv_format": "f32",
+      "sessions": 2,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2403352576,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 57.08859233300609,
+        "user_cpu_seconds": 169.411639,
+        "system_cpu_seconds": 1.611056
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f32",
+          "lengths": [
+            128
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 135,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 69120,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 30965760,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 2,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.278134583,
+              0.279252875,
+              0.276734792,
+              0.280772625,
+              0.281945792,
+              0.281783417,
+              0.279833167
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ],
+              [
+                279,
+                1023,
+                574,
+                10409,
+                449,
+                19837,
+                13,
+                9062
+              ]
+            ],
+            "logits_sha256": "3c3aa0b0a8525c0cc8e565a1a483f98cc29d59b350a40cba27f47e1b41fbc6b3",
+            "kv_sha256": "3802a16814005b16b72abefa56d36a8e232e9aec85a833addff7ca89639cc6f9",
+            "kv_payload_bytes": 73400320,
+            "workspace_bytes": 1273968
+          },
+          "event": "measurement",
+          "prefill_seconds": 36.049065959,
+          "prefill_workspace_bytes": 8892416,
+          "prefix": 128,
+          "prompt_sha256": "a438f27c6181f9ccb331b5bee40362de008fbbc9b3106ec6e0b477b5012a98c8",
+          "decode_median_ms": 279.833167
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "a4a5524ec60fddcb9e5c7bd3b2aac49031f8108c883417372fc89a26aabfb379",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 6560.0,
+          "q4_range_cpu_ms": 1730.0,
+          "attention_range_cpu_ms": 10.0,
+          "cpu_profile_sha256": "a1f512e48d9c62570f3b1dd456bd76b6f89f62070013391a0411c9c464c042dc"
+        }
+      }
+    },
+    {
+      "kv_format": "f16",
+      "sessions": 2,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2243264512,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 59.443599874997744,
+        "user_cpu_seconds": 175.817095,
+        "system_cpu_seconds": 2.043851
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f16",
+          "lengths": [
+            128
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 135,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 69120,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 30965760,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 2,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.288463333,
+              0.2834585,
+              0.28601475,
+              0.29224875,
+              0.29085825,
+              0.297535875,
+              0.288327708
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ],
+              [
+                279,
+                1023,
+                574,
+                10409,
+                449,
+                19837,
+                13,
+                9062
+              ]
+            ],
+            "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+            "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+            "kv_payload_bytes": 36700160,
+            "workspace_bytes": 1273968
+          },
+          "event": "measurement",
+          "prefill_seconds": 37.686617082,
+          "prefill_workspace_bytes": 8892416,
+          "prefix": 128,
+          "prompt_sha256": "a438f27c6181f9ccb331b5bee40362de008fbbc9b3106ec6e0b477b5012a98c8",
+          "decode_median_ms": 288.463333
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "bdc3f68f8fd79513dc515201b40b65179ad5c918c92a119dbe2d0b58a2eca310",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 6710.0,
+          "q4_range_cpu_ms": 1810.0,
+          "attention_range_cpu_ms": 60.0,
+          "cpu_profile_sha256": "9dc111a13bea5ee9e0c9766650cc424747e2bbc3acd00565a03d10ae98825592"
+        }
+      }
+    },
+    {
+      "kv_format": "f16",
+      "sessions": 1,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2288336896,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 38.3235759579984,
+        "user_cpu_seconds": 95.111597,
+        "system_cpu_seconds": 1.135902
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f16",
+          "lengths": [
+            128
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 135,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 69120,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 30965760,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 1,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.172211042,
+              0.159140125,
+              0.159507,
+              0.162137959,
+              0.161141583,
+              0.166545959,
+              0.160723584
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ]
+            ],
+            "logits_sha256": "84010471561220cc7e049964d10c409501e6628783626caf6b23d96c5775604c",
+            "kv_sha256": "f28bbff3f6342f9183586887592c1b66c298409d5e2d075f535bf9c374ab82ef",
+            "kv_payload_bytes": 18350080,
+            "workspace_bytes": 638064
+          },
+          "event": "measurement",
+          "prefill_seconds": 18.44845971,
+          "prefill_workspace_bytes": 4447232,
+          "prefix": 128,
+          "prompt_sha256": "b06f838d28fa83caab950ba07db4da1ee068086417305696e46467e1bcdd66c0",
+          "decode_median_ms": 161.141583
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "bdd3731d445831bf9be684b4125c60f4d5fa41d90b8731252054ce088e9e03ef",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 3830.0,
+          "q4_range_cpu_ms": 570.0,
+          "attention_range_cpu_ms": 10.0,
+          "cpu_profile_sha256": "d124d889f662b371b8815d380c0d52b4c09310b9845b33ba1723117445b62712"
+        }
+      }
+    }
+  ],
+  "identities_unchanged": true
+}
