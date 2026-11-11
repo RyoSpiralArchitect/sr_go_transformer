@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ type contextSweepStageReplay struct {
 	Decode contextSweepDecode  `json:"decode"`
 	Timing *contextSweepTiming `json:"timing,omitempty"`
 	Exact  bool                `json:"exact"`
+	Path   string              `json:"path,omitempty"`
 }
 
 func init() {
@@ -31,12 +33,20 @@ func replayContextSweepStages(ctx context.Context, m *Model, e *kernelExecutor, 
 	}
 	// ABBA then BAAB balances position while both modes share one binary.
 	schedule := []bool{false, true, true, false, true, false, false, true}
+	compareSharedKV := os.Getenv("MONOLITH_SWEEP_COMPARE_SHARED_KV") == "1"
 	results := make([]contextSweepStageReplay, 0, len(schedule))
 	for i, enabled := range schedule {
 		runCtx := ctx
 		var timing *contextSweepTiming
-		if enabled {
-			timing = new(contextSweepTiming)
+		path := ""
+		if compareSharedKV {
+			path = "reference"
+			if enabled {
+				path = "candidate"
+			}
+		}
+		if enabled || compareSharedKV {
+			timing = &contextSweepTiming{referenceKV: compareSharedKV && !enabled}
 			runCtx = context.WithValue(ctx, contextSweepTimingKey{}, timing)
 		}
 		r, err := runContextSweepDecode(runCtx, m, e, workspace, prefixes, first, "")
@@ -45,7 +55,7 @@ func replayContextSweepStages(ctx context.Context, m *Model, e *kernelExecutor, 
 		}
 		exact := r.Logits == reference.Logits && r.KV == reference.KV &&
 			r.KVBytes == reference.KVBytes && reflect.DeepEqual(r.IDs, reference.IDs)
-		results = append(results, contextSweepStageReplay{Decode: r, Timing: timing, Exact: exact})
+		results = append(results, contextSweepStageReplay{Decode: r, Timing: timing, Exact: exact, Path: path})
 		if !exact {
 			return results, fmt.Errorf("stage replay %d diverged from checkpoint reference", i)
 		}
@@ -54,6 +64,9 @@ func replayContextSweepStages(ctx context.Context, m *Model, e *kernelExecutor, 
 			if timing.LayerProjections.Calls != 7*layerCalls || timing.Attention.Calls != layerCalls ||
 				timing.OutputProjection.Calls != contextSweepSteps {
 				return results, fmt.Errorf("stage replay %d recorded unexpected call counts", i)
+			}
+			if timing.referenceKV && timing.SharedKVCalls != 0 {
+				return results, fmt.Errorf("reference replay %d used shared KV", i)
 			}
 			var total float64
 			for _, seconds := range r.Seconds {
@@ -94,12 +107,19 @@ func TestContextSweepAttributionFixture(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			replays, err := contextSweepStageProbe(ctx, m, e, &decode, caches, logits, ref)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(replays.([]contextSweepStageReplay)) != 8 || cache.Pos != pageTokens || len(cache.Pages) != 1 {
-				t.Fatal("stage replay advanced its prefix or stopped early")
+			for _, compare := range []string{"0", "1"} {
+				t.Setenv("MONOLITH_SWEEP_COMPARE_SHARED_KV", compare)
+				replays, err := contextSweepStageProbe(ctx, m, e, &decode, caches, logits, ref)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rows := replays.([]contextSweepStageReplay)
+				if len(rows) != 8 || cache.Pos != pageTokens || len(cache.Pages) != 1 {
+					t.Fatal("stage replay advanced its prefix or stopped early")
+				}
+				if compare == "1" && (rows[0].Path != "reference" || rows[0].Timing == nil || rows[1].Path != "candidate") {
+					t.Fatal("shared KV comparison lost a timed path")
+				}
 			}
 		})
 	}

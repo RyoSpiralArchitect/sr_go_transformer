@@ -47,6 +47,39 @@ class ContextStageTests(unittest.TestCase):
         self.assertEqual(summary['stage_ms_per_call'], dict(
             layer_projections=1, attention=.5, output_projection=.25, other=.25))
 
+    def test_shared_kv_switch_is_scoped_to_the_copied_plan(self):
+        root = Path(__file__).resolve().parents[1]
+        original = (root/'cmd/monolith/monolith.go').read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)/'monolith.go'
+            source.write_text(original)
+            instrument_context_sweep(source, compare_shared_kv=True)
+            modified = source.read_text()
+            self.assertEqual(modified.count('!timing.referenceKV'), 1)
+            self.assertEqual(modified.count('attention.sharedKV = true'), 1)
+
+    def test_shared_kv_comparison_records_both_stages_and_dispatch(self):
+        replays = self.samples()
+        template = replays[1]['timing']
+        for row in replays:
+            candidate = 'timing' in row
+            row['path'] = 'candidate' if candidate else 'reference'
+            row['timing'] = copy.deepcopy(template)
+            row['decode']['workspace_bytes'] = 1024
+            if candidate:
+                row['timing']['attention']['elapsed_ns'] //= 2
+                row['timing']['shared_kv_calls'] = 28
+        summary = summarize_stages(replays, compare_shared_kv=True)
+        self.assertEqual(summary['reference_stage_ms_per_call']['attention'], .5)
+        self.assertEqual(summary['candidate_stage_ms_per_call']['attention'], .25)
+        self.assertEqual(summary['paired_attention_ratios'], [.5]*4)
+        self.assertEqual(summary['paired_total_ratios'], [1]*4)
+        self.assertEqual(summary['shared_kv_calls_per_candidate_replay'], 28)
+        self.assertEqual(summary['candidate_workspace_bytes'], 1024)
+        replays[0]['timing']['shared_kv_calls'] = 28
+        with self.assertRaisesRegex(ValueError, 'dispatch count'):
+            summarize_stages(replays, compare_shared_kv=True)
+
     def test_incomplete_misordered_or_nonfinite_samples_fail(self):
         data = self.samples()
         invalid = [data[:-1]]
