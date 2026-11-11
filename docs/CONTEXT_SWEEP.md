@@ -68,3 +68,33 @@ with paired wall-clock comparisons for any optimization decision.
 
 The receipts are in
 [`validation/performance/context-sweep-20261110`](../validation/performance/context-sweep-20261110/).
+
+## Paired stage timings
+
+Use `--stage-timing` to replay each checkpoint eight times from the
+same committed KV prefix. Each replay checks all recorded logits,
+stored KV and generated IDs against that checkpoint's reference.
+The timer order is off/on/on/off/on/off/off/on. The first replay
+already has a warm decode workspace from the reference call.
+
+For this mode the driver wraps call sites in the copied standalone
+build source. The checked-in runtime stays byte-identical. The copied
+source and binary hashes are included in the receipt. The test-only
+timer context is read by the owner of each forward call. A stage
+finishes after its workers join, so each duration includes dispatch
+and synchronization as well as its computation.
+
+The stage summaries contain elapsed wall time for layer projections,
+attention, output projection and the remaining forward work. The
+output projection in the pinned Q4-mixed Llama profile uses Q8
+weights. Summaries use the median of four replay averages per mode
+and report milliseconds per batched decode call. They also retain
+all eight timing records and exactness hashes.
+
+Compare the timer-enabled total with the disabled total before
+interpreting the stage durations. A ratio outside 0.95–1.05 marks a
+timing disturbance to investigate. It does not discard the case or
+trigger an automatic rerun. Both modes share the instrumented
+binary, so this contrast measures clock-read overhead within that
+binary. Compare a future optimization with the ordinary runtime
+using the existing paired comparison drivers.

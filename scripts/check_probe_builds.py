@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 from compare_inference import isolated_go_environment
+from context_sweep_timing import STAGE_PROBE_FILES, instrument_context_sweep
 from quant_quality import source_path
 
 
@@ -17,6 +18,7 @@ def main():
         'inference': ['inference_perf_test.go'],
         'kv16-quality': ['kv16_quality_test.go'],
         'context-sweep': ['inference_perf_test.go', 'context_sweep_perf_test.go'],
+        'context-sweep-stages': ['inference_perf_test.go', 'context_sweep_perf_test.go', *STAGE_PROBE_FILES],
         'long-generation': ['inference_perf_test.go', 'long_generation_perf_test.go'],
         'prompt-prefill': ['prompt_prefill_perf_test.go'],
         'prefix-chat': ['prefix_chat_perf_test.go'],
@@ -29,10 +31,14 @@ def main():
             for source in ['monolith.go', 'go.mod', 'go.sum', *harnesses]:
                 path = source_path(root, source)
                 (build / path.name).write_bytes(path.read_bytes())
+            test = '^$'
+            if name == 'context-sweep-stages':
+                instrument_context_sweep(build/'monolith.go')
+                test = '^TestContextSweepAttributionFixture$'
             binary = build / 'probe.test'
             subprocess.run([go, 'test', '-c', '-trimpath', '-o', binary, '.'],
                            cwd=build, env=env, check=True, timeout=300)
-            subprocess.run([binary, '-test.run=^$'], cwd=root, env=env, check=True, timeout=30)
+            subprocess.run([binary, '-test.run='+test], cwd=root, env=env, check=True, timeout=30)
             print('PASS: isolated ' + name + ' probe build', flush=True)
 
 

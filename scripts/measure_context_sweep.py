@@ -12,6 +12,7 @@ import statistics
 import subprocess
 
 from compare_inference import isolated_go_environment
+from context_sweep_timing import STAGE_PROBE_FILES, instrument_context_sweep, summarize_stages
 from quant_quality import run_measured, sha, source_path
 
 
@@ -54,8 +55,9 @@ def summarize_profile(go, binary, profile, top, env):
     return dict(total_cpu_ms=float(total[1]), **costs, cpu_profile_sha256=sha(profile))
 
 
-def validate_completed(events, fmt, sessions, lengths):
-    expected = ['start'] + ['measurement', 'profile'] * len(lengths) + ['complete']
+def validate_completed(events, fmt, sessions, lengths, stage_timing=False):
+    per_case = ['measurement', 'profile', 'stages'] if stage_timing else ['measurement', 'profile']
+    expected = ['start'] + per_case * len(lengths) + ['complete']
     if [e.get('event') for e in events] != expected:
         raise ValueError('unexpected journal event sequence')
     start = events[0]
@@ -64,7 +66,10 @@ def validate_completed(events, fmt, sessions, lengths):
     config = start['plan']['config']
     kv_dim = config['dim'] // config['heads'] * config['kv_heads']
     for i, length in enumerate(lengths):
-        measurement, profile = events[1+i*2:3+i*2]
+        offset = 1+i*len(per_case)
+        measurement, profile = events[offset:offset+2]
+        if stage_timing and events[offset+2]['prefix'] != length:
+            raise ValueError('stage replay prefix mismatch')
         d = measurement['decode']
         steps = d['decode_step_seconds']
         pages = (length + 7 + 31) // 32
@@ -84,6 +89,7 @@ def main():
     parser.add_argument('--max-prefix', type=int, choices=(128, 1024, 4096), default=4096)
     parser.add_argument('--sessions', type=int, choices=(1, 2), nargs='+', default=[1, 2])
     parser.add_argument('--formats', choices=('f32', 'f16'), nargs='+', default=['f32', 'f16'])
+    parser.add_argument('--stage-timing', action='store_true', help='replay each prefix with paired wall-clock timers')
     args = parser.parse_args()
     if len(set(args.sessions)) != len(args.sessions) or len(set(args.formats)) != len(args.formats):
         parser.error('formats and session counts must be unique')
@@ -98,16 +104,22 @@ def main():
     verify_model()
     output.mkdir(parents=True, exist_ok=False)
     names = ('monolith.go', 'go.mod', 'go.sum', 'inference_perf_test.go', 'context_sweep_perf_test.go')
+    if args.stage_timing:
+        names += STAGE_PROBE_FILES
     corpus = root/'validation/quality/corpus.json'
     paths = [source_path(root, n) for n in names] + [Path(__file__), corpus, catalog,
-             root/'scripts/compare_inference.py', root/'scripts/quant_quality.py', root/'scripts/go.sh']
+             root/'scripts/context_sweep_timing.py', root/'scripts/compare_inference.py', root/'scripts/quant_quality.py', root/'scripts/go.sh']
     def hashes():
         return {str(p.relative_to(root)): sha(p) for p in paths}
     inputs = hashes()
     build = output/'build'
     build.mkdir()
     for name in names:
-        (build/name).write_bytes(source_path(root, name).read_bytes())
+        source_file = source_path(root, name)
+        (build/source_file.name).write_bytes(source_file.read_bytes())
+    if args.stage_timing:
+        instrument_context_sweep(build/'monolith.go')
+    compiled_source_hash = sha(build/'monolith.go')
     env = isolated_go_environment()
     goroot = subprocess.check_output([root/'scripts/go.sh', 'env', 'GOROOT'], cwd=root, env=env, text=True).strip()
     go = Path(goroot)/'bin/go'
@@ -122,6 +134,7 @@ def main():
     receipt = dict(format='monolith-context-sweep-v1', model=source['repo'], revision=source['revision'],
                    model_files=source['files'], inputs_sha256=inputs, binary_sha256=binary_hash,
                    host=platform.platform(), cpu=platform.machine(), lengths=lengths, schedule=schedule,
+                   stage_timing=args.stage_timing, compiled_source_sha256=compiled_source_hash,
                    go_version=subprocess.check_output([go, 'version'], env=env, text=True).strip(),
                    runs=[])
     failure = False
@@ -146,13 +159,19 @@ def main():
         run['complete'] = bool(events and events[-1].get('event') == 'complete' and not (error or run['error']))
         if run['complete']:
             try:
-                validate_completed(events, fmt, n, lengths)
+                validate_completed(events, fmt, n, lengths, args.stage_timing)
             except (ValueError, KeyError, TypeError) as exc:
                 run.update(complete=False, validation_error=str(exc))
         profiles = {}
         for event in events:
             if event['event'] == 'measurement':
                 event['decode_median_ms'] = statistics.median(event['decode']['decode_step_seconds'])*1000
+            if event['event'] == 'stages':
+                try:
+                    event['summary'] = summarize_stages(event['replays'])
+                except (KeyError, TypeError, ValueError) as exc:
+                    event['summary_error'] = str(exc)
+                    failure = True
             if event['event'] == 'profile':
                 profile = directory/event['file']
                 try:
@@ -164,7 +183,8 @@ def main():
         receipt['runs'].append(run)
         failure |= not run['complete']
         print(f'{fmt}, {n} sessions: complete={run["complete"]}', flush=True)
-    receipt['identities_unchanged'] = hashes() == inputs and sha(binary) == binary_hash
+    receipt['identities_unchanged'] = (hashes() == inputs and sha(binary) == binary_hash
+                                       and sha(build/'monolith.go') == compiled_source_hash)
     try:
         verify_model()
     except (ValueError, OSError) as exc:
