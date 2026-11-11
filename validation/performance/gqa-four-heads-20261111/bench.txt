@@ -1,0 +1,84 @@
+go version go1.27.1 darwin/arm64
+GOMAXPROCS=4 go test -c -trimpath -o runs/four-heads/probe.test ./cmd/monolith
+runs/four-heads/probe.test -test.run '^(TestSharedKVAttention|TestFourHeadKV)' -test.bench '^BenchmarkSharedKVFourHeads$' -test.benchtime 120x -test.count 3
+Runtime SHA-256 4123b5265723025bbabf92f7a7eeb8887f3c7d14fbee9c5ffccddafb20d11fb2
+Test SHA-256 0bf1f60e399c72b7c3b9c9a80d41da263ad7fd01f0b78dcc998e355bd6477121
+Binary SHA-256 2fdc3ff9737a74f5a6b0cfcccf2f623fd433ddc4ecebc3cfc0d1268e889b28fb
+
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-first-4         	     120	    136168 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-first-4         	     120	    138592 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-first-4         	     120	    138969 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-second-4           	     120	     55770 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-second-4           	     120	     56125 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-second-4           	     120	     56661 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-first-4            	     120	     55540 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-first-4            	     120	     57684 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/shared-first-4            	     120	     55941 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-second-4        	     120	    141825 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-second-4        	     120	    140416 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix128/reference-second-4        	     120	    139840 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4        	     120	   1079660 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4        	     120	   1098011 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4        	     120	   1124372 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4          	     120	    348472 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4          	     120	    345744 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4          	     120	    344700 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4           	     120	    340753 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4           	     120	    340287 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4           	     120	    343917 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4       	     120	   1094359 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4       	     120	   1062662 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4       	     120	   1069019 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4        	     120	   8585138 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4        	     120	   7420467 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4        	     120	   7326655 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4          	     120	   1816818 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4          	     120	   1909803 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4          	     120	   1831508 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4           	     120	   1851292 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4           	     120	   1891216 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4           	     120	   1867263 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4       	     120	   8956003 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4       	     120	   8169899 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4       	     120	   9390013 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-first-4         	     120	    690648 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-first-4         	     120	    701619 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-first-4         	     120	    660676 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-second-4           	     120	    343120 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-second-4           	     120	    351699 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-second-4           	     120	    285972 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-first-4            	     120	    370362 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-first-4            	     120	    366336 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/shared-first-4            	     120	    388705 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-second-4        	     120	    706073 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-second-4        	     120	    705822 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix128/reference-second-4        	     120	    707089 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4        	     120	   5104986 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4        	     120	   4893307 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4        	     120	   5885580 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4          	     120	   1964959 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4          	     120	   2063806 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4          	     120	   2081032 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4           	     120	   1912191 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4           	     120	   2025738 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4           	     120	   1966934 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4       	     120	   4713792 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4       	     120	   4724217 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4       	     120	   4597415 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4        	     120	  19017504 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4        	     120	  18871455 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4        	     120	  19443098 ns/op	       1 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4          	     120	   8040865 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4          	     120	   8440882 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4          	     120	   8020002 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4           	     120	   8035925 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4           	     120	   8591709 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4           	     120	   7960954 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4       	     120	  19598449 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4       	     120	  20057534 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4       	     120	  19708124 ns/op	       0 B/op	       0 allocs/op
+PASS

@@ -7396,6 +7396,22 @@ func planInferenceAttention(e *kernelExecutor, c Config, rows, maxPos int) infer
 	return inferenceAttentionPlan{lanes: lanes, stride: stride, work: work}
 }
 
+func planSharedKVAttention(plan inferenceAttentionPlan, c Config, format string, upElements int) inferenceAttentionPlan {
+	lanes := min(plan.lanes, c.KVHeads)
+	switch c.Heads / c.KVHeads {
+	case 3:
+		if (format != "f16" || lanes == plan.lanes) && 2*lanes*plan.stride <= c.Vocab {
+			plan.sharedKV = true
+			plan.lanes = lanes
+		}
+	case 4:
+		// Each extra vector must fit entirely in one borrowed buffer.
+		vectors := c.Vocab/plan.stride + c.Hidden/plan.stride + upElements/plan.stride
+		plan.sharedKV = lanes == plan.lanes && vectors >= 3*lanes
+	}
+	return plan
+}
+
 func (w *decodeWorkspace) attend(e *kernelExecutor, c Config, layer, rows int, plan inferenceAttentionPlan) {
 	job := attentionKernel{w: w, dim: c.Dim, heads: c.Heads, headDim: c.Dim / c.Heads, group: c.Heads / c.KVHeads, layer: layer, rows: rows, plan: plan}
 	if plan.lanes < 2 || plan.work < 131072 || (e != nil && e.workers < 2) {
@@ -7447,6 +7463,7 @@ func attentionRange(job *attentionKernel, lo, hi int) {
 const sharedKVHeadDim = 128
 
 type attentionKVWord interface{ float32 | uint16 }
+type attentionScoreGroup interface{ [3][]float32 | [4][]float32 }
 
 // Each instantiation has a fixed storage width. The size comparison lets
 // the compiler select the conversion without a type switch in the dot loop.
@@ -7457,20 +7474,50 @@ func attentionKVValue[T attentionKVWord](value T) float32 {
 	return float32(value)
 }
 
-// Each lane owns complete three-head groups. The output projection owns
-// Logits after attention joins, so two score vectors can borrow it here.
+// The output head and the Gate and Up projections write these buffers after
+// attention joins. Use whole stride-sized slots to keep lanes disjoint.
+func (w *decodeWorkspace) sharedKVScore(slot, stride, length int) []float32 {
+	for _, buffer := range [2][]float32{w.Logits, w.G} {
+		vectors := len(buffer) / stride
+		if slot < vectors {
+			start := slot * stride
+			return buffer[start : start+length]
+		}
+		slot -= vectors
+	}
+	start := slot * stride
+	return w.U[start : start+length]
+}
+
+// A lane owns full KV groups and the score vectors it reuses across them.
 func attentionSharedKVRange[T attentionKVWord](job *attentionKernel, lo, hi int, pageData func(*kvPage) []T) {
 	w, plan := job.w, job.plan
 	cache, length := w.rowCaches[0], w.positions[0]+1
-	groups := job.heads / 3
-	const width = 3 * sharedKVHeadDim
+	groups := job.heads / job.group
+	width := job.group * sharedKVHeadDim
 	for lane := lo; lane < hi; lane++ {
 		first := w.Scores[lane*plan.stride : lane*plan.stride+length]
+		begin, end := groups*lane/plan.lanes, groups*(lane+1)/plan.lanes
+		if job.group == 4 {
+			slot := 3 * lane
+			scores := [4][]float32{
+				first,
+				w.sharedKVScore(slot, plan.stride, length),
+				w.sharedKVScore(slot+1, plan.stride, length),
+				w.sharedKVScore(slot+2, plan.stride, length),
+			}
+			for head := begin; head < end; head++ {
+				start := head * width
+				attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
+			}
+			continue
+		}
 		second := w.Logits[2*lane*plan.stride : 2*lane*plan.stride+length]
 		third := w.Logits[(2*lane+1)*plan.stride : (2*lane+1)*plan.stride+length]
-		for head := groups * lane / plan.lanes; head < groups*(lane+1)/plan.lanes; head++ {
+		scores := [3][]float32{first, second, third}
+		for head := begin; head < end; head++ {
 			start := head * width
-			attendSharedKV3(w.Q[start:start+width], w.A[start:start+width], first, second, third, cache, job.layer, head, pageData)
+			attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
 		}
 	}
 }
@@ -7478,9 +7525,18 @@ func attentionSharedKVRange[T attentionKVWord](job *attentionKernel, lo, hi int,
 // The key and value passes each visit a page once per KV head. Four adjacent
 // positions give the dot products independent accumulators while every
 // query head retains its original dimension and position reduction order.
-func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVCache, layer, head int, pageData func(*kvPage) []T) {
+// The score array length specializes the fourth head at compile time.
+func attendSharedKV[T attentionKVWord, S attentionScoreGroup](q, out []float32, scores S, cache *KVCache, layer, head int, pageData func(*kvPage) []T) {
 	const hd = sharedKVHeadDim
 	q0, q1, q2 := (*[hd]float32)(q), (*[hd]float32)(q[hd:]), (*[hd]float32)(q[2*hd:])
+	s0, s1, s2 := scores[0], scores[1], scores[2]
+	var q3, o3 *[hd]float32
+	var s3 []float32
+	if len(scores) == 4 {
+		q3 = (*[hd]float32)(q[3*hd:])
+		o3 = (*[hd]float32)(out[3*hd:])
+		s3 = scores[len(scores)-1]
+	}
 	stride := cache.Model.Config.KVDim()
 	base := layer*2*pageTokens*stride + head*hd
 	length := len(s0)
@@ -7497,6 +7553,7 @@ func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVC
 			k2 := (*[hd]T)(keys[(r+2)*stride:])
 			k3 := (*[hd]T)(keys[(r+3)*stride:])
 			var d00, d01, d02, d03, d10, d11, d12, d13, d20, d21, d22, d23 float32
+			var d30, d31, d32, d33 float32
 			for j, x0 := range q0 {
 				x1, x2 := q1[j], q2[j]
 				a, b := attentionKVValue(k0[j]), attentionKVValue(k1[j])
@@ -7513,27 +7570,46 @@ func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVC
 				d21 += x2 * b
 				d22 += x2 * c
 				d23 += x2 * d
+				if len(scores) == 4 {
+					x3 := q3[j]
+					d30 += x3 * a
+					d31 += x3 * b
+					d32 += x3 * c
+					d33 += x3 * d
+				}
 			}
 			i := start + r
 			s0[i], s0[i+1], s0[i+2], s0[i+3] = d00*scale, d01*scale, d02*scale, d03*scale
 			s1[i], s1[i+1], s1[i+2], s1[i+3] = d10*scale, d11*scale, d12*scale, d13*scale
 			s2[i], s2[i+1], s2[i+2], s2[i+3] = d20*scale, d21*scale, d22*scale, d23*scale
+			if len(scores) == 4 {
+				s3[i], s3[i+1], s3[i+2], s3[i+3] = d30*scale, d31*scale, d32*scale, d33*scale
+			}
 		}
 		for ; r < rows; r++ {
 			k := (*[hd]T)(keys[r*stride:])
-			var d0, d1, d2 float32
+			var d0, d1, d2, d3 float32
 			for j, stored := range k {
 				value := attentionKVValue(stored)
 				d0 += q0[j] * value
 				d1 += q1[j] * value
 				d2 += q2[j] * value
+				if len(scores) == 4 {
+					d3 += q3[j] * value
+				}
 			}
 			s0[start+r], s1[start+r], s2[start+r] = d0*scale, d1*scale, d2*scale
+			if len(scores) == 4 {
+				s3[start+r] = d3 * scale
+			}
 		}
 	}
 	attentionProbabilities(s0)
 	attentionProbabilities(s1)
 	attentionProbabilities(s2)
+	if len(scores) == 4 {
+		attentionProbabilities(s3)
+	}
 	clear(out)
 	o0, o1, o2 := (*[hd]float32)(out), (*[hd]float32)(out[hd:]), (*[hd]float32)(out[2*hd:])
 	for pageIndex, page := range pages {
@@ -7550,6 +7626,10 @@ func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVC
 			p00, p01, p02, p03 := s0[i], s0[i+1], s0[i+2], s0[i+3]
 			p10, p11, p12, p13 := s1[i], s1[i+1], s1[i+2], s1[i+3]
 			p20, p21, p22, p23 := s2[i], s2[i+1], s2[i+2], s2[i+3]
+			var p30, p31, p32, p33 float32
+			if len(scores) == 4 {
+				p30, p31, p32, p33 = s3[i], s3[i+1], s3[i+2], s3[i+3]
+			}
 			for j := range o0 {
 				a, b := attentionKVValue(v0[j]), attentionKVValue(v1[j])
 				c, d := attentionKVValue(v2[j]), attentionKVValue(v3[j])
@@ -7567,16 +7647,31 @@ func attendSharedKV3[T attentionKVWord](q, out, s0, s1, s2 []float32, cache *KVC
 				x2 += p22 * c
 				x2 += p23 * d
 				o0[j], o1[j], o2[j] = x0, x1, x2
+				if len(scores) == 4 {
+					x3 := o3[j]
+					x3 += p30 * a
+					x3 += p31 * b
+					x3 += p32 * c
+					x3 += p33 * d
+					o3[j] = x3
+				}
 			}
 		}
 		for ; r < rows; r++ {
 			v := (*[hd]T)(values[r*stride:])
 			p0, p1, p2 := s0[start+r], s1[start+r], s2[start+r]
+			var p3 float32
+			if len(scores) == 4 {
+				p3 = s3[start+r]
+			}
 			for j, stored := range v {
 				value := attentionKVValue(stored)
 				o0[j] += p0 * value
 				o1[j] += p1 * value
 				o2[j] += p2 * value
+				if len(scores) == 4 {
+					o3[j] += p3 * value
+				}
 			}
 		}
 	}
@@ -7801,13 +7896,9 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		return nil, err
 	}
 	attention := planInferenceAttention(executor, c, n, maxPos)
-	sharedLanes := min(attention.lanes, c.KVHeads)
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 1 && maxPos >= 1024 &&
-		c.Heads == 3*c.KVHeads && c.Dim/c.Heads == sharedKVHeadDim &&
-		(caches[0].format != "f16" || sharedLanes == attention.lanes) &&
-		2*sharedLanes*attention.stride <= c.Vocab {
-		attention.sharedKV = true
-		attention.lanes = sharedLanes
+		c.Dim/c.Heads == sharedKVHeadDim {
+		attention = planSharedKVAttention(attention, c, caches[0].format, upElements)
 	}
 	// Reserve the public result copy in both paths to keep admission limits
 	// unchanged. Metadata is separately bounded by 256 sessions / 1024 rows.

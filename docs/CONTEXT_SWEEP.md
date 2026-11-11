@@ -142,8 +142,8 @@ measurement. The receipt retains every replay, including the affected
 
 ## Shared KV reads for grouped-query attention
 
-Single-row forwards on Darwin arm64 can share FP32 or FP16 KV reads
-across three query heads with a 128-element head dimension. Selection starts
+The three-head path on Darwin arm64 shares FP32 or FP16 KV reads for
+single-row forwards with a 128-element head dimension. Selection starts
 at a visible context of 1,024 positions and requires room for two
 score vectors per lane in the existing logits buffer. Each lane owns
 whole KV head groups. Its key and value passes traverse pages in tiles
@@ -262,3 +262,39 @@ and from 3.309 ms to 2.223 ms at those lengths. The lane guard preserves
 the four-lane selection in the full-model comparison above. The
 benchmark directly selects both kernels to measure the lane change.
 [All lane samples](../validation/performance/gqa-shared-kv-f16-20261111/review-lanes.txt).
+
+### Four query heads per KV head
+
+The Darwin arm64 path also handles single-row 4:1 GQA with 128-element
+heads and at least 1,024 visible positions. It preserves the per-head
+lane count. Each lane takes one score vector from `Scores` and borrows
+three whole stride-sized slots from `Logits`, `G` and `U`. Those buffers
+are available during attention and their projections write them after
+the workers join. A shape needs enough complete slots across the three
+buffers to select sharing. The kernel specializes on three or four
+scores and on the KV storage type while retaining each head's reduction
+order.
+
+The M4 benchmark uses synthetic one-layer data with Mistral 7B v0.3
+dimensions. It has 32 query heads, eight KV heads, 128-element heads, a
+32,768-entry vocabulary, a 14,336-element feed-forward width and four
+workers. Values are median milliseconds per attention call across six
+samples per path. The full forward check uses a seeded small model and
+compares single-row prefill with per-head batched prefill.
+
+| KV format | Positions | Per-head attention | Shared attention | Shared / per-head |
+| --- | ---: | ---: | ---: | ---: |
+| FP32 | 1,024 | 1.087 | 0.344 | 0.317 |
+| FP32 | 4,096 | 8.378 | 1.859 | 0.222 |
+| FP16 | 1,024 | 4.809 | 1.996 | 0.415 |
+| FP16 | 4,096 | 19.521 | 8.038 | 0.412 |
+
+Both storage formats matched the per-head output bits. The seeded
+model also matched logits through the normal single-row prefill path.
+The eight-process three-head compatibility check used the preceding
+runtime's benchmark in both builds. Its median ratios at 1,024 and
+4,096 were 0.709 and 0.812 for FP32 and 0.846 and 0.935 for FP16. The
+paired results varied, including a 1.139 ratio in one FP32 4,096 pair.
+The three-head record retains all pairs at 1,024 and 4,096 positions.
+The four-head benchmark also records a 128-position diagnostic.
+[Protocol and raw samples](../validation/performance/gqa-four-heads-20261111/).

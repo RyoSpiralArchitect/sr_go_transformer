@@ -56,7 +56,7 @@ class ContextStageTests(unittest.TestCase):
             instrument_context_sweep(source, compare_shared_kv=True)
             modified = source.read_text()
             self.assertEqual(modified.count('!timing.referenceKV'), 1)
-            self.assertEqual(modified.count('attention.sharedKV = true'), 1)
+            self.assertEqual(modified.count('attention = planSharedKVAttention('), 1)
 
     def test_shared_kv_comparison_records_both_stages_and_dispatch(self):
         replays = self.samples()

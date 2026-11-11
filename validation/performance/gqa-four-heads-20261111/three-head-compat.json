@@ -1,0 +1,349 @@
+{
+  "format": "monolith-shared-kv-three-head-compat-v1",
+  "baseline_commit": "99c5840557501f93af8d6a0928b802b75e1d00ed",
+  "go": "go version go1.27.1 darwin/arm64",
+  "host": "Apple M4 darwin/arm64",
+  "threads": 4,
+  "workers": 4,
+  "iterations": 180,
+  "bench": "^BenchmarkSharedKVAttention$/^(f32|f16)$/^(prefix1024|prefix4096)$/^shared",
+  "order": [
+    "reference",
+    "candidate",
+    "candidate",
+    "reference",
+    "candidate",
+    "reference",
+    "reference",
+    "candidate"
+  ],
+  "builds": {
+    "reference": {
+      "runtime_sha256": "3248a725fe16178530ec192d241f6d25246b2f1c4124e5f683edc07dfda0cbf5",
+      "binary_sha256": "902152fc5c577578812747912fff391117db3e770fc0974ef9e3ed0d317e83a2",
+      "benchmark_sha256": "a158012d076e04a604582955ecb9742fb483a34cd1a8b578f3b1f0c65f60e419"
+    },
+    "candidate": {
+      "runtime_sha256": "4123b5265723025bbabf92f7a7eeb8887f3c7d14fbee9c5ffccddafb20d11fb2",
+      "binary_sha256": "d6b2c7cb80123b46e511694ad2dc2d31ac8639f3afe8c468cbd8fbf29b08119c",
+      "benchmark_sha256": "a158012d076e04a604582955ecb9742fb483a34cd1a8b578f3b1f0c65f60e419"
+    }
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "4123b5265723025bbabf92f7a7eeb8887f3c7d14fbee9c5ffccddafb20d11fb2",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/attention_control_receipt_test.go": "63f1122a10fab9d823c4f457e1d7fc3254444812a281ea788d1bed2ab0680bf4",
+    "cmd/monolith/attention_lanes_test.go": "fac7d3df7611ce50013e3e258899ebeeed74ae82949ae978d503b22a0057ef95",
+    "cmd/monolith/attention_long_decode_test.go": "f966ad416de195b6bd480d6fe32ac36d8e050dcb86728ee73f524154a7b621fe",
+    "cmd/monolith/attention_outputs_test.go": "2e3f75a1d61e4209b80334fc4f55b4c20e9579c0ea458081b9e2f6ce49b1afb8",
+    "cmd/monolith/attention_paired_test.go": "340128661ee2c1bb932b059c05fab831ffeb0d84748856313e9ff4f55460260e",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "cmd/monolith/dataset_resume_test.go": "e167048ae26ef923ff4f13b4dc2f21278cd1d413b7838f48123f8a720c022883",
+    "cmd/monolith/dataset_test.go": "da14c8eeb107317a0f5daaa6a539c27dcc38787f278dee3f516bf1145b9b06f5",
+    "cmd/monolith/direct_workspace_test.go": "2381470277c1b39cabdf98f1eb223b6dec76cc395a59b145a13ce00a1c0dd220",
+    "cmd/monolith/engine_workspace_bench_test.go": "7f785025341568ca0af84a0540fc6f3c4e87d6d6531cb7fb87b8121d07411ed0",
+    "cmd/monolith/eval_forward_boundary_test.go": "f3c03200a6afb8bc1ce1133227d36cdfc04771438660800a07afe0ad4d8864dc",
+    "cmd/monolith/eval_forward_cancellation_test.go": "2d725fad345a59c6d1d1146e34b053cc9fcc640fc48d811a66a74b087e724e41",
+    "cmd/monolith/eval_forward_exact_test.go": "da208e96782368b91d1d5156c69cf39225065b21b6051116b8606d4c7c9e3bbc",
+    "cmd/monolith/evaluation_test.go": "67cbf938ac0cbc2a85f3ed65083cd88339868e8326ecb1bf0f90173f6a0db909",
+    "cmd/monolith/executor_experiments_test.go": "b84fd606eee334012bad032a71527864b267dba2aa358aa235407529f4950d32",
+    "cmd/monolith/fp32_junroll_test.go": "3945bd06c0a9ee2809982307ee6d346f79467fb873ffaa374a0799c02c66d27d",
+    "cmd/monolith/fp32_outputs16_test.go": "157a418c0cdf456da5004e7f20156b0d8a1f0f6663e93eede35d834c8252aa7d",
+    "cmd/monolith/fp32_outputs4_test.go": "5c75e4a4ea4b89914907283c06093975764a6e1296e9e11a6411e495ee64bcdf",
+    "cmd/monolith/fp32_outputs8_test.go": "d61a55562b7ec0d081ddfadfa188328b9fc907f01ff2719e2abdc264e81caef5",
+    "cmd/monolith/fp32_outputs_test.go": "3f160c2affca5dd40a3298c456bdb09cabda6599d99e834141e94145f6855218",
+    "cmd/monolith/fp32_paired_test.go": "1e7ab3d2565771ce8ceaa6fe7a22d5bf0ca6df5d8b3170739b28cad7247be624",
+    "cmd/monolith/fp32_rows4_test.go": "a77c77b1bcbfdca47f70ecb7fa0b3ed5c6414f099e56d689a6ffab1b220dfef5",
+    "cmd/monolith/generate_workers_test.go": "74c6d21cef84a27056a6be9b2edb77525d3e8ea31f8d664194dc41f508826d1e",
+    "cmd/monolith/hf_cli_test.go": "1572a42c1fac1a79a56eb9dbe6300ab65f69152249b665d588b69872f7bb595e",
+    "cmd/monolith/hf_download_resume_test.go": "542abf084f449f2a5952ea20ea44c08a22a294761b8e5ad5dfcf960edf097d6b",
+    "cmd/monolith/hf_fetch_test.go": "ebe3792b98cf313e7935f63a2b2c4160cd56b07702e6fbc5b07720894884d367",
+    "cmd/monolith/hf_gpt2_test.go": "88fe7eeea3950d03bfc98287dd71980cc469aa947ab05062ea00c447abdc08ce",
+    "cmd/monolith/hf_inference_test.go": "85cb8716bb7f4a2162ccd6513afd673a5bab22b2178b694d255d2c73fbcae68f",
+    "cmd/monolith/hf_llama3_chat_test.go": "b15acdf04a1565bf9239d281cec14679a6d9c4b2eb4a467869b089564dccff74",
+    "cmd/monolith/hf_llama3_test.go": "20b5709ea361239827b34c3a1c3a0f2616eeb8e944b89fbedc288d1451c2ca9d",
+    "cmd/monolith/hf_llama3_tokenizer_test.go": "4ef33bb362012f4846bf505354b02e0c7157c43c83e0bfd2923dc045c7476154",
+    "cmd/monolith/hf_loader_test.go": "f3d0ac1870a5fe7791e88dd3d11682bba587a69f6b0ed2ca3f8cb15d17c0fb2b",
+    "cmd/monolith/hf_mistral_test.go": "5986e3a865cb8eb602f6ea160eba627c431fb6b7f1728f6fc089bf3b40f7e37f",
+    "cmd/monolith/hf_mistral_tokenizer_test.go": "79068f64dcf6e2a247987fa12c90558bbf47b27759b3747f191aaba47241da4e",
+    "cmd/monolith/hf_network_test.go": "d8ce6468b0b7e6c8c21275576b09f37d87633afe2523354a5f1d3becbc3684af",
+    "cmd/monolith/hf_offline_test.go": "e8117b69af4e180b56df32ce24f35e9e8314b4fcb78a43df3cce291f127305a1",
+    "cmd/monolith/hf_profiles_test.go": "3d2f1487e78755fca57b8387fe7e5360a26e182823e5b7ab4e478483bf1cd363",
+    "cmd/monolith/hf_serving_test.go": "a94c8cb06b98d2ca4ceb9b1ca6e374130e53993775a108dc8da0403cce502a02",
+    "cmd/monolith/hf_tokenizer_test.go": "a5f3f5a0cd2c897168a94d4b7bf8f8b3bd7e88c6a8574efc76f588a903a5bfd0",
+    "cmd/monolith/inference_liveness_test.go": "037eb7b33a5cfb22304508f60e86968e5b26600ad3e8f07f396791c0be453ea7",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/inference_workers_test.go": "1eea46c49be2e903ee23bed534650d9c3cd7b2695f39b366980fc758c7ee6767",
+    "cmd/monolith/inference_workspace_test.go": "7326d505ece66e26b5c70aa0177ab29d7f847450a8ff22eacfc97a31932cb9f1",
+    "cmd/monolith/kv16_prefix_test.go": "b3476848ac97efb9b8d04b11e5d88d193dcdee7e47b414a4a0ed7c108c5381cc",
+    "cmd/monolith/kv16_quality_test.go": "97e131f301689e34f5223fd4f7ff946b0e8cbf2be2d4cdeec65b89ef59da9f84",
+    "cmd/monolith/kv16_reference_test.go": "3eb02d69e77fb9077abc4d0c43175b851e7789a4114fab1b4d5876724f132f99",
+    "cmd/monolith/kv16_test.go": "a3f5eeab765b0c3548e645dc3cf1bd2335d9152e61345446e3254f61c523e51a",
+    "cmd/monolith/kv_budget_test.go": "a2669fd25abbfea9a8e0cc6ec385868cf257aa090e25298dd3a19b21e578f44c",
+    "cmd/monolith/linear_backward_test.go": "a4b182071d01432b08c89638cbfb6499dace93258b9b05263bf7842dfbb0ee4c",
+    "cmd/monolith/local_model_path_test.go": "62128770c92f87aaa055b2e0092bac419686f8ec8bae0f310a0f994591cbc372",
+    "cmd/monolith/long_context_real_test.go": "c900313cc4210a84a4841ee34ed0e56b1ecea68cc8dc96ef93fcf1e1122497ef",
+    "cmd/monolith/long_generation_perf_test.go": "f61c93a7ee9bfe1f593178e73f87dae4bf2e4ce840f2c818e771278153bc9d24",
+    "cmd/monolith/main_test.go": "a85ed373d020b8e845b99b9196a41bf3bf66b0a0c1d5ed81ba4844d304aa9710",
+    "cmd/monolith/memory_plan_test.go": "3810d72e03a1d9876014a06cb934849b6bb531ffaa8f68dac7608fb66fb432a8",
+    "cmd/monolith/monolith_test.go": "20f2835ab32d8ea070ba8289070c10c9b548e25f2104a2702393cf1a574b4ee6",
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "cmd/monolith/prefetch_data_test.go": "fd57e6548e7820a9a93c8c861c2474ab38947c88675ff4f7ed21597a08e967eb",
+    "cmd/monolith/prefill_test.go": "0aa302dbcdb216665519acc404b80213bb829c9adba158bebf00fa10ba0eda1b",
+    "cmd/monolith/prefix_cache_real_test.go": "60cc1df6878bbf9f0da4ba0c7402858f769886840e06c6bf36b5bb97534e7ce9",
+    "cmd/monolith/prefix_cache_test.go": "71a9b2d08b8c65312179c1c8be2da8d98aa0f23cc81053a9c8d2ae4ea986553c",
+    "cmd/monolith/prefix_chat_perf_test.go": "79627834c8274175c9d3f05ce53633b81e430742b6fb72b019f27ed7e678b223",
+    "cmd/monolith/prefix_growth_test.go": "c81560c2a901f0d3c2b4c048e91c840816dd9ebb2c3ce599d42e4bc06c874220",
+    "cmd/monolith/prefix_tail_test.go": "a33352d37f5518ee09670c7f7f5b7cd00739e1cc1e34a7e2afdaacae809e17ec",
+    "cmd/monolith/prompt_prefill_perf_test.go": "9ad11a037306da2a8fb1d601b84f8e6fa3cabc35d9842057d9606006acbc13b3",
+    "cmd/monolith/prompt_prefill_test.go": "22911baa4d81f1315c673a830e13d2b21042b93a47efa0ba4d062a0f73ae6eb5",
+    "cmd/monolith/q4_block_control_test.go": "37ba88f1731480334b384a23de099e6a0a73f4d25cd4ff90c60e5574f6c280cd",
+    "cmd/monolith/q4_block_test.go": "40946c5bddad9043cd5d702fb00134f2d9734c8a79d022f50797d67fd5e9909b",
+    "cmd/monolith/q4_call_overhead_test.go": "0335cad6dc32600e1998031b91478a274115cf80c36f7ebeeb4b1edbfe695902",
+    "cmd/monolith/q4_invocation_test.go": "6a5bcceac35763186b31a36f57134446c49570da943e79208886affa3f0aa3c5",
+    "cmd/monolith/q4_nibble_probe_test.go": "719ff241dedaa9a44d434c81ce42dc85441333504b1472881f3b28614537eff8",
+    "cmd/monolith/q4_output_pair_test.go": "fe555526bf0376f08178d763e1a27d9d97100ee8ad0cc737d98981e00fe5db0d",
+    "cmd/monolith/q4_output_reference_test.go": "08788386d40a4815c7d5e643dc75d4284c5b42665a5f0be4101034373c95a875",
+    "cmd/monolith/q4_pair_block_test.go": "de0d33eece20b3dc871943d910807f0129b8eadad2ed63335123f8397fbb44d1",
+    "cmd/monolith/q4_quad_direct_test.go": "b3b034bfd5c5f9b14bba76a7ed8332a93852088d4a50eeebcee8f1fe8702dcdd",
+    "cmd/monolith/q4_test.go": "1734477a96c8ba9b546a8c50ab96eea77a00523b432db9ba3470b3d02a7487cd",
+    "cmd/monolith/q8_block_test.go": "014ddc65ed8473aa3f4bd19774e2b16efec8b582fcaedbc448e48fcda88f6e20",
+    "cmd/monolith/q8_cli_test.go": "d4b17957eea7d13715c6f1cdc4ea9ad6d43a99cbda080d6bc85bbbb8b3ef5bf2",
+    "cmd/monolith/q8_codegen_test.go": "6a3b77acaed6895cf7fcfa897d212c4f1c007dad14cf5a6e0042f0aade06ab83",
+    "cmd/monolith/q8_colpair4_test.go": "4584be6640c02fce1363a04cbcaa4a37171219db166190ac2da5290b54a8a0d3",
+    "cmd/monolith/q8_invocation_test.go": "27d8967a9530f2e94448165d910193d79c828e35ca402d62a9f4c783e3e43927",
+    "cmd/monolith/q8_outputs_test.go": "f481d06f486a4c87d73d80949af3b59c3e44734361c0d1e012561105063b31a6",
+    "cmd/monolith/q8_test.go": "eb44381339169baaf05759ab7cd1a5eecb69de10b687557cc7e317b38f474443",
+    "cmd/monolith/quality_ablation_test.go": "2d1415546a446a3351565b76077195193112bea163daa0a17bee1c510211994f",
+    "cmd/monolith/quality_validation_test.go": "8a5f1f990a11dbfb0169e3a8e7bfdf9ffbdfffcc190a6cf7964811f4bc6df083",
+    "cmd/monolith/quant_pair_test.go": "fc9c85b9e43e298bcd7e76d6a1ca36e1f5aa407df2a7b647039d0939ea46a2fa",
+    "cmd/monolith/sampling_test.go": "aa8c0ad3a0726fd7adc6a5205caea127c3be4264255e8e53cb40d6f5082a19bb",
+    "cmd/monolith/scheduler_test.go": "7b7c87e87d6982e835365fae79dceb51adafa1d7256c753f7ecc11800d17478d",
+    "cmd/monolith/selective_head_test.go": "892c729fdf2f7a3a0f0f98c8b74cc81a29a99f51ea631c0cd35b6bc026ccd2f5",
+    "cmd/monolith/serving_lifecycle_test.go": "fe377534d98024d3adf691a7138762584e6fe0fcbeafdef74b6d7fff6fe37be4",
+    "cmd/monolith/shutdown_test.go": "8a05a02123683292524295d589ba04e2df9e567e98123f45aaa7bbce8f4738f9",
+    "cmd/monolith/streaming_test.go": "5c7a837fb2575f9555b6831bcc3201e2e1f929e561569be22bdee93b7c74ff9f",
+    "cmd/monolith/telemetry_test.go": "e885ecd0842f9cc4f6f3e197105e86727ad1a57230bb83eb9968f8365a6bce6a",
+    "cmd/monolith/topk_sampling_test.go": "7ecc726df7857436d48a04abcd660791273c9892e60d1f4de2b91fff34d129d1",
+    "cmd/monolith/workspace_boundary_test.go": "611ed722449e76819495ec4eed42827a36508bc6bf51abfbcba1544a778d0b74",
+    "cmd/monolith/workspace_exact_test.go": "cffc0c32ec04f3c1b0c37eccc296e6f1c26c77f80c92e94f5d5eaebc5a5f400f",
+    "cmd/monolith/workspace_training_test.go": "37fbabd18005fba97628b3b9fa1872b5ee805975d7ed1eb994bb72b2c6ff2ee6"
+  },
+  "rows": [
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "f32-1024": [
+          366016,
+          409868
+        ],
+        "f32-4096": [
+          2230514,
+          2186500
+        ],
+        "f16-1024": [
+          2338078,
+          1927664
+        ],
+        "f16-4096": [
+          7389106,
+          7013914
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    366016 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    409868 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   2230514 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   2186500 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   2338078 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1927664 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7389106 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   7013914 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "f32-1024": [
+          310670,
+          305188
+        ],
+        "f32-4096": [
+          1776700,
+          1801936
+        ],
+        "f16-1024": [
+          1844401,
+          1723648
+        ],
+        "f16-4096": [
+          7297236,
+          7471286
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    310670 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    305188 ns/op\t      30 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   1776700 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   1801936 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   1844401 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1723648 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7297236 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   7471286 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "f32-1024": [
+          317022,
+          307991
+        ],
+        "f32-4096": [
+          1974147,
+          1963164
+        ],
+        "f16-1024": [
+          1816389,
+          1856454
+        ],
+        "f16-4096": [
+          7242845,
+          7229515
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    317022 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    307991 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   1974147 ns/op\t      29 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   1963164 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   1816389 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1856454 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7242845 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   7229515 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "f32-1024": [
+          300942,
+          306233
+        ],
+        "f32-4096": [
+          1711681,
+          1744781
+        ],
+        "f16-1024": [
+          1843114,
+          1829754
+        ],
+        "f16-4096": [
+          7491960,
+          7730439
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    300942 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    306233 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   1711681 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   1744781 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   1843114 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1829754 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7491960 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   7730439 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "f32-1024": [
+          311937,
+          330147
+        ],
+        "f32-4096": [
+          2130066,
+          1937341
+        ],
+        "f16-1024": [
+          1900839,
+          1900183
+        ],
+        "f16-4096": [
+          7430625,
+          8687195
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    311937 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    330147 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   2130066 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   1937341 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   1900839 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1900183 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7430625 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   8687195 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "f32-1024": [
+          561645,
+          566845
+        ],
+        "f32-4096": [
+          2505765,
+          2493501
+        ],
+        "f16-1024": [
+          2536895,
+          2452745
+        ],
+        "f16-4096": [
+          8894769,
+          9155623
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    561645 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    566845 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   2505765 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   2493501 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   2536895 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   2452745 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   8894769 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   9155623 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "f32-1024": [
+          584657,
+          587619
+        ],
+        "f32-4096": [
+          2710607,
+          3437284
+        ],
+        "f16-1024": [
+          2580161,
+          2266821
+        ],
+        "f16-4096": [
+          8391278,
+          8336791
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    584657 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    587619 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   2710607 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   3437284 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   2580161 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   2266821 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   8391278 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   8336791 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "f32-1024": [
+          366770,
+          365863
+        ],
+        "f32-4096": [
+          2134672,
+          2142618
+        ],
+        "f16-1024": [
+          2191248,
+          1956603
+        ],
+        "f16-4096": [
+          7527162,
+          7850436
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4         \t     180\t    366770 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4          \t     180\t    365863 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4         \t     180\t   2134672 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4          \t     180\t   2142618 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4         \t     180\t   2191248 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4          \t     180\t   1956603 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4         \t     180\t   7527162 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4          \t     180\t   7850436 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    }
+  ],
+  "summary": {
+    "f32-1024": {
+      "paired_ratios": [
+        0.7937500966639343,
+        1.0293786799522378,
+        0.5689762425896552,
+        0.6249663048633598
+      ],
+      "median_ratio": 0.709358200763647
+    },
+    "f32-4096": {
+      "paired_ratios": [
+        0.8101934927079697,
+        1.1391159515134262,
+        0.8136008366028132,
+        0.6957328944185901
+      ],
+      "median_ratio": 0.8118971646553914
+    },
+    "f16-1024": {
+      "paired_ratios": [
+        0.8364427572037878,
+        0.9999931933301169,
+        0.7617828139905884,
+        0.8557595221108723
+      ],
+      "median_ratio": 0.84610113965733
+    },
+    "f16-4096": {
+      "paired_ratios": [
+        1.0253767612625686,
+        0.9507279371668027,
+        0.8929346243560805,
+        0.9192691637032344
+      ],
+      "median_ratio": 0.9349985504350186
+    }
+  }
+}
