@@ -1,7 +1,10 @@
 # Batched shared-KV attention
 
 `protocol.json` records the inputs and acceptance criteria for the M4
-comparison. The model probe requires the local Llama 3.2 3B BF16
+comparison. The measured sources are at commit
+`8c15bad553ab5ca01aa19d8190f736d0238e72e7`. The review follow-up
+expanded integration-test coverage after the measurements.
+The model probe requires the local Llama 3.2 3B BF16
 snapshot at revision `60a99aaf43164077157d64bf909b7b61143c6a6d`.
 It verifies the pinned files before and after the run and loads them
 with Q4-mixed weights and FP16 KV. Use a new output directory for each run.

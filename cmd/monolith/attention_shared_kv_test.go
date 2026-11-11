@@ -182,23 +182,35 @@ func TestSharedKVBatchedPrefillMatchesPerHead(t *testing.T) {
 	for _, group := range []int{3, 4} {
 		for _, format := range []string{"f32", "f16"} {
 			t.Run(fmt.Sprintf("group%d/%s", group, format), func(t *testing.T) {
-				c := Config{Vocab: 1536, Dim: group * sharedKVHeadDim, Hidden: 1088, Heads: group, KVHeads: 1,
+				const kvHeads = 3
+				c := Config{Vocab: 3072, Dim: group * kvHeads * sharedKVHeadDim, Hidden: 1088, Heads: group * kvHeads, KVHeads: kvHeads,
 					Layers: 1, Context: 1088, RopeTheta: 10000, NormEps: 1e-5}
 				m, err := NewModel(c, 17)
 				if err != nil {
 					t.Fatal(err)
 				}
 				m.kvFormat = format
-				e := newKernelExecutor(2)
+				// Nine groups across four lanes split both within and across rows.
+				e := newKernelExecutor(4)
 				defer e.close()
 				var candidate, reference []*KVCache
-				for _, position := range []int{1055, 1023, 1025} {
+				for row, position := range []int{1055, 1023, 1025} {
 					gotCache, wantCache := m.NewCache(), m.NewCache()
 					defer gotCache.Close()
 					defer wantCache.Close()
+					key, value := make([]float32, c.KVDim()), make([]float32, c.KVDim())
+					for i := range key {
+						key[i] = float32((row+i)%19-9) / 16
+						value[i] = float32((13*row+i)%29-14) / 8
+					}
 					for _, cache := range []*KVCache{gotCache, wantCache} {
 						cache.Pos = position
 						cache.ensurePages(position)
+						for pos := 0; pos < position; pos += pageTokens {
+							if err := cache.store(0, pos, key, value); err != nil {
+								t.Fatal(err)
+							}
+						}
 					}
 					candidate = append(candidate, gotCache)
 					reference = append(reference, wantCache)
@@ -222,7 +234,8 @@ func TestSharedKVBatchedPrefillMatchesPerHead(t *testing.T) {
 				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 					plan := planInferenceAttention(e, c, len(candidate), candidate[0].Pos)
 					for lane := 0; lane < plan.lanes; lane++ {
-						lastRow := len(candidate)*(lane+1)/plan.lanes - 1
+						lastGroup := len(candidate)*c.KVHeads*(lane+1)/plan.lanes - 1
+						lastRow := lastGroup / c.KVHeads
 						offset := lane * plan.stride
 						var sum float64
 						for _, score := range shared.Scores[offset : offset+candidate[lastRow].Pos] {
@@ -231,6 +244,15 @@ func TestSharedKVBatchedPrefillMatchesPerHead(t *testing.T) {
 						if !(math.Abs(sum-1) <= 1e-6) {
 							t.Fatalf("lane %d expected normalized shared scores for row %d, sum %g", lane, lastRow, sum)
 						}
+					}
+					// Lane zero ends in the first long row. Per-head attention
+					// leaves unnormalized exponentials in the score slice.
+					var sum float64
+					for _, score := range perHead.Scores[:reference[0].Pos] {
+						sum += float64(score)
+					}
+					if !(sum > 1+1e-6) {
+						t.Fatalf("short session should force per-head attention, score sum %g", sum)
 					}
 				}
 			})
