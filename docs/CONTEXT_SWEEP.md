@@ -324,8 +324,11 @@ The first comparison used a direct call to the converter in the generic
 kernel and showed substantial variation in FP32. The confirmation
 changes only the converter and interleaves FP32 pairs using the same
 reference binary. FP32 median candidate/reference ratios in that run
-ranged from 0.900 to 1.033. Both runs and all individual pairs are in
-the [measurement records](../validation/performance/fp16-widening-20261111/).
+ranged from 0.900 to 1.033. The same-binary controls had median ratios
+of 0.896 to 1.116 and individual ratios of 0.376 to 1.274. That spread
+limits the resolution for small FP32 changes. Both runs and the
+[reproduction commands](../validation/performance/fp16-widening-20261111/README.md)
+are archived together.
 
 The ordinary build ran the pinned Llama 3.2 3B Q4-mixed model with one
 FP16 KV session and four workers. At 128 and 1,024 positions, prompt,
