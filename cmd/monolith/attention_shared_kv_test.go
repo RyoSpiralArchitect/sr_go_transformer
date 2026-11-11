@@ -11,12 +11,40 @@ import (
 )
 
 func TestSharedKVAttentionExactAcrossPagesAndLanes(t *testing.T) {
+	for _, format := range []string{"f32", "f16"} {
+		t.Run(format, func(t *testing.T) { checkSharedKVAttentionExact(t, format) })
+	}
+}
+
+func convertAttentionFixtureToF16(cache *KVCache) {
+	cache.format = "f16"
+	for _, page := range cache.Pages {
+		page.F16 = make([]uint16, len(page.Data))
+		for i, value := range page.Data {
+			page.F16[i] = toF16(value)
+		}
+		page.Data = nil
+	}
+}
+
+func checkSharedKVAttentionExact(t *testing.T, format string) {
+	t.Helper()
 	c := Config{Dim: 3072, Heads: 24, KVHeads: 8, Layers: 2, Context: 97}
 	w, cache := attentionLaneFixture(c, 1, c.Context)
 	defer cache.Close()
 	for index, page := range cache.Pages {
 		for i := range page.Data {
 			page.Data[i] += float32(index) / 17
+		}
+	}
+	if format == "f16" {
+		convertAttentionFixtureToF16(cache)
+		plane := c.KVDim() * pageTokens
+		for _, page := range cache.Pages {
+			// Exercise signed zero, subnormal and extreme finite storage in layer 1.
+			values := []uint16{0x8000, 0x0001, 0x03ff, 0x8400, 0x7bff}
+			copy(page.F16[2*plane:], values)
+			copy(page.F16[3*plane:], values)
 		}
 	}
 	for _, workers := range []int{1, 4, 12} {
@@ -50,11 +78,19 @@ func TestSharedKVAttentionExactAcrossPagesAndLanes(t *testing.T) {
 }
 
 func TestSharedKVAttentionClearsUnselectedLogits(t *testing.T) {
+	for _, format := range []string{"f32", "f16"} {
+		t.Run(format, func(t *testing.T) { checkSharedKVLogits(t, format) })
+	}
+}
+
+func checkSharedKVLogits(t *testing.T, format string) {
+	t.Helper()
 	c := Config{Vocab: 2080, Dim: 384, Hidden: 64, Heads: 3, KVHeads: 1, Layers: 1, Context: 1025, RopeTheta: 10000, NormEps: 1e-5}
 	m, err := NewModel(c, 17)
 	if err != nil {
 		t.Fatal(err)
 	}
+	m.kvFormat = format
 	e := newKernelExecutor(4)
 	defer e.close()
 	var w decodeWorkspace
@@ -85,6 +121,12 @@ func TestSharedKVAttentionClearsUnselectedLogits(t *testing.T) {
 }
 
 func BenchmarkSharedKVAttention(b *testing.B) {
+	for _, format := range []string{"f32", "f16"} {
+		b.Run(format, func(b *testing.B) { benchmarkSharedKVAttention(b, format) })
+	}
+}
+
+func benchmarkSharedKVAttention(b *testing.B, format string) {
 	c := Config{Dim: 3072, Heads: 24, KVHeads: 8, Layers: 1, Context: 4096}
 	for _, length := range []int{128, 1024, 4096} {
 		b.Run(fmt.Sprintf("prefix%d", length), func(b *testing.B) {
@@ -92,6 +134,9 @@ func BenchmarkSharedKVAttention(b *testing.B) {
 			defer e.close()
 			w, cache := attentionLaneFixture(c, 1, length)
 			defer cache.Close()
+			if format == "f16" {
+				convertAttentionFixtureToF16(cache)
+			}
 			reference := planInferenceAttention(e, c, 1, length)
 			shared := reference
 			shared.sharedKV = true

@@ -1,0 +1,21 @@
+{
+  "baseline_commit": "922a454622d0d2b0632f3e88c5f9a4237c098573",
+  "host": "Apple M4 darwin/arm64",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weight_format": "q4-mixed",
+  "kv_format": "f16",
+  "sessions": 1,
+  "threads": 4,
+  "workers": 4,
+  "prefixes": [128, 1024, 4096],
+  "prefill_chunk": 32,
+  "decode_calls_per_replay": 7,
+  "replay_order": ["reference", "candidate", "candidate", "reference", "candidate", "reference", "reference", "candidate"],
+  "comparison": "Both paths use the same pinned model, immutable FP16 prefix, copied build, workspace and stage timers. The reference uses per-head FP16 attention. The candidate shares loads and widening across three heads.",
+  "fp32_control": "Build the same one-layer benchmark against the baseline runtime through a Go source overlay and against the candidate. Compare their shared paths at 1024 and 4096 with four workers and 300 iterations per sample. Use the eight-process replay order and require median adjacent-pair ratios at most 1.05. Retain every sample.",
+  "numeric_gate": "Every FP16 replay matches its checkpoint's logits, committed KV hash, payload bytes and generated IDs. The 128-token checkpoint matches the preceding FP16 single-session context-sweep pilot. Candidate workspace stays within the reference capacity. Candidate dispatch counts per replay are 0, 196 and 196 across the three prefixes.",
+  "timing_gate": "At 4096 positions require an attention median ratio at most 0.90, a complete decode median ratio at most 0.97 and at least three of four adjacent pairs faster for each metric. At 1024 require attention at most 0.90 and complete decode at most 1.05. Ratios are candidate divided by reference.",
+  "control": "Report the same-path 128-token result and all timing variation. Retain the first complete or partial primary run.",
+  "run": "python3 -S scripts/measure_context_sweep.py --model SNAPSHOT --compare-shared-kv --formats f16 --sessions 1 --output-dir runs/gqa-f16-long"
+}

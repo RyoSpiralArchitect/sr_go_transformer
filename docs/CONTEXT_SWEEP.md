@@ -142,8 +142,8 @@ measurement. The receipt retains every replay, including the affected
 
 ## Shared KV reads for grouped-query attention
 
-Single-row forwards on Darwin arm64 can share FP32 KV reads across
-three query heads with a 128-element head dimension. Selection starts
+Single-row forwards on Darwin arm64 can share FP32 or FP16 KV reads
+across three query heads with a 128-element head dimension. Selection starts
 at a visible context of 1,024 positions and requires room for two
 score vectors per lane in the existing logits buffer. Each lane owns
 whole KV head groups. Its key and value passes traverse pages in tiles
@@ -179,7 +179,7 @@ kernel and 1.189 ms for shared KV. The benchmark selected the kernel
 directly at each length. The protocol and raw benchmark output are in
 [`validation/performance/gqa-shared-kv-20261111`](../validation/performance/gqa-shared-kv-20261111/).
 
-### Recorded M4 shared-KV comparison
+### Recorded M4 FP32 shared-KV comparison
 
 The paired run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
 weights, FP32 KV, one session and four workers on an Apple M4.
@@ -209,3 +209,21 @@ preceding stage sweep's prompt, logits, KV and generated IDs.
 Source, compiled copy, binary and pinned model hashes passed the
 identity checks. The full run is recorded in
 [`f32-s1-long.json`](../validation/performance/gqa-shared-kv-20261111/f32-s1-long.json).
+
+### Shared FP16 KV widening
+
+The grouped kernel specializes on the KV storage type. It widens
+each FP16 key or value once for the three query heads. Each head's
+dot product, softmax and value accumulation use the same arithmetic
+and reduction order as per-head FP16 attention. Score vectors borrow
+the same logits and attention workspace.
+
+Use `--formats f16 --sessions 1 --compare-shared-kv` to compare the
+shared and per-head paths on a single committed FP16 prefix. The
+exploratory one-layer M4 benchmark measured 8.201 ms and 4.208 ms
+per call for per-head and shared attention at 4,096 positions.
+The FP32 compatibility comparison used the same one-layer benchmark
+with a Go source overlay for the preceding runtime. Its median ratios
+for the shared path were 1.011 at 1,024 and 1.006 at 4,096 positions.
+Raw samples, binary hashes and the full-model protocol are in
+[`validation/performance/gqa-shared-kv-f16-20261111`](../validation/performance/gqa-shared-kv-f16-20261111/).
