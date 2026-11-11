@@ -7804,6 +7804,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 	sharedLanes := min(attention.lanes, c.KVHeads)
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 1 && maxPos >= 1024 &&
 		c.Heads == 3*c.KVHeads && c.Dim/c.Heads == sharedKVHeadDim &&
+		(caches[0].format != "f16" || sharedLanes == attention.lanes) &&
 		2*sharedLanes*attention.stride <= c.Vocab {
 		attention.sharedKV = true
 		attention.lanes = sharedLanes

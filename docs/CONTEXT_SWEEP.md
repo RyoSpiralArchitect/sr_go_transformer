@@ -216,7 +216,8 @@ The grouped kernel specializes on the KV storage type. It widens
 each FP16 key or value once for the three query heads. Each head's
 dot product, softmax and value accumulation use the same arithmetic
 and reduction order as per-head FP16 attention. Score vectors borrow
-the same logits and attention workspace.
+the same logits and attention workspace. FP16 sharing requires enough
+KV groups to preserve the per-head plan's lane count.
 
 Use `--formats f16 --sessions 1 --compare-shared-kv` to compare the
 shared and per-head paths on a single committed FP16 prefix. The
@@ -251,3 +252,13 @@ payload bytes and generated IDs. The 128-token reference matched
 the preceding FP16 pilot. Candidate replays at 1,024 and 4,096 each
 recorded 196 shared layer calls. Source, model, binary and journal
 identity checks passed. [Full FP16 receipt](../validation/performance/gqa-shared-kv-f16-20261111/f16-s1-long.json).
+
+The pre-merge review prompted a forced one-layer FP16 comparison
+with four workers and one or two KV heads. With one KV head, sharing
+reduced three lanes to one. Median attention time rose from 0.368 ms
+to 0.522 ms at 1,024 positions and from 1.605 ms to 2.188 ms at 4,096.
+The two-KV-head fixture shortened attention from 0.754 ms to 0.544 ms
+and from 3.309 ms to 2.223 ms at those lengths. The lane guard preserves
+the four-lane selection in the full-model comparison above. The
+benchmark directly selects both kernels to measure the lane change.
+[All lane samples](../validation/performance/gqa-shared-kv-f16-20261111/review-lanes.txt).
