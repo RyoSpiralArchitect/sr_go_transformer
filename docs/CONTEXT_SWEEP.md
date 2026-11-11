@@ -336,3 +336,43 @@ logits and KV hashes, generated IDs and KV payload matched the archived
 FP16 comparison. The 1,031-position context cap reduces the four score
 strides from 1,056 to 1,031 elements at the 1,024 checkpoint, accounting
 for the 400-byte workspace difference. [Ordinary-build receipt](../validation/performance/fp16-widening-20261111/ordinary-f16-1024.json).
+
+### Batched shared-KV decode
+
+The Darwin arm64 grouped path also handles batches with one token per
+session when every row sees at least 1,024 positions. A worker owns
+complete KV groups and reuses its existing score slots as it moves
+between rows. Each group reads the KV cache and visible prefix of its
+own row. Batched dispatch preserves the per-head lane count and
+requires enough whole score slots in the existing buffers.
+
+The paired M4 run used the pinned Llama 3.2 3B checkpoint, Q4-mixed
+weights, two FP16 KV sessions and four workers. Times are medians of
+four replay averages in milliseconds per batched decode call.
+
+| Prefix tokens per session | Per-head attention | Candidate attention | Per-head total | Candidate total | Workspace bytes per path | FP16 KV payload MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 128 | 10.20 | 9.67 | 289.07 | 276.05 | 1,274,368 | 35 |
+| 1,024 | 75.03 | 29.92 | 347.68 | 318.44 | 1,288,304 | 231 |
+
+At 1,024 tokens the median attention time fell by 60.1% and total
+decode time fell by 8.4%. The four paired attention ratios ranged
+from 0.323 to 0.416 and total ratios ranged from 0.777 to 0.946. The
+candidate recorded 196 grouped layer calls per replay. At 128 tokens
+both modes used per-head attention. Their median total ratio was 0.955,
+and paired total ratios ranged from 0.904 to 0.983.
+
+All 16 replays matched the checkpoint's generated IDs, logit and KV
+digests, and KV payload bytes. The 128-token prompt and decode digests
+also matched the archived two-session FP16 pilot. Model, source,
+binary and journal identity checks passed. This comparison covers
+batched decode on the M4 with this model and KV format.
+
+The two-row isolated kernel benchmark matched output bits in all
+eight cases (3:1 and 4:1 GQA, FP32 and FP16 KV, and 1,024 and 4,096
+positions). Shared/per-head median ratios ranged from 0.193 to
+0.320. The FP16 single-row comparison against the preceding revision
+had median ratios of 0.919 to 1.012 across four cases and adjacent
+pair ratios of 0.763 to 1.196. Those paired timings limit conclusions
+about small changes to single-row performance.
+[Protocol, reproduction and raw results](../validation/performance/batched-shared-kv-20261111/).

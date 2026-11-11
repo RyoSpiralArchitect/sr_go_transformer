@@ -7395,17 +7395,17 @@ func planInferenceAttention(e *kernelExecutor, c Config, rows, maxPos int) infer
 	return inferenceAttentionPlan{lanes: lanes, stride: stride, work: work}
 }
 
-func planSharedKVAttention(plan inferenceAttentionPlan, c Config, format string, upElements int) inferenceAttentionPlan {
-	lanes := min(plan.lanes, c.KVHeads)
+func planSharedKVAttention(plan inferenceAttentionPlan, c Config, format string, rows, logitsElements, upElements int) inferenceAttentionPlan {
+	lanes := min(plan.lanes, rows*c.KVHeads)
 	switch c.Heads / c.KVHeads {
 	case 3:
-		if (format != "f16" || lanes == plan.lanes) && 2*lanes*plan.stride <= c.Vocab {
+		if (lanes == plan.lanes || (rows == 1 && format != "f16")) && 2*lanes*plan.stride <= logitsElements {
 			plan.sharedKV = true
 			plan.lanes = lanes
 		}
 	case 4:
 		// Each extra vector must fit entirely in one borrowed buffer.
-		vectors := c.Vocab/plan.stride + c.Hidden/plan.stride + upElements/plan.stride
+		vectors := logitsElements/plan.stride + (rows*c.Hidden)/plan.stride + upElements/plan.stride
 		plan.sharedKV = lanes == plan.lanes && vectors >= 3*lanes
 	}
 	return plan
@@ -7491,32 +7491,39 @@ func (w *decodeWorkspace) sharedKVScore(slot, stride, length int) []float32 {
 // A lane owns full KV groups and the score vectors it reuses across them.
 func attentionSharedKVRange[T attentionKVWord](job *attentionKernel, lo, hi int, pageData func(*kvPage) []T) {
 	w, plan := job.w, job.plan
-	cache, length := w.rowCaches[0], w.positions[0]+1
 	groups := job.heads / job.group
+	tasks := job.rows * groups
 	width := job.group * sharedKVHeadDim
 	for lane := lo; lane < hi; lane++ {
-		first := w.Scores[lane*plan.stride : lane*plan.stride+length]
-		begin, end := groups*lane/plan.lanes, groups*(lane+1)/plan.lanes
-		if job.group == 4 {
-			slot := 3 * lane
-			scores := [4][]float32{
-				first,
-				w.sharedKVScore(slot, plan.stride, length),
-				w.sharedKVScore(slot+1, plan.stride, length),
-				w.sharedKVScore(slot+2, plan.stride, length),
+		begin, end := tasks*lane/plan.lanes, tasks*(lane+1)/plan.lanes
+		for begin < end {
+			row := begin / groups
+			rowStart := row * groups
+			rowEnd := min(end, rowStart+groups)
+			cache, length := w.rowCaches[row], w.positions[row]+1
+			first := w.Scores[lane*plan.stride : lane*plan.stride+length]
+			if job.group == 4 {
+				slot := 3 * lane
+				scores := [4][]float32{
+					first,
+					w.sharedKVScore(slot, plan.stride, length),
+					w.sharedKVScore(slot+1, plan.stride, length),
+					w.sharedKVScore(slot+2, plan.stride, length),
+				}
+				for head := begin - rowStart; head < rowEnd-rowStart; head++ {
+					start := row*job.dim + head*width
+					attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
+				}
+			} else {
+				second := w.Logits[2*lane*plan.stride : 2*lane*plan.stride+length]
+				third := w.Logits[(2*lane+1)*plan.stride : (2*lane+1)*plan.stride+length]
+				scores := [3][]float32{first, second, third}
+				for head := begin - rowStart; head < rowEnd-rowStart; head++ {
+					start := row*job.dim + head*width
+					attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
+				}
 			}
-			for head := begin; head < end; head++ {
-				start := head * width
-				attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
-			}
-			continue
-		}
-		second := w.Logits[2*lane*plan.stride : 2*lane*plan.stride+length]
-		third := w.Logits[(2*lane+1)*plan.stride : (2*lane+1)*plan.stride+length]
-		scores := [3][]float32{first, second, third}
-		for head := begin; head < end; head++ {
-			start := head * width
-			attendSharedKV(w.Q[start:start+width], w.A[start:start+width], scores, cache, job.layer, head, pageData)
+			begin = rowEnd
 		}
 	}
 }
@@ -7811,7 +7818,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		w.seen = make(map[*KVCache]bool, sessions)
 	}
 	pools, seen := w.pools, w.seen
-	n, maxPos := 0, 0
+	n, maxPos, minPos := 0, 0, c.Context
 	pageElements := 2 * pageTokens * c.KVDim() * c.Layers
 	for i, cache := range caches {
 		if cache == nil || cache.Model != m || cache.Revision != m.Revision || cache.released || !validKVFormat(cache.format) || cache.format != m.kvFormat || seen[cache] {
@@ -7873,6 +7880,7 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		}
 		n += len(chunk)
 		maxPos = max(maxPos, end)
+		minPos = min(minPos, end)
 	}
 	for p, use := range pools {
 		if use.reserved > p.Reserved || use.pages > len(p.Free)+p.Limit-p.Allocated {
@@ -7895,9 +7903,9 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		return nil, err
 	}
 	attention := planInferenceAttention(executor, c, n, maxPos)
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 1 && maxPos >= 1024 &&
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == sessions && minPos >= 1024 &&
 		c.Dim/c.Heads == sharedKVHeadDim {
-		attention = planSharedKVAttention(attention, c, caches[0].format, upElements)
+		attention = planSharedKVAttention(attention, c, caches[0].format, n, sessions*c.Vocab, upElements)
 	}
 	// Reserve the public result copy in both paths to keep admission limits
 	// unchanged. Metadata is separately bounded by 256 sessions / 1024 rows.
