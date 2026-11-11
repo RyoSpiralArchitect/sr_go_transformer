@@ -1,0 +1,10 @@
+{
+  "baseline_commit": "d67d6a4a46d6352c8ddac70d044771947349df87",
+  "scope": "Apple M4 synthetic one-layer attention, four threads and workers, three and four query heads per KV head, 1024 and 4096 visible positions",
+  "order": ["reference", "candidate", "candidate", "reference", "candidate", "reference", "reference", "candidate"],
+  "iterations_per_sample": 100,
+  "cases": "Use identical BenchmarkSharedKVAttention and BenchmarkSharedKVFourHeads fixtures for both builds. Each process supplies two timings per path. FP32 serves as a timing control.",
+  "aggregation": "Take the median of the two samples per process and path, divide candidate by reference in adjacent process pairs, and report the median of four pair ratios.",
+  "timing_gate": "At 4096 positions, both FP16 shared paths must have median ratios at most 0.95 and at least three of four adjacent pairs faster. Retain all measurements.",
+  "numeric_gate": "All 65536 half encodings match the previous converter's FP32 bits. Both KV formats pass the exact attention and single-row prefill tests. Verify the pinned FP16 Llama 3.2 3B ordinary-build trajectory at 128 and 1024 positions against the recorded FP16 reference."
+}

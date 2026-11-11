@@ -1,0 +1,908 @@
+{
+  "protocol": {
+    "baseline_commit": "d67d6a4a46d6352c8ddac70d044771947349df87",
+    "scope": "Apple M4 synthetic one-layer attention, four threads and workers, three and four query heads per KV head, 1024 and 4096 visible positions",
+    "order": [
+      "reference",
+      "candidate",
+      "candidate",
+      "reference",
+      "candidate",
+      "reference",
+      "reference",
+      "candidate"
+    ],
+    "iterations_per_sample": 100,
+    "cases": "Use identical BenchmarkSharedKVAttention and BenchmarkSharedKVFourHeads fixtures for both builds. Each process supplies two timings per path. FP32 serves as a timing control.",
+    "aggregation": "Take the median of the two samples per process and path, divide candidate by reference in adjacent process pairs, and report the median of four pair ratios.",
+    "timing_gate": "At 4096 positions, both FP16 shared paths must have median ratios at most 0.95 and at least three of four adjacent pairs faster. Retain all measurements.",
+    "numeric_gate": "All 65536 half encodings match the previous converter's FP32 bits. Both KV formats pass the exact attention and single-row prefill tests. Verify the pinned FP16 Llama 3.2 3B ordinary-build trajectory at 128 and 1024 positions against the recorded FP16 reference."
+  },
+  "go": "go version go1.27.1 darwin/arm64",
+  "bench": "^(BenchmarkSharedKVAttention|BenchmarkSharedKVFourHeads)$/^(f32|f16)$/^(prefix1024|prefix4096)$/^(reference|shared)-",
+  "builds": {
+    "reference": {
+      "runtime_sha256": "4123b5265723025bbabf92f7a7eeb8887f3c7d14fbee9c5ffccddafb20d11fb2",
+      "binary_sha256": "640ed606163e7e8672dc80eaf53066982e47c1a9eab27da72ef2f4ed58add1c8"
+    },
+    "candidate": {
+      "runtime_sha256": "00f72f054d8c9a4085e76d33384f514ba75d3c5c833cb08dd8ceeadc74193638",
+      "binary_sha256": "451ec595e99746e9a382d03e9f7bc7cb16797c30198adeda86704244a0d97313"
+    }
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "00f72f054d8c9a4085e76d33384f514ba75d3c5c833cb08dd8ceeadc74193638",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/attention_control_receipt_test.go": "63f1122a10fab9d823c4f457e1d7fc3254444812a281ea788d1bed2ab0680bf4",
+    "cmd/monolith/attention_lanes_test.go": "fac7d3df7611ce50013e3e258899ebeeed74ae82949ae978d503b22a0057ef95",
+    "cmd/monolith/attention_long_decode_test.go": "f966ad416de195b6bd480d6fe32ac36d8e050dcb86728ee73f524154a7b621fe",
+    "cmd/monolith/attention_outputs_test.go": "2e3f75a1d61e4209b80334fc4f55b4c20e9579c0ea458081b9e2f6ce49b1afb8",
+    "cmd/monolith/attention_paired_test.go": "340128661ee2c1bb932b059c05fab831ffeb0d84748856313e9ff4f55460260e",
+    "cmd/monolith/attention_shared_kv_test.go": "5fd491919f47bb73252a4ab0125114fdc03b35bbffa73f1e369a06d5c91ef052",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "cmd/monolith/dataset_resume_test.go": "e167048ae26ef923ff4f13b4dc2f21278cd1d413b7838f48123f8a720c022883",
+    "cmd/monolith/dataset_test.go": "da14c8eeb107317a0f5daaa6a539c27dcc38787f278dee3f516bf1145b9b06f5",
+    "cmd/monolith/direct_workspace_test.go": "2381470277c1b39cabdf98f1eb223b6dec76cc395a59b145a13ce00a1c0dd220",
+    "cmd/monolith/engine_workspace_bench_test.go": "7f785025341568ca0af84a0540fc6f3c4e87d6d6531cb7fb87b8121d07411ed0",
+    "cmd/monolith/eval_forward_boundary_test.go": "f3c03200a6afb8bc1ce1133227d36cdfc04771438660800a07afe0ad4d8864dc",
+    "cmd/monolith/eval_forward_cancellation_test.go": "2d725fad345a59c6d1d1146e34b053cc9fcc640fc48d811a66a74b087e724e41",
+    "cmd/monolith/eval_forward_exact_test.go": "da208e96782368b91d1d5156c69cf39225065b21b6051116b8606d4c7c9e3bbc",
+    "cmd/monolith/evaluation_test.go": "67cbf938ac0cbc2a85f3ed65083cd88339868e8326ecb1bf0f90173f6a0db909",
+    "cmd/monolith/executor_experiments_test.go": "b84fd606eee334012bad032a71527864b267dba2aa358aa235407529f4950d32",
+    "cmd/monolith/fp32_junroll_test.go": "3945bd06c0a9ee2809982307ee6d346f79467fb873ffaa374a0799c02c66d27d",
+    "cmd/monolith/fp32_outputs16_test.go": "157a418c0cdf456da5004e7f20156b0d8a1f0f6663e93eede35d834c8252aa7d",
+    "cmd/monolith/fp32_outputs4_test.go": "5c75e4a4ea4b89914907283c06093975764a6e1296e9e11a6411e495ee64bcdf",
+    "cmd/monolith/fp32_outputs8_test.go": "d61a55562b7ec0d081ddfadfa188328b9fc907f01ff2719e2abdc264e81caef5",
+    "cmd/monolith/fp32_outputs_test.go": "3f160c2affca5dd40a3298c456bdb09cabda6599d99e834141e94145f6855218",
+    "cmd/monolith/fp32_paired_test.go": "1e7ab3d2565771ce8ceaa6fe7a22d5bf0ca6df5d8b3170739b28cad7247be624",
+    "cmd/monolith/fp32_rows4_test.go": "a77c77b1bcbfdca47f70ecb7fa0b3ed5c6414f099e56d689a6ffab1b220dfef5",
+    "cmd/monolith/generate_workers_test.go": "74c6d21cef84a27056a6be9b2edb77525d3e8ea31f8d664194dc41f508826d1e",
+    "cmd/monolith/hf_cli_test.go": "1572a42c1fac1a79a56eb9dbe6300ab65f69152249b665d588b69872f7bb595e",
+    "cmd/monolith/hf_download_resume_test.go": "542abf084f449f2a5952ea20ea44c08a22a294761b8e5ad5dfcf960edf097d6b",
+    "cmd/monolith/hf_fetch_test.go": "ebe3792b98cf313e7935f63a2b2c4160cd56b07702e6fbc5b07720894884d367",
+    "cmd/monolith/hf_gpt2_test.go": "88fe7eeea3950d03bfc98287dd71980cc469aa947ab05062ea00c447abdc08ce",
+    "cmd/monolith/hf_inference_test.go": "85cb8716bb7f4a2162ccd6513afd673a5bab22b2178b694d255d2c73fbcae68f",
+    "cmd/monolith/hf_llama3_chat_test.go": "b15acdf04a1565bf9239d281cec14679a6d9c4b2eb4a467869b089564dccff74",
+    "cmd/monolith/hf_llama3_test.go": "20b5709ea361239827b34c3a1c3a0f2616eeb8e944b89fbedc288d1451c2ca9d",
+    "cmd/monolith/hf_llama3_tokenizer_test.go": "4ef33bb362012f4846bf505354b02e0c7157c43c83e0bfd2923dc045c7476154",
+    "cmd/monolith/hf_loader_test.go": "52db4e9d5169951d49b902b44cac84463dcdde44a1c204a8a998217e9824a03b",
+    "cmd/monolith/hf_mistral_test.go": "5986e3a865cb8eb602f6ea160eba627c431fb6b7f1728f6fc089bf3b40f7e37f",
+    "cmd/monolith/hf_mistral_tokenizer_test.go": "79068f64dcf6e2a247987fa12c90558bbf47b27759b3747f191aaba47241da4e",
+    "cmd/monolith/hf_network_test.go": "d8ce6468b0b7e6c8c21275576b09f37d87633afe2523354a5f1d3becbc3684af",
+    "cmd/monolith/hf_offline_test.go": "e8117b69af4e180b56df32ce24f35e9e8314b4fcb78a43df3cce291f127305a1",
+    "cmd/monolith/hf_profiles_test.go": "3d2f1487e78755fca57b8387fe7e5360a26e182823e5b7ab4e478483bf1cd363",
+    "cmd/monolith/hf_serving_test.go": "a94c8cb06b98d2ca4ceb9b1ca6e374130e53993775a108dc8da0403cce502a02",
+    "cmd/monolith/hf_tokenizer_test.go": "a5f3f5a0cd2c897168a94d4b7bf8f8b3bd7e88c6a8574efc76f588a903a5bfd0",
+    "cmd/monolith/inference_liveness_test.go": "037eb7b33a5cfb22304508f60e86968e5b26600ad3e8f07f396791c0be453ea7",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/inference_workers_test.go": "1eea46c49be2e903ee23bed534650d9c3cd7b2695f39b366980fc758c7ee6767",
+    "cmd/monolith/inference_workspace_test.go": "7326d505ece66e26b5c70aa0177ab29d7f847450a8ff22eacfc97a31932cb9f1",
+    "cmd/monolith/kv16_prefix_test.go": "b3476848ac97efb9b8d04b11e5d88d193dcdee7e47b414a4a0ed7c108c5381cc",
+    "cmd/monolith/kv16_quality_test.go": "97e131f301689e34f5223fd4f7ff946b0e8cbf2be2d4cdeec65b89ef59da9f84",
+    "cmd/monolith/kv16_reference_test.go": "3eb02d69e77fb9077abc4d0c43175b851e7789a4114fab1b4d5876724f132f99",
+    "cmd/monolith/kv16_test.go": "a3f5eeab765b0c3548e645dc3cf1bd2335d9152e61345446e3254f61c523e51a",
+    "cmd/monolith/kv_budget_test.go": "a2669fd25abbfea9a8e0cc6ec385868cf257aa090e25298dd3a19b21e578f44c",
+    "cmd/monolith/linear_backward_test.go": "a4b182071d01432b08c89638cbfb6499dace93258b9b05263bf7842dfbb0ee4c",
+    "cmd/monolith/local_model_path_test.go": "62128770c92f87aaa055b2e0092bac419686f8ec8bae0f310a0f994591cbc372",
+    "cmd/monolith/long_context_real_test.go": "c900313cc4210a84a4841ee34ed0e56b1ecea68cc8dc96ef93fcf1e1122497ef",
+    "cmd/monolith/long_generation_perf_test.go": "f61c93a7ee9bfe1f593178e73f87dae4bf2e4ce840f2c818e771278153bc9d24",
+    "cmd/monolith/main_test.go": "a85ed373d020b8e845b99b9196a41bf3bf66b0a0c1d5ed81ba4844d304aa9710",
+    "cmd/monolith/memory_plan_test.go": "3810d72e03a1d9876014a06cb934849b6bb531ffaa8f68dac7608fb66fb432a8",
+    "cmd/monolith/monolith_test.go": "20f2835ab32d8ea070ba8289070c10c9b548e25f2104a2702393cf1a574b4ee6",
+    "cmd/monolith/post_singleexp_profile_test.go": "5a1215556de8c75d39e8c3d726ff11d6a1dcdba02285798da632c59436aa27ef",
+    "cmd/monolith/prefetch_data_test.go": "fd57e6548e7820a9a93c8c861c2474ab38947c88675ff4f7ed21597a08e967eb",
+    "cmd/monolith/prefill_test.go": "0aa302dbcdb216665519acc404b80213bb829c9adba158bebf00fa10ba0eda1b",
+    "cmd/monolith/prefix_cache_real_test.go": "60cc1df6878bbf9f0da4ba0c7402858f769886840e06c6bf36b5bb97534e7ce9",
+    "cmd/monolith/prefix_cache_test.go": "71a9b2d08b8c65312179c1c8be2da8d98aa0f23cc81053a9c8d2ae4ea986553c",
+    "cmd/monolith/prefix_chat_perf_test.go": "79627834c8274175c9d3f05ce53633b81e430742b6fb72b019f27ed7e678b223",
+    "cmd/monolith/prefix_growth_test.go": "c81560c2a901f0d3c2b4c048e91c840816dd9ebb2c3ce599d42e4bc06c874220",
+    "cmd/monolith/prefix_tail_test.go": "a33352d37f5518ee09670c7f7f5b7cd00739e1cc1e34a7e2afdaacae809e17ec",
+    "cmd/monolith/prompt_prefill_perf_test.go": "9ad11a037306da2a8fb1d601b84f8e6fa3cabc35d9842057d9606006acbc13b3",
+    "cmd/monolith/prompt_prefill_test.go": "22911baa4d81f1315c673a830e13d2b21042b93a47efa0ba4d062a0f73ae6eb5",
+    "cmd/monolith/q4_block_control_test.go": "37ba88f1731480334b384a23de099e6a0a73f4d25cd4ff90c60e5574f6c280cd",
+    "cmd/monolith/q4_block_test.go": "40946c5bddad9043cd5d702fb00134f2d9734c8a79d022f50797d67fd5e9909b",
+    "cmd/monolith/q4_call_overhead_test.go": "0335cad6dc32600e1998031b91478a274115cf80c36f7ebeeb4b1edbfe695902",
+    "cmd/monolith/q4_invocation_test.go": "6a5bcceac35763186b31a36f57134446c49570da943e79208886affa3f0aa3c5",
+    "cmd/monolith/q4_nibble_probe_test.go": "719ff241dedaa9a44d434c81ce42dc85441333504b1472881f3b28614537eff8",
+    "cmd/monolith/q4_output_pair_test.go": "fe555526bf0376f08178d763e1a27d9d97100ee8ad0cc737d98981e00fe5db0d",
+    "cmd/monolith/q4_output_reference_test.go": "08788386d40a4815c7d5e643dc75d4284c5b42665a5f0be4101034373c95a875",
+    "cmd/monolith/q4_pair_block_test.go": "de0d33eece20b3dc871943d910807f0129b8eadad2ed63335123f8397fbb44d1",
+    "cmd/monolith/q4_quad_direct_test.go": "b3b034bfd5c5f9b14bba76a7ed8332a93852088d4a50eeebcee8f1fe8702dcdd",
+    "cmd/monolith/q4_test.go": "1734477a96c8ba9b546a8c50ab96eea77a00523b432db9ba3470b3d02a7487cd",
+    "cmd/monolith/q8_block_test.go": "014ddc65ed8473aa3f4bd19774e2b16efec8b582fcaedbc448e48fcda88f6e20",
+    "cmd/monolith/q8_cli_test.go": "d4b17957eea7d13715c6f1cdc4ea9ad6d43a99cbda080d6bc85bbbb8b3ef5bf2",
+    "cmd/monolith/q8_codegen_test.go": "6a3b77acaed6895cf7fcfa897d212c4f1c007dad14cf5a6e0042f0aade06ab83",
+    "cmd/monolith/q8_colpair4_test.go": "4584be6640c02fce1363a04cbcaa4a37171219db166190ac2da5290b54a8a0d3",
+    "cmd/monolith/q8_invocation_test.go": "27d8967a9530f2e94448165d910193d79c828e35ca402d62a9f4c783e3e43927",
+    "cmd/monolith/q8_outputs_test.go": "f481d06f486a4c87d73d80949af3b59c3e44734361c0d1e012561105063b31a6",
+    "cmd/monolith/q8_test.go": "eb44381339169baaf05759ab7cd1a5eecb69de10b687557cc7e317b38f474443",
+    "cmd/monolith/quality_ablation_test.go": "2d1415546a446a3351565b76077195193112bea163daa0a17bee1c510211994f",
+    "cmd/monolith/quality_validation_test.go": "8a5f1f990a11dbfb0169e3a8e7bfdf9ffbdfffcc190a6cf7964811f4bc6df083",
+    "cmd/monolith/quant_pair_test.go": "fc9c85b9e43e298bcd7e76d6a1ca36e1f5aa407df2a7b647039d0939ea46a2fa",
+    "cmd/monolith/sampling_test.go": "aa8c0ad3a0726fd7adc6a5205caea127c3be4264255e8e53cb40d6f5082a19bb",
+    "cmd/monolith/scheduler_test.go": "7b7c87e87d6982e835365fae79dceb51adafa1d7256c753f7ecc11800d17478d",
+    "cmd/monolith/selective_head_test.go": "892c729fdf2f7a3a0f0f98c8b74cc81a29a99f51ea631c0cd35b6bc026ccd2f5",
+    "cmd/monolith/serving_lifecycle_test.go": "fe377534d98024d3adf691a7138762584e6fe0fcbeafdef74b6d7fff6fe37be4",
+    "cmd/monolith/shutdown_test.go": "8a05a02123683292524295d589ba04e2df9e567e98123f45aaa7bbce8f4738f9",
+    "cmd/monolith/streaming_test.go": "5c7a837fb2575f9555b6831bcc3201e2e1f929e561569be22bdee93b7c74ff9f",
+    "cmd/monolith/telemetry_test.go": "e885ecd0842f9cc4f6f3e197105e86727ad1a57230bb83eb9968f8365a6bce6a",
+    "cmd/monolith/topk_sampling_test.go": "7ecc726df7857436d48a04abcd660791273c9892e60d1f4de2b91fff34d129d1",
+    "cmd/monolith/workspace_boundary_test.go": "611ed722449e76819495ec4eed42827a36508bc6bf51abfbcba1544a778d0b74",
+    "cmd/monolith/workspace_exact_test.go": "cffc0c32ec04f3c1b0c37eccc296e6f1c26c77f80c92e94f5d5eaebc5a5f400f",
+    "cmd/monolith/workspace_training_test.go": "37fbabd18005fba97628b3b9fa1872b5ee805975d7ed1eb994bb72b2c6ff2ee6"
+  },
+  "rows": [
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          826024,
+          814005
+        ],
+        "3-f32-1024-shared": [
+          291185,
+          286244
+        ],
+        "3-f32-4096-reference": [
+          7613401,
+          10473522
+        ],
+        "3-f32-4096-shared": [
+          1804931,
+          1809544
+        ],
+        "3-f16-1024-reference": [
+          5785990,
+          3414971
+        ],
+        "3-f16-1024-shared": [
+          1801298,
+          2057001
+        ],
+        "3-f16-4096-reference": [
+          11719805,
+          12743730
+        ],
+        "3-f16-4096-shared": [
+          6470119,
+          6190547
+        ],
+        "4-f32-1024-reference": [
+          867535,
+          723486
+        ],
+        "4-f32-1024-shared": [
+          252372,
+          241431
+        ],
+        "4-f32-4096-reference": [
+          7246401,
+          8653190
+        ],
+        "4-f32-4096-shared": [
+          1943712,
+          1857090
+        ],
+        "4-f16-1024-reference": [
+          6832383,
+          5475338
+        ],
+        "4-f16-1024-shared": [
+          2324781,
+          2816110
+        ],
+        "4-f16-4096-reference": [
+          21094742,
+          24034088
+        ],
+        "4-f16-4096-shared": [
+          9196311,
+          9058535
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t    826024 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    291185 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    286244 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t    814005 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   7613401 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1804931 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1809544 ns/op\t      53 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t  10473522 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   5785990 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t   1801298 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t   2057001 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   3414971 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t  11719805 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   6470119 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   6190547 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t  12743730 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    867535 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    252372 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    241431 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    723486 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t   7246401 ns/op\t       2 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   1943712 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   1857090 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   8653190 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   6832383 ns/op\t       2 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   2324781 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t   2816110 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   5475338 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  21094742 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   9196311 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   9058535 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  24034088 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          1174220,
+          1518172
+        ],
+        "3-f32-1024-shared": [
+          404269,
+          396266
+        ],
+        "3-f32-4096-reference": [
+          8737090,
+          12296776
+        ],
+        "3-f32-4096-shared": [
+          2125005,
+          2168124
+        ],
+        "3-f16-1024-reference": [
+          4042788,
+          2756113
+        ],
+        "3-f16-1024-shared": [
+          1374798,
+          1354278
+        ],
+        "3-f16-4096-reference": [
+          9898352,
+          8966754
+        ],
+        "3-f16-4096-shared": [
+          2697681,
+          2673758
+        ],
+        "4-f32-1024-reference": [
+          1197878,
+          1227082
+        ],
+        "4-f32-1024-shared": [
+          388697,
+          388038
+        ],
+        "4-f32-4096-reference": [
+          10722730,
+          14483457
+        ],
+        "4-f32-4096-shared": [
+          2159605,
+          2087814
+        ],
+        "4-f16-1024-reference": [
+          4961173,
+          4838869
+        ],
+        "4-f16-1024-shared": [
+          1517639,
+          1481440
+        ],
+        "4-f16-4096-reference": [
+          13083773,
+          23883957
+        ],
+        "4-f16-4096-shared": [
+          2660558,
+          2507803
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t   1174220 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    404269 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    396266 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t   1518172 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   8737090 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   2125005 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   2168124 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t  12296776 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   4042788 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t   1374798 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t   1354278 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   2756113 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t   9898352 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   2697681 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   2673758 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t   8966754 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t   1197878 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    388697 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    388038 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t   1227082 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t  10722730 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   2159605 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   2087814 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t  14483457 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   4961173 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   1517639 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t   1481440 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   4838869 ns/op\t       2 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  13083773 ns/op\t       3 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   2660558 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   2507803 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  23883957 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          1416099,
+          1024050
+        ],
+        "3-f32-1024-shared": [
+          345790,
+          343116
+        ],
+        "3-f32-4096-reference": [
+          7493932,
+          5800042
+        ],
+        "3-f32-4096-shared": [
+          1478698,
+          1824461
+        ],
+        "3-f16-1024-reference": [
+          1667165,
+          2086031
+        ],
+        "3-f16-1024-shared": [
+          512562,
+          542656
+        ],
+        "3-f16-4096-reference": [
+          8773135,
+          8059586
+        ],
+        "3-f16-4096-shared": [
+          2244961,
+          2652518
+        ],
+        "4-f32-1024-reference": [
+          787585,
+          800386
+        ],
+        "4-f32-1024-shared": [
+          289307,
+          256731
+        ],
+        "4-f32-4096-reference": [
+          8577353,
+          9305465
+        ],
+        "4-f32-4096-shared": [
+          1760061,
+          1699005
+        ],
+        "4-f16-1024-reference": [
+          2923872,
+          2678139
+        ],
+        "4-f16-1024-shared": [
+          2491783,
+          777700
+        ],
+        "4-f16-4096-reference": [
+          11399905,
+          11981310
+        ],
+        "4-f16-4096-shared": [
+          3105690,
+          3249965
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t   1416099 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    345790 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    343116 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t   1024050 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   7493932 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1478698 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1824461 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   5800042 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   1667165 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t    512562 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t    542656 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   2086031 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t   8773135 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   2244961 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   2652518 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t   8059586 ns/op\t       2 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    787585 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    289307 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    256731 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    800386 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t   8577353 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   1760061 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   1699005 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   9305465 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   2923872 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   2491783 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t    777700 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   2678139 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  11399905 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   3105690 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   3249965 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  11981310 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          956722,
+          916260
+        ],
+        "3-f32-1024-shared": [
+          338303,
+          319169
+        ],
+        "3-f32-4096-reference": [
+          7557359,
+          7573332
+        ],
+        "3-f32-4096-shared": [
+          2016477,
+          1923129
+        ],
+        "3-f16-1024-reference": [
+          4066754,
+          4012214
+        ],
+        "3-f16-1024-shared": [
+          1849692,
+          1835332
+        ],
+        "3-f16-4096-reference": [
+          16348845,
+          15121450
+        ],
+        "3-f16-4096-shared": [
+          7504370,
+          7286396
+        ],
+        "4-f32-1024-reference": [
+          815412,
+          802081
+        ],
+        "4-f32-1024-shared": [
+          273738,
+          311281
+        ],
+        "4-f32-4096-reference": [
+          9279506,
+          7301142
+        ],
+        "4-f32-4096-shared": [
+          1714204,
+          1531472
+        ],
+        "4-f16-1024-reference": [
+          4591399,
+          5309628
+        ],
+        "4-f16-1024-shared": [
+          1665125,
+          1692010
+        ],
+        "4-f16-4096-reference": [
+          18738807,
+          21091984
+        ],
+        "4-f16-4096-shared": [
+          6913118,
+          7108092
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t    956722 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    338303 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    319169 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t    916260 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   7557359 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   2016477 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1923129 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   7573332 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   4066754 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t   1849692 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t   1835332 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   4012214 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t  16348845 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   7504370 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   7286396 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t  15121450 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    815412 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    273738 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    311281 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    802081 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t   9279506 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   1714204 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   1531472 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   7301142 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   4591399 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   1665125 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t   1692010 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   5309628 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  18738807 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   6913118 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   7108092 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  21091984 ns/op\t       3 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          3153232,
+          1265387
+        ],
+        "3-f32-1024-shared": [
+          357630,
+          385058
+        ],
+        "3-f32-4096-reference": [
+          9493407,
+          7610102
+        ],
+        "3-f32-4096-shared": [
+          1927104,
+          1907919
+        ],
+        "3-f16-1024-reference": [
+          1969755,
+          2019340
+        ],
+        "3-f16-1024-shared": [
+          687862,
+          698508
+        ],
+        "3-f16-4096-reference": [
+          10693806,
+          8061570
+        ],
+        "3-f16-4096-shared": [
+          4771423,
+          2693305
+        ],
+        "4-f32-1024-reference": [
+          822286,
+          783864
+        ],
+        "4-f32-1024-shared": [
+          280296,
+          308043
+        ],
+        "4-f32-4096-reference": [
+          10784890,
+          10873395
+        ],
+        "4-f32-4096-shared": [
+          2114662,
+          2092165
+        ],
+        "4-f16-1024-reference": [
+          2568060,
+          2911807
+        ],
+        "4-f16-1024-shared": [
+          626216,
+          644533
+        ],
+        "4-f16-4096-reference": [
+          13124490,
+          10912055
+        ],
+        "4-f16-4096-shared": [
+          2873487,
+          2660823
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t   3153232 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    357630 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    385058 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t   1265387 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   9493407 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1927104 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1907919 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   7610102 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   1969755 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t    687862 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t    698508 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   2019340 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t  10693806 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   4771423 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   2693305 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t   8061570 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    822286 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    280296 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    308043 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    783864 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t  10784890 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   2114662 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   2092165 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t  10873395 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   2568060 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t    626216 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t    644533 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   2911807 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  13124490 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   2873487 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   2660823 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  10912055 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          709139,
+          662362
+        ],
+        "3-f32-1024-shared": [
+          250120,
+          256213
+        ],
+        "3-f32-4096-reference": [
+          7659556,
+          9006903
+        ],
+        "3-f32-4096-shared": [
+          1623886,
+          1696275
+        ],
+        "3-f16-1024-reference": [
+          3770301,
+          3508750
+        ],
+        "3-f16-1024-shared": [
+          1535768,
+          1735129
+        ],
+        "3-f16-4096-reference": [
+          14731660,
+          13986932
+        ],
+        "3-f16-4096-shared": [
+          7707715,
+          7154104
+        ],
+        "4-f32-1024-reference": [
+          1238438,
+          1175742
+        ],
+        "4-f32-1024-shared": [
+          357748,
+          362938
+        ],
+        "4-f32-4096-reference": [
+          11326016,
+          9929912
+        ],
+        "4-f32-4096-shared": [
+          1762594,
+          1713598
+        ],
+        "4-f16-1024-reference": [
+          4617798,
+          6631885
+        ],
+        "4-f16-1024-shared": [
+          1741484,
+          1657840
+        ],
+        "4-f16-4096-reference": [
+          20289728,
+          23202185
+        ],
+        "4-f16-4096-shared": [
+          8417308,
+          8277845
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t    709139 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    250120 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    256213 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t    662362 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   7659556 ns/op\t      53 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1623886 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1696275 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   9006903 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   3770301 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t   1535768 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t   1735129 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   3508750 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t  14731660 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   7707715 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   7154104 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t  13986932 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t   1238438 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    357748 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    362938 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t   1175742 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t  11326016 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   1762594 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   1713598 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   9929912 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   4617798 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   1741484 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t   1657840 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   6631885 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  20289728 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   8417308 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   8277845 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  23202185 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "reference",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          999534,
+          598768
+        ],
+        "3-f32-1024-shared": [
+          325922,
+          293581
+        ],
+        "3-f32-4096-reference": [
+          5708056,
+          5628560
+        ],
+        "3-f32-4096-shared": [
+          1382032,
+          1414370
+        ],
+        "3-f16-1024-reference": [
+          3240144,
+          3717822
+        ],
+        "3-f16-1024-shared": [
+          1764379,
+          1890744
+        ],
+        "3-f16-4096-reference": [
+          14313907,
+          12809534
+        ],
+        "3-f16-4096-shared": [
+          7098793,
+          6258229
+        ],
+        "4-f32-1024-reference": [
+          919623,
+          865886
+        ],
+        "4-f32-1024-shared": [
+          323236,
+          317815
+        ],
+        "4-f32-4096-reference": [
+          11246221,
+          8579177
+        ],
+        "4-f32-4096-shared": [
+          2106830,
+          2083440
+        ],
+        "4-f16-1024-reference": [
+          4242711,
+          3997088
+        ],
+        "4-f16-1024-shared": [
+          1612146,
+          1623932
+        ],
+        "4-f16-4096-reference": [
+          21258673,
+          16451075
+        ],
+        "4-f16-4096-shared": [
+          7128882,
+          7080439
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t    999534 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    325922 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    293581 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t    598768 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   5708056 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1382032 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1414370 ns/op\t      53 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   5628560 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   3240144 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t   1764379 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t   1890744 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   3717822 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t  14313907 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   7098793 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   6258229 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t  12809534 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    919623 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    323236 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    317815 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    865886 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t  11246221 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   2106830 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   2083440 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   8579177 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   4242711 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t   1612146 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t   1623932 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   3997088 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t  21258673 ns/op\t       3 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   7128882 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   7080439 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t  16451075 ns/op\t       1 B/op\t       0 allocs/op\nPASS\n"
+    },
+    {
+      "variant": "candidate",
+      "cases_ns": {
+        "3-f32-1024-reference": [
+          762951,
+          650686
+        ],
+        "3-f32-1024-shared": [
+          262491,
+          241765
+        ],
+        "3-f32-4096-reference": [
+          7868194,
+          6102010
+        ],
+        "3-f32-4096-shared": [
+          1675369,
+          1946285
+        ],
+        "3-f16-1024-reference": [
+          1544242,
+          1889656
+        ],
+        "3-f16-1024-shared": [
+          477783,
+          490344
+        ],
+        "3-f16-4096-reference": [
+          7710535,
+          6622127
+        ],
+        "3-f16-4096-shared": [
+          2032084,
+          1990361
+        ],
+        "4-f32-1024-reference": [
+          756624,
+          765742
+        ],
+        "4-f32-1024-shared": [
+          253268,
+          265901
+        ],
+        "4-f32-4096-reference": [
+          7956018,
+          8470692
+        ],
+        "4-f32-4096-shared": [
+          1982896,
+          1704815
+        ],
+        "4-f16-1024-reference": [
+          2118880,
+          2144403
+        ],
+        "4-f16-1024-shared": [
+          529787,
+          559863
+        ],
+        "4-f16-4096-reference": [
+          8998788,
+          8905519
+        ],
+        "4-f16-4096-shared": [
+          2271817,
+          2340490
+        ]
+      },
+      "stdout": "goos: darwin\ngoarch: arm64\npkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith\ncpu: Apple M4\nBenchmarkSharedKVAttention/f32/prefix1024/reference-first-4         \t     100\t    762951 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-second-4           \t     100\t    262491 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/shared-first-4            \t     100\t    241765 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix1024/reference-second-4        \t     100\t    650686 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-first-4         \t     100\t   7868194 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-second-4           \t     100\t   1675369 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/shared-first-4            \t     100\t   1946285 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f32/prefix4096/reference-second-4        \t     100\t   6102010 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-first-4         \t     100\t   1544242 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-second-4           \t     100\t    477783 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/shared-first-4            \t     100\t    490344 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix1024/reference-second-4        \t     100\t   1889656 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-first-4         \t     100\t   7710535 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-second-4           \t     100\t   2032084 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/shared-first-4            \t     100\t   1990361 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVAttention/f16/prefix4096/reference-second-4        \t     100\t   6622127 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-first-4         \t     100\t    756624 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-second-4           \t     100\t    253268 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/shared-first-4            \t     100\t    265901 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix1024/reference-second-4        \t     100\t    765742 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-first-4         \t     100\t   7956018 ns/op\t       2 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-second-4           \t     100\t   1982896 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/shared-first-4            \t     100\t   1704815 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f32/prefix4096/reference-second-4        \t     100\t   8470692 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-first-4         \t     100\t   2118880 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-second-4           \t     100\t    529787 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/shared-first-4            \t     100\t    559863 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix1024/reference-second-4        \t     100\t   2144403 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-first-4         \t     100\t   8998788 ns/op\t       1 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-second-4           \t     100\t   2271817 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/shared-first-4            \t     100\t   2340490 ns/op\t       0 B/op\t       0 allocs/op\nBenchmarkSharedKVFourHeads/f16/prefix4096/reference-second-4        \t     100\t   8905519 ns/op\t       0 B/op\t       0 allocs/op\nPASS\n"
+    }
+  ],
+  "summary": {
+    "3-f16-1024-reference": {
+      "paired_ratios": [
+        0.7389337918071819,
+        0.4645637908208078,
+        0.5480240487393205,
+        0.49352037650083375
+      ],
+      "median_ratio": 0.5207722126200771,
+      "median_ns": {
+        "reference": 3839504.75,
+        "candidate": 1935572.75
+      }
+    },
+    "3-f16-1024-shared": {
+      "paired_ratios": [
+        0.7073262077407687,
+        0.28635308752398897,
+        0.4238500937204687,
+        0.26486851468473155
+      ],
+      "median_ratio": 0.35510159062222885,
+      "median_ns": {
+        "reference": 1835036.75,
+        "candidate": 610397.0
+      }
+    },
+    "3-f16-4096-reference": {
+      "paired_ratios": [
+        0.7711520841121285,
+        0.5348764922603998,
+        0.6530743568486923,
+        0.5284234400790077
+      ],
+      "median_ratio": 0.5939754245545461,
+      "median_ns": {
+        "reference": 13960508.25,
+        "candidate": 8897024.25
+      }
+    },
+    "3-f16-4096-shared": {
+      "paired_ratios": [
+        0.42426196220641155,
+        0.3311173336120658,
+        0.5022755289914377,
+        0.3011483398020906
+      ],
+      "median_ratio": 0.37768964790923865,
+      "median_ns": {
+        "reference": 7036947.0,
+        "candidate": 2567229.5
+      }
+    },
+    "3-f32-1024-reference": {
+      "paired_ratios": [
+        1.6416734094336136,
+        1.3028149763318602,
+        3.2217395393805766,
+        0.8844617600428455
+      ],
+      "median_ratio": 1.4722441928827368,
+      "median_ns": {
+        "reference": 809582.75,
+        "candidate": 1283135.25
+      }
+    },
+    "3-f32-1024-shared": {
+      "paired_ratios": [
+        1.3863782387098673,
+        1.0478104010512996,
+        1.4667975423288626,
+        0.8139686167782884
+      ],
+      "median_ratio": 1.2170943198805835,
+      "median_ns": {
+        "reference": 299233.0,
+        "candidate": 357898.5
+      }
+    },
+    "3-f32-4096-reference": {
+      "paired_ratios": [
+        1.1629322466845244,
+        0.8786098400925642,
+        1.0262233267426513,
+        1.2323081243997327
+      ],
+      "median_ratio": 1.0945777867135877,
+      "median_ns": {
+        "reference": 7949287.5,
+        "candidate": 7768428.25
+      }
+    },
+    "3-f32-4096-shared": {
+      "paired_ratios": [
+        1.1877600481397714,
+        0.8384490733337293,
+        1.1550713956341274,
+        1.2951120761607238
+      ],
+      "median_ratio": 1.1714157218869494,
+      "median_ns": {
+        "reference": 1733659.0,
+        "candidate": 1864169.25
+      }
+    },
+    "4-f16-1024-reference": {
+      "paired_ratios": [
+        0.7962515562385595,
+        0.5658010022596646,
+        0.4871130146511684,
+        0.5174013346684792
+      ],
+      "median_ratio": 0.5416011684640718,
+      "median_ns": {
+        "reference": 5287677.5,
+        "candidate": 2770469.5
+      }
+    },
+    "4-f16-1024-shared": {
+      "paired_ratios": [
+        0.5833772783745075,
+        0.973890832510459,
+        0.37382403089555455,
+        0.33671932505953195
+      ],
+      "median_ratio": 0.478600654635031,
+      "median_ns": {
+        "reference": 1689114.75,
+        "candidate": 1067457.0
+      }
+    },
+    "4-f16-4096-reference": {
+      "paired_ratios": [
+        0.8191599472000493,
+        0.5870135744981816,
+        0.5526669981152588,
+        0.4747925390538277
+      ],
+      "median_ratio": 0.5698402863067202,
+      "median_ns": {
+        "reference": 20830676.0,
+        "candidate": 11854440.0
+      }
+    },
+    "4-f16-4096-shared": {
+      "paired_ratios": [
+        0.2831226842450492,
+        0.4532886248761697,
+        0.3314920204684557,
+        0.32459728371257146
+      ],
+      "median_ratio": 0.3280446520905136,
+      "median_ns": {
+        "reference": 7726118.5,
+        "candidate": 2675667.75
+      }
+    },
+    "4-f32-1024-reference": {
+      "paired_ratios": [
+        1.5241533581266369,
+        0.9817482981379209,
+        0.6652983621768054,
+        0.8526229775374977
+      ],
+      "median_ratio": 0.9171856378377092,
+      "median_ns": {
+        "reference": 850750.5,
+        "candidate": 798530.25
+      }
+    },
+    "4-f32-1024-shared": {
+      "paired_ratios": [
+        1.5729653323288841,
+        0.9333679760828281,
+        0.816359690628096,
+        0.8098716014794455
+      ],
+      "median_ratio": 0.874863833355462,
+      "median_ns": {
+        "reference": 306517.5,
+        "candidate": 283594.25
+      }
+    },
+    "4-f32-4096-reference": {
+      "paired_ratios": [
+        1.5853355598895593,
+        1.0785355313013099,
+        1.0189291664894613,
+        0.8285689901408284
+      ],
+      "median_ratio": 1.0487323488953857,
+      "median_ns": {
+        "reference": 9101511.5,
+        "candidate": 9885275.75
+      }
+    },
+    "4-f32-4096-shared": {
+      "paired_ratios": [
+        1.1175059895253685,
+        1.0657459339749253,
+        1.2101825790980476,
+        0.8800652463922373
+      ],
+      "median_ratio": 1.091625961750147,
+      "median_ns": {
+        "reference": 1819248.5,
+        "candidate": 1973634.5
+      }
+    }
+  },
+  "source_diff": "--- reference/monolith.go\n+++ candidate/monolith.go\n@@ -843,17 +843,16 @@\n }\n \n func halfFloat(v uint16) float32 {\n-\tsign := uint32(v&0x8000) << 16\n-\texp, frac := (v>>10)&31, uint32(v&1023)\n-\tif exp == 0 {\n-\t\t// Includes signed zero and exact half subnormals.\n-\t\tx := float32(math.Ldexp(float64(frac), -24))\n-\t\treturn math.Float32frombits(math.Float32bits(x) | sign)\n-\t}\n-\tif exp == 31 {\n-\t\treturn math.Float32frombits(sign | 0x7f800000 | frac<<13)\n-\t}\n-\treturn math.Float32frombits(sign | uint32(exp+112)<<23 | frac<<13)\n+\tmagnitude := uint32(v&0x7fff) << 13\n+\tif magnitude < 1<<23 {\n+\t\t// Each half subnormal is an exact multiple of 2^-24.\n+\t\tmagnitude = math.Float32bits(float32(v&1023) * 0x1p-24)\n+\t} else if magnitude >= 31<<23 {\n+\t\tmagnitude += (255 - 31) << 23\n+\t} else {\n+\t\tmagnitude += (127 - 15) << 23\n+\t}\n+\treturn math.Float32frombits(magnitude | uint32(v&0x8000)<<16)\n }\n func (a *hfArchive) readTensor(ctx context.Context, name string, dst []float32) error {\n \treturn a.readTensorValues(ctx, name, len(dst), func(i int, v float32) error { dst[i] = v; return nil })\n@@ -7469,7 +7468,7 @@\n // the compiler select the conversion without a type switch in the dot loop.\n func attentionKVValue[T attentionKVWord](value T) float32 {\n \tif unsafe.Sizeof(value) == unsafe.Sizeof(uint16(0)) {\n-\t\treturn fromF16(uint16(value))\n+\t\treturn halfFloat(uint16(value))\n \t}\n \treturn float32(value)\n }\n"
+}
