@@ -1,0 +1,219 @@
+{
+  "format": "monolith-context-sweep-v1",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "model_files": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "d711d60100636dfc69a446a8e6d03df72cb25b154cbc8e1760781c99ab7375a1",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "scripts/measure_context_sweep.py": "7c57b821937cc31e24b0963bfef1f4aa0d4246a032d768102c2ead27ad8d41f9",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "scripts/context_sweep_timing.py": "bb559ed24424b1762e0e7666cabe50685460e3aeed72ccffb693a398dbacf957",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0"
+  },
+  "binary_sha256": "1b233a4f3ebb90e36be42122e775a256c23bbea26e0831473d72bb3f152623bc",
+  "host": "macOS-26.4.1-arm64-arm-64bit",
+  "cpu": "arm64",
+  "lengths": [
+    128,
+    1024
+  ],
+  "schedule": [
+    [
+      "f16",
+      1
+    ]
+  ],
+  "stage_timing": false,
+  "compare_shared_kv": false,
+  "compiled_source_sha256": "d711d60100636dfc69a446a8e6d03df72cb25b154cbc8e1760781c99ab7375a1",
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "runs": [
+    {
+      "kv_format": "f16",
+      "sessions": 1,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2342961152,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 235.8391589160019,
+        "user_cpu_seconds": 774.554113,
+        "system_cpu_seconds": 6.161065
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f16",
+          "lengths": [
+            128,
+            1024
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 1031,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 527872,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 236486656,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 1,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.15884875,
+              0.15832925,
+              0.15952775,
+              0.156639875,
+              0.1579195,
+              0.182639292,
+              0.156859417
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ]
+            ],
+            "logits_sha256": "84010471561220cc7e049964d10c409501e6628783626caf6b23d96c5775604c",
+            "kv_sha256": "f28bbff3f6342f9183586887592c1b66c298409d5e2d075f535bf9c374ab82ef",
+            "kv_payload_bytes": 18350080,
+            "workspace_bytes": 638464
+          },
+          "event": "measurement",
+          "prefill_seconds": 20.029211124,
+          "prefill_workspace_bytes": 4447232,
+          "prefix": 128,
+          "prompt_sha256": "b06f838d28fa83caab950ba07db4da1ee068086417305696e46467e1bcdd66c0",
+          "decode_median_ms": 158.32925
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.34125225,
+              0.259512875,
+              0.25435125,
+              0.295573041,
+              0.264143083,
+              0.248004916,
+              0.251981791
+            ],
+            "token_ids": [
+              [
+                311,
+                1373,
+                13,
+                3296,
+                6740,
+                11,
+                1475,
+                2199
+              ]
+            ],
+            "logits_sha256": "de06ce3f253bd49eccae221c9a8c7e0e6536a7c08143079c141f5c0bed9ed824",
+            "kv_sha256": "43411bb8b3a0bff2d3b6e98a6f13daee2d9f10ab51f7e4c514fdda41ba64e617",
+            "kv_payload_bytes": 121110528,
+            "workspace_bytes": 652400
+          },
+          "event": "measurement",
+          "prefill_seconds": 207.404009168,
+          "prefill_workspace_bytes": 4461568,
+          "prefix": 1024,
+          "prompt_sha256": "202996dad0e91d5c89e7561cde604f5060defdfbd7f2d6e4cd582a77fc626add",
+          "decode_median_ms": 259.51287499999995
+        },
+        {
+          "event": "profile",
+          "file": "decode-1024.cpu",
+          "prefix": 1024
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "217e8ed6c8a30539866b7b0d068f3ceef95e7a6905a18557e83c8c379bd0ede2",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 3860.0,
+          "q4_range_cpu_ms": 850.0,
+          "q8_worker_cpu_ms": 810.0,
+          "attention_range_cpu_ms": 30.0,
+          "cpu_profile_sha256": "d197bd88c151aab8aca4e4e798891830a743693438175efa398527cb610155fc"
+        },
+        "1024": {
+          "total_cpu_ms": 5710.0,
+          "q4_range_cpu_ms": 2420.0,
+          "q8_worker_cpu_ms": 1000.0,
+          "attention_range_cpu_ms": 220.0,
+          "cpu_profile_sha256": "a03b62c34434b0bf1218d0c0e525f77d5f589ef0d8302ed68b93c682f0bb99de"
+        }
+      }
+    }
+  ],
+  "identities_unchanged": true
+}

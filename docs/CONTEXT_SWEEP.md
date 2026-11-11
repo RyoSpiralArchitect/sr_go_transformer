@@ -329,5 +329,7 @@ the [measurement records](../validation/performance/fp16-widening-20261111/).
 
 The ordinary build ran the pinned Llama 3.2 3B Q4-mixed model with one
 FP16 KV session and four workers. At 128 and 1,024 positions, prompt,
-logits and KV hashes, generated IDs, payload and workspace matched the
-archived FP16 comparison. [Ordinary-build receipt](../validation/performance/fp16-widening-20261111/ordinary-f16-1024.json).
+logits and KV hashes, generated IDs and KV payload matched the archived
+FP16 comparison. The 1,031-position context cap reduces the four score
+strides from 1,056 to 1,031 elements at the 1,024 checkpoint, accounting
+for the 400-byte workspace difference. [Ordinary-build receipt](../validation/performance/fp16-widening-20261111/ordinary-f16-1024.json).
