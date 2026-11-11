@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -150,6 +151,17 @@ func TestFourHeadKVPrefillMatchesPerHeadBatch(t *testing.T) {
 					t.Fatal(err)
 				}
 				exactWorkerFloats(t, got, want[:c.Vocab])
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+					// Shared attention leaves normalized scores. The per-head
+					// kernel leaves unnormalized exponentials in this buffer.
+					var sum float64
+					for _, score := range single.Scores[:candidate.Pos] {
+						sum += float64(score)
+					}
+					if math.Abs(sum-1) > 1e-6 {
+						t.Fatalf("expected shared attention at position %d, score sum %g", candidate.Pos, sum)
+					}
+				}
 				assertWorkspaceReferencesCleared(t, &single)
 			}
 		})

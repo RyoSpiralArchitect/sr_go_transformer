@@ -295,5 +295,6 @@ The eight-process three-head compatibility check used the preceding
 runtime's benchmark in both builds. Its median ratios at 1,024 and
 4,096 were 0.709 and 0.812 for FP32 and 0.846 and 0.935 for FP16. The
 paired results varied, including a 1.139 ratio in one FP32 4,096 pair.
-The records retain all pairs and the 128-position diagnostic.
+The three-head record retains all pairs at 1,024 and 4,096 positions.
+The four-head benchmark also records a 128-position diagnostic.
 [Protocol and raw samples](../validation/performance/gqa-four-heads-20261111/).
