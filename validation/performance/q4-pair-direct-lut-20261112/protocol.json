@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "0e034974880d4c8d28aef7344eab8d9ebe9d2a28",
+  "baseline_runtime_sha256": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+  "candidate_runtime_sha256": "17212b9599d6291039bcf3ec84e99c7462d9280c58420d877cfab54a3b64a61f",
+  "synthetic_probe_sha256": "29a23b2f1976e030e366d5b4908633876cc54415657d8055166babece959e7f5",
+  "variant": "Use addresses of the 32 LUT entries in dotQ4PairBlock64. Keep FP32 accumulation and the complete projection dispatch identical.",
+  "host": "Apple M4, macOS 26.4.1, Go 1.27.1 darwin/arm64, four workers and GOMAXPROCS=4",
+  "disassembly": {
+    "symbol": "\\.dotQ4PairBlock64$",
+    "count": "Static MOVD from a general-purpose register to an offset of RSP and FLDPS from an offset of RSP inside the symbol. Exclude frame setup and link-register saves.",
+    "purpose": "Check whether address loads remove the paired table-copy spill pattern on this Go arm64 build."
+  },
+  "synthetic": {
+    "command": "probe.test -test.run '^$' -test.bench '^BenchmarkQ4PairLUT$' -test.benchtime=120x -test.count=1",
+    "process_schedule": ["before", "after", "after", "before", "after", "before", "before", "after"],
+    "cases": "Llama 3.2 3B dimensions for Gate/Up, Down, Q/O, K/V, two input rows. Gate/Up one- and four-row same-path controls.",
+    "screen": "Both Gate/Up and Down two-row candidate/reference ratios of process medians must be at most 0.95. Report all adjacent pair ratios and same-path controls."
+  },
+  "model": {
+    "checkpoint": "mlx-community/Llama-3.2-3B-bf16@60a99aaf43164077157d64bf909b7b61143c6a6d",
+    "command": "python3 -S scripts/compare_inference.py --model MODEL_SNAPSHOT --id llama32-3b --baseline-ref 0e034974880d4c8d28aef7344eab8d9ebe9d2a28 --weight-format q4-mixed --case-order balanced --output-dir runs/pair-lut/model",
+    "cases": "One and two sessions; 8-token prefixes; 7 decode calls; FP32 KV; three measured trials per case in each process.",
+    "screen": "Exact prompt, generated IDs, logit and KV digests and equal workspace. Two-session decode candidate/reference median ratio at most 0.95, with both process pairs faster. Single-session decode and both prefill control median ratios at most 1.05.",
+    "interpretation": "Screening result on this workload. A failed or unstable screen stays in the record. A pass would justify a separate confirmation before changing the default."
+  }
+}

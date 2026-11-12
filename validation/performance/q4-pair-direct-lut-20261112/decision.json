@@ -1,0 +1,135 @@
+{
+  "screening_result": "failed",
+  "production_change": false,
+  "reason": "Two-row Down and both model prefill controls missed their frozen gates.",
+  "numerical_identity": true,
+  "disassembly": {
+    "before": {
+      "stores": 16,
+      "paired_loads": 16,
+      "binary_sha256": "4a76e3dbcf58dde8b6ef8f51f069867d9ed61c0b221489e04618c646e7b57601"
+    },
+    "after": {
+      "stores": 0,
+      "paired_loads": 0,
+      "binary_sha256": "ddf151d05b923aaa639001f38d245fd429e8de7adb6861266c359ff919a9ce79"
+    }
+  },
+  "synthetic": {
+    "gate-up/rows1": {
+      "before_median_ns": 907348.5,
+      "after_median_ns": 983273.0,
+      "ratio": 1.0836773301548412,
+      "adjacent_ratios": [
+        1.0954004791971923,
+        1.3176056954680329,
+        0.9759313284216905,
+        0.975903151295347
+      ]
+    },
+    "gate-up/rows2": {
+      "before_median_ns": 1788958.0,
+      "after_median_ns": 1663691.0,
+      "ratio": 0.9299776741544519,
+      "adjacent_ratios": [
+        0.9282322060385476,
+        1.0418672403644775,
+        0.880166530681022,
+        0.8984166214130254
+      ]
+    },
+    "gate-up/rows4": {
+      "before_median_ns": 4433444.5,
+      "after_median_ns": 4724590.0,
+      "ratio": 1.0656702705988539,
+      "adjacent_ratios": [
+        1.18438699138639,
+        1.1135320616261595,
+        0.9465712452823901,
+        1.0287574780887758
+      ]
+    },
+    "down/rows2": {
+      "before_median_ns": 1788544.0,
+      "after_median_ns": 1805181.0,
+      "ratio": 1.0093019797108709,
+      "adjacent_ratios": [
+        1.2948263188961031,
+        1.0767240723942069,
+        0.8966035709787823,
+        0.9693420641924742
+      ]
+    },
+    "query-output/rows2": {
+      "before_median_ns": 683502.5,
+      "after_median_ns": 664845.0,
+      "ratio": 0.9727030991108299,
+      "adjacent_ratios": [
+        1.17921166056774,
+        1.0450347166652303,
+        0.9005282495184205,
+        0.9593984008871508
+      ]
+    },
+    "key-value/rows2": {
+      "before_median_ns": 240914.0,
+      "after_median_ns": 227396.0,
+      "ratio": 0.943888690570079,
+      "adjacent_ratios": [
+        1.2852437309296072,
+        0.9560964799840098,
+        0.9569159494279357,
+        0.9308175577629112
+      ]
+    }
+  },
+  "model": {
+    "1_sessions_decode_seconds": {
+      "before_median_seconds": 1.1141211245,
+      "after_median_seconds": 1.1198553334999999,
+      "ratio": 1.005146845234241,
+      "adjacent_process_median_ratios": [
+        1.1829538427203614,
+        0.9574708500478828
+      ],
+      "workspace_bytes": 1496576
+    },
+    "1_sessions_prefill_seconds": {
+      "before_median_seconds": 1.1870066874999998,
+      "after_median_seconds": 1.2818874585,
+      "ratio": 1.0799328024004922,
+      "adjacent_process_median_ratios": [
+        1.7774691626346395,
+        1.0110312507293788
+      ],
+      "workspace_bytes": 1496576
+    },
+    "2_sessions_decode_seconds": {
+      "before_median_seconds": 2.421011688,
+      "after_median_seconds": 2.1694243335000003,
+      "ratio": 0.8960817265992481,
+      "adjacent_process_median_ratios": [
+        0.9817042596923773,
+        0.9647953788963247
+      ],
+      "workspace_bytes": 2992640
+    },
+    "2_sessions_prefill_seconds": {
+      "before_median_seconds": 2.7132622715,
+      "after_median_seconds": 3.1090650205,
+      "ratio": 1.1458770695179366,
+      "adjacent_process_median_ratios": [
+        1.113812333251992,
+        1.3141608596327534
+      ],
+      "workspace_bytes": 2992640
+    }
+  },
+  "source_sha256": {
+    "kernels.txt": "988995e11317abb47e9b96cbb1f51abc6ccaa0fab62e1f1af35e9cdab0675c94",
+    "model.json": "9a2214cf909322ff8c89d93588c97489536edae6dda76f52d1db5b5c4c1ead2c",
+    "candidate.patch": "5480df86ad618da1b33b466a86ab147f621240683bd2c8db4be5f74597c53425",
+    "bench_test.go.txt": "29a23b2f1976e030e366d5b4908633876cc54415657d8055166babece959e7f5",
+    "protocol.json": "be6c04959d51b3fa79dabe5e6539234f0930e6dac9338fec205158dc66cb6fed"
+  }
+}

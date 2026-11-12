@@ -1,0 +1,538 @@
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index b226520..a41213c 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -4517,0 +4518,4 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 2 && in%64 == 0 {
++		linearQ4TwoRowOutputPairRange(job, lo, hi)
++		return
++	}
+@@ -4634,0 +4639,502 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
++// Each worker owns the usual disjoint output tiles. Within each tile,
++// two output channels share activation loads while preserving four sums
++// per input row and output channel.
++func linearQ4TwoRowOutputPairRange(job *fp32Kernel, lo, hi int) {
++	x, y, w := job.x, job.y, job.w
++	in, out := w.Cols, w.Rows
++	x0, x1 := x[:in], x[in:2*in]
++	groups, stride := in/64, in/2
++	for tile := lo; tile < hi; tile++ {
++		end := min((tile+1)*32, out)
++		o := tile * 32
++		for ; o+1 < end; o += 2 {
++			w0, w1 := w.Q4.Values[o*stride:(o+1)*stride], w.Q4.Values[(o+1)*stride:(o+2)*stride]
++			s0, s1 := w.Q4.Scales[o*groups:(o+1)*groups], w.Q4.Scales[(o+1)*groups:(o+2)*groups]
++			var a00, a01, a10, a11 float32
++			for g := 0; g < groups; g++ {
++				column, packed := g*64, g*32
++				p00, p01, p10, p11 := dotQ4TwoRowOutputPair64(
++					(*[64]float32)(x0[column:column+64]), (*[64]float32)(x1[column:column+64]),
++					(*[32]byte)(w0[packed:packed+32]), (*[32]byte)(w1[packed:packed+32]))
++				a00 += p00 * s0[g]
++				a01 += p01 * s1[g]
++				a10 += p10 * s0[g]
++				a11 += p11 * s1[g]
++			}
++			y[o], y[o+1], y[out+o], y[out+o+1] = a00, a01, a10, a11
++		}
++		if o < end {
++			packed := w.Q4.Values[o*stride : (o+1)*stride]
++			scales := w.Q4.Scales[o*groups : (o+1)*groups]
++			var a0, a1 float32
++			for g, scale := range scales {
++				column, start := g*64, g*32
++				p0, p1 := dotQ4PairBlock64(
++					(*[64]float32)(x0[column:column+64]), (*[64]float32)(x1[column:column+64]),
++					(*[32]byte)(packed[start:start+32]))
++				a0 += p0 * scale
++				a1 += p1 * scale
++			}
++			y[o], y[out+o] = a0, a1
++		}
++	}
++}
++
++// Constant offsets keep the 64-column block free of per-column bounds
++// checks. The projection probe records the generator and comparison.
++func dotQ4TwoRowOutputPair64(x0, x1 *[64]float32, w0, w1 *[32]byte) (float32, float32, float32, float32) {
++	var a00, b00, c00, d00 float32
++	var a01, b01, c01, d01 float32
++	var a10, b10, c10, d10 float32
++	var a11, b11, c11, d11 float32
++	{
++		v00, v01 := x0[0], x0[1]
++		v10, v11 := x1[0], x1[1]
++		p0 := &q4Pairs[w0[0]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[0]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[2], x0[3]
++		v10, v11 := x1[2], x1[3]
++		p0 := &q4Pairs[w0[1]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[1]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[4], x0[5]
++		v10, v11 := x1[4], x1[5]
++		p0 := &q4Pairs[w0[2]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[2]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[6], x0[7]
++		v10, v11 := x1[6], x1[7]
++		p0 := &q4Pairs[w0[3]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[3]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[8], x0[9]
++		v10, v11 := x1[8], x1[9]
++		p0 := &q4Pairs[w0[4]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[4]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[10], x0[11]
++		v10, v11 := x1[10], x1[11]
++		p0 := &q4Pairs[w0[5]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[5]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[12], x0[13]
++		v10, v11 := x1[12], x1[13]
++		p0 := &q4Pairs[w0[6]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[6]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[14], x0[15]
++		v10, v11 := x1[14], x1[15]
++		p0 := &q4Pairs[w0[7]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[7]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[16], x0[17]
++		v10, v11 := x1[16], x1[17]
++		p0 := &q4Pairs[w0[8]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[8]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[18], x0[19]
++		v10, v11 := x1[18], x1[19]
++		p0 := &q4Pairs[w0[9]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[9]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[20], x0[21]
++		v10, v11 := x1[20], x1[21]
++		p0 := &q4Pairs[w0[10]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[10]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[22], x0[23]
++		v10, v11 := x1[22], x1[23]
++		p0 := &q4Pairs[w0[11]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[11]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[24], x0[25]
++		v10, v11 := x1[24], x1[25]
++		p0 := &q4Pairs[w0[12]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[12]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[26], x0[27]
++		v10, v11 := x1[26], x1[27]
++		p0 := &q4Pairs[w0[13]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[13]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[28], x0[29]
++		v10, v11 := x1[28], x1[29]
++		p0 := &q4Pairs[w0[14]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[14]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[30], x0[31]
++		v10, v11 := x1[30], x1[31]
++		p0 := &q4Pairs[w0[15]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[15]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[32], x0[33]
++		v10, v11 := x1[32], x1[33]
++		p0 := &q4Pairs[w0[16]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[16]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[34], x0[35]
++		v10, v11 := x1[34], x1[35]
++		p0 := &q4Pairs[w0[17]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[17]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[36], x0[37]
++		v10, v11 := x1[36], x1[37]
++		p0 := &q4Pairs[w0[18]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[18]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[38], x0[39]
++		v10, v11 := x1[38], x1[39]
++		p0 := &q4Pairs[w0[19]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[19]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[40], x0[41]
++		v10, v11 := x1[40], x1[41]
++		p0 := &q4Pairs[w0[20]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[20]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[42], x0[43]
++		v10, v11 := x1[42], x1[43]
++		p0 := &q4Pairs[w0[21]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[21]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[44], x0[45]
++		v10, v11 := x1[44], x1[45]
++		p0 := &q4Pairs[w0[22]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[22]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[46], x0[47]
++		v10, v11 := x1[46], x1[47]
++		p0 := &q4Pairs[w0[23]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[23]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[48], x0[49]
++		v10, v11 := x1[48], x1[49]
++		p0 := &q4Pairs[w0[24]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[24]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[50], x0[51]
++		v10, v11 := x1[50], x1[51]
++		p0 := &q4Pairs[w0[25]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[25]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[52], x0[53]
++		v10, v11 := x1[52], x1[53]
++		p0 := &q4Pairs[w0[26]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[26]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[54], x0[55]
++		v10, v11 := x1[54], x1[55]
++		p0 := &q4Pairs[w0[27]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[27]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[56], x0[57]
++		v10, v11 := x1[56], x1[57]
++		p0 := &q4Pairs[w0[28]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[28]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[58], x0[59]
++		v10, v11 := x1[58], x1[59]
++		p0 := &q4Pairs[w0[29]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[29]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[60], x0[61]
++		v10, v11 := x1[60], x1[61]
++		p0 := &q4Pairs[w0[30]]
++		a00 += v00 * p0[0]
++		b00 += v01 * p0[1]
++		a10 += v10 * p0[0]
++		b10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[30]]
++		a01 += v00 * p1[0]
++		b01 += v01 * p1[1]
++		a11 += v10 * p1[0]
++		b11 += v11 * p1[1]
++	}
++	{
++		v00, v01 := x0[62], x0[63]
++		v10, v11 := x1[62], x1[63]
++		p0 := &q4Pairs[w0[31]]
++		c00 += v00 * p0[0]
++		d00 += v01 * p0[1]
++		c10 += v10 * p0[0]
++		d10 += v11 * p0[1]
++		p1 := &q4Pairs[w1[31]]
++		c01 += v00 * p1[0]
++		d01 += v01 * p1[1]
++		c11 += v10 * p1[0]
++		d11 += v11 * p1[1]
++	}
++	return (a00 + b00) + (c00 + d00), (a01 + b01) + (c01 + d01), (a10 + b10) + (c10 + d10), (a11 + b11) + (c11 + d11)
++}
++
+diff --git a/cmd/monolith/q4_output_pair_test.go b/cmd/monolith/q4_output_pair_test.go
+index 2516e20..fc3c4b1 100644
+--- a/cmd/monolith/q4_output_pair_test.go
++++ b/cmd/monolith/q4_output_pair_test.go
+@@ -94,0 +95,21 @@ func TestQ4OutputPairParallelOddTile(t *testing.T) {
++
++func TestQ4TwoRowOutputPairParallelTail(t *testing.T) {
++	const rows, in, out = 2, 2048, 65
++	e := newKernelExecutor(4)
++	defer e.close()
++	x, p, _ := linearFixture(rows, in, out)
++	q := quantizeQ4TestParam(t, p)
++	want := make([]float32, rows*out)
++	guarded := make([]float32, rows*out+2)
++	guarded[0], guarded[len(guarded)-1] = 123, 456
++	baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: rows}, 0, 3)
++	linearQ4Into(e, guarded[1:len(guarded)-1], x, q, rows)
++	if e.q4Fn == nil {
++		t.Fatal("fixture did not dispatch parallel Q4")
++	}
++	exactWorkerFloats(t, guarded[1:len(guarded)-1], want)
++	if guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
++		t.Fatal("output overrun")
++	}
++	assertQ4InvocationCleared(t, e)
++}

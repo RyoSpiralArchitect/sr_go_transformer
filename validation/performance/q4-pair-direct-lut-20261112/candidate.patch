@@ -1,0 +1,52 @@
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index b226520..eee9115 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -5436 +5436 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p0, q0 := q4Pairs[w[0]], q4Pairs[w[1]]
++	p0, q0 := &q4Pairs[w[0]], &q4Pairs[w[1]]
+@@ -5445 +5445 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p4, q4 := q4Pairs[w[2]], q4Pairs[w[3]]
++	p4, q4 := &q4Pairs[w[2]], &q4Pairs[w[3]]
+@@ -5454 +5454 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p8, q8 := q4Pairs[w[4]], q4Pairs[w[5]]
++	p8, q8 := &q4Pairs[w[4]], &q4Pairs[w[5]]
+@@ -5463 +5463 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p12, q12 := q4Pairs[w[6]], q4Pairs[w[7]]
++	p12, q12 := &q4Pairs[w[6]], &q4Pairs[w[7]]
+@@ -5472 +5472 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p16, q16 := q4Pairs[w[8]], q4Pairs[w[9]]
++	p16, q16 := &q4Pairs[w[8]], &q4Pairs[w[9]]
+@@ -5481 +5481 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p20, q20 := q4Pairs[w[10]], q4Pairs[w[11]]
++	p20, q20 := &q4Pairs[w[10]], &q4Pairs[w[11]]
+@@ -5490 +5490 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p24, q24 := q4Pairs[w[12]], q4Pairs[w[13]]
++	p24, q24 := &q4Pairs[w[12]], &q4Pairs[w[13]]
+@@ -5499 +5499 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p28, q28 := q4Pairs[w[14]], q4Pairs[w[15]]
++	p28, q28 := &q4Pairs[w[14]], &q4Pairs[w[15]]
+@@ -5508 +5508 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p32, q32 := q4Pairs[w[16]], q4Pairs[w[17]]
++	p32, q32 := &q4Pairs[w[16]], &q4Pairs[w[17]]
+@@ -5517 +5517 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p36, q36 := q4Pairs[w[18]], q4Pairs[w[19]]
++	p36, q36 := &q4Pairs[w[18]], &q4Pairs[w[19]]
+@@ -5526 +5526 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p40, q40 := q4Pairs[w[20]], q4Pairs[w[21]]
++	p40, q40 := &q4Pairs[w[20]], &q4Pairs[w[21]]
+@@ -5535 +5535 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p44, q44 := q4Pairs[w[22]], q4Pairs[w[23]]
++	p44, q44 := &q4Pairs[w[22]], &q4Pairs[w[23]]
+@@ -5544 +5544 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p48, q48 := q4Pairs[w[24]], q4Pairs[w[25]]
++	p48, q48 := &q4Pairs[w[24]], &q4Pairs[w[25]]
+@@ -5553 +5553 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p52, q52 := q4Pairs[w[26]], q4Pairs[w[27]]
++	p52, q52 := &q4Pairs[w[26]], &q4Pairs[w[27]]
+@@ -5562 +5562 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p56, q56 := q4Pairs[w[28]], q4Pairs[w[29]]
++	p56, q56 := &q4Pairs[w[28]], &q4Pairs[w[29]]
+@@ -5571 +5571 @@ func dotQ4PairBlock64(x0, x1 *[64]float32, w *[32]byte) (float32, float32) {
+-	p60, q60 := q4Pairs[w[30]], q4Pairs[w[31]]
++	p60, q60 := &q4Pairs[w[30]], &q4Pairs[w[31]]

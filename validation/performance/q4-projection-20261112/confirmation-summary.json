@@ -1,0 +1,65 @@
+{
+  "metrics": {
+    "1_sessions_prefill_seconds": {
+      "reference_process_median_ms": [
+        1024.0110419999999,
+        1186.7069999999999
+      ],
+      "candidate_process_median_ms": [
+        1131.865167,
+        1186.001125
+      ],
+      "paired_ratios": [
+        1.1053251582027375,
+        0.9994051817339917
+      ],
+      "paired_ratio_median": 1.0523651699683647
+    },
+    "1_sessions_decode_seconds": {
+      "reference_process_median_ms": [
+        139.9042795714286,
+        152.76943457142858
+      ],
+      "candidate_process_median_ms": [
+        148.4812857142857,
+        152.76357157142857
+      ],
+      "paired_ratios": [
+        1.0613062457355216,
+        0.9999616219041692
+      ],
+      "paired_ratio_median": 1.0306339338198454
+    },
+    "2_sessions_prefill_seconds": {
+      "reference_process_median_ms": [
+        2198.0764590000003,
+        2294.08275
+      ],
+      "candidate_process_median_ms": [
+        2326.002708,
+        2281.215833
+      ],
+      "paired_ratios": [
+        1.0581991806864621,
+        0.9943912585542087
+      ],
+      "paired_ratio_median": 1.0262952196203354
+    },
+    "2_sessions_decode_seconds": {
+      "reference_process_median_ms": [
+        259.82705328571427,
+        266.52926214285714
+      ],
+      "candidate_process_median_ms": [
+        193.35095271428574,
+        189.56289857142858
+      ],
+      "paired_ratios": [
+        0.7441525055578826,
+        0.7112273415960784
+      ],
+      "paired_ratio_median": 0.7276899235769805
+    }
+  },
+  "passed": false
+}

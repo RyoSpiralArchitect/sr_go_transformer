@@ -1,0 +1,48 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+func BenchmarkQ4PairLUT(b *testing.B) {
+	for _, shape := range []struct {
+		name    string
+		in, out int
+		rows    []int
+	}{
+		{"gate-up", 3072, 8192, []int{1, 2, 4}},
+		{"down", 8192, 3072, []int{2}},
+		{"query-output", 3072, 3072, []int{2}},
+		{"key-value", 3072, 1024, []int{2}},
+	} {
+		b.Run(shape.name, func(b *testing.B) {
+			w := newInferenceParamFormat(shape.name, shape.out, shape.in, true, "q4")
+			for i := range w.Q4.Values {
+				w.Q4.Values[i] = byte(17*i + i/31)
+			}
+			for i := range w.Q4.Scales {
+				w.Q4.Scales[i] = float32(i%11+1) / 2048
+			}
+			for _, rows := range shape.rows {
+				b.Run(fmt.Sprintf("rows%d", rows), func(b *testing.B) {
+					x, y := make([]float32, rows*shape.in), make([]float32, rows*shape.out)
+					for i := range x {
+						x[i] = float32((37*i)%251-125) / 128
+					}
+					e := newKernelExecutor(4)
+					defer e.close()
+					linearQ4Into(e, y, x, w, rows)
+					b.ReportAllocs()
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						linearQ4Into(e, y, x, w, rows)
+					}
+				})
+			}
+		})
+	}
+}

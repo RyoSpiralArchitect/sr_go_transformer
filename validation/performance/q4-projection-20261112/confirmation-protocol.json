@@ -1,0 +1,15 @@
+{
+  "base": "65e227d18a0121763c495124c573bbfb1d57d353",
+  "runtime_sha256": {
+    "reference": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+    "candidate": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342"
+  },
+  "dispatch": "Default Darwin arm64 runtime, aligned two-row Q4, using the screened two-output kernel.",
+  "model": "mlx-community/Llama-3.2-3B-bf16@60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weights": "q4-mixed",
+  "kv": "f32",
+  "scope": "Four workers, one and two sessions, 8-token prefixes, seven decode calls and three measured trials per case.",
+  "schedule": [["before", [1, 2]], ["after", [1, 2]], ["after", [2, 1]], ["before", [2, 1]]],
+  "criterion": "All numerical signatures and within-case workspace capacities agree. Both two-session paired process-median decode ratios must be below 1 and their median at most 0.95. Median paired ratios at most 1.05 for single-session decode and prefill with either session count.",
+  "command": "python3 -S scripts/compare_inference.py --model MODEL_SNAPSHOT --id llama32-3b --baseline-ref 65e227d18a0121763c495124c573bbfb1d57d353 --weight-format q4-mixed --case-order balanced --output-dir runs/q4-projection-confirmation"
+}

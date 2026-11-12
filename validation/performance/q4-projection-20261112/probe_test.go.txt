@@ -1,0 +1,172 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"testing"
+	"time"
+)
+
+var q4ProbeOrders = [4][4]string{
+	{"reference", "direct", "tile", "control"},
+	{"control", "tile", "direct", "reference"},
+	{"tile", "reference", "control", "direct"},
+	{"direct", "control", "reference", "tile"},
+}
+
+type q4ProjectionKey struct{}
+
+type q4ProjectionSpan struct {
+	Elapsed time.Duration `json:"ns"`
+	Calls   int           `json:"calls"`
+}
+
+type q4ProjectionSpans [3]q4ProjectionSpan // Gate, Up, Down
+
+func q4Projection(timing *q4ProjectionSpans, role int, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	if timing == nil {
+		linearIntoWithExecutor(e, y, x, w, rows)
+		return
+	}
+	started := time.Now()
+	linearIntoWithExecutor(e, y, x, w, rows)
+	timing[role].Elapsed += time.Since(started)
+	timing[role].Calls++
+}
+
+func q4ProbeRange(mode string, job *fp32Kernel, lo, hi int) {
+	if job.n == 2 && job.w.Cols%64 == 0 {
+		switch mode {
+		case "direct":
+			q4ProbeDirectRange(job, lo, hi)
+			return
+		case "tile":
+			q4ProbeTileRange(job, lo, hi)
+			return
+		}
+	}
+	linearQ4Range(job, lo, hi)
+}
+
+// Each worker owns the usual disjoint output tiles. Within each tile,
+// two output channels share activation loads while preserving four sums
+// per input row and output channel.
+func q4ProbeTileRange(job *fp32Kernel, lo, hi int) {
+	x, y, w := job.x, job.y, job.w
+	in, out := w.Cols, w.Rows
+	x0, x1 := x[:in], x[in:2*in]
+	groups, stride := in/64, in/2
+	for tile := lo; tile < hi; tile++ {
+		end := min((tile+1)*32, out)
+		o := tile * 32
+		for ; o+1 < end; o += 2 {
+			w0, w1 := w.Q4.Values[o*stride:(o+1)*stride], w.Q4.Values[(o+1)*stride:(o+2)*stride]
+			s0, s1 := w.Q4.Scales[o*groups:(o+1)*groups], w.Q4.Scales[(o+1)*groups:(o+2)*groups]
+			var a00, a01, a10, a11 float32
+			for g := 0; g < groups; g++ {
+				column, packed := g*64, g*32
+				p00, p01, p10, p11 := q4ProbeTileBlock(
+					(*[64]float32)(x0[column:column+64]), (*[64]float32)(x1[column:column+64]),
+					(*[32]byte)(w0[packed:packed+32]), (*[32]byte)(w1[packed:packed+32]))
+				a00 += p00 * s0[g]
+				a01 += p01 * s1[g]
+				a10 += p10 * s0[g]
+				a11 += p11 * s1[g]
+			}
+			y[o], y[o+1], y[out+o], y[out+o+1] = a00, a01, a10, a11
+		}
+		if o < end {
+			packed := w.Q4.Values[o*stride : (o+1)*stride]
+			scales := w.Q4.Scales[o*groups : (o+1)*groups]
+			var a0, a1 float32
+			for g, scale := range scales {
+				column, start := g*64, g*32
+				p0, p1 := dotQ4PairBlock64(
+					(*[64]float32)(x0[column:column+64]), (*[64]float32)(x1[column:column+64]),
+					(*[32]byte)(packed[start:start+32]))
+				a0 += p0 * scale
+				a1 += p1 * scale
+			}
+			y[o], y[out+o] = a0, a1
+		}
+	}
+}
+
+func q4ProjectionFixture(in, out, rows int) (*Param, []float32) {
+	w := newInferenceParamFormat("projection", out, in, true, "q4")
+	for i := range w.Q4.Values {
+		w.Q4.Values[i] = byte(17*i + i/31)
+	}
+	for i := range w.Q4.Scales {
+		w.Q4.Scales[i] = float32(i%11+1) / 2048
+	}
+	x := make([]float32, rows*in)
+	for i := range x {
+		x[i] = float32((37*i)%251-125) / 128
+	}
+	return w, x
+}
+
+func TestQ4ProjectionVariants(t *testing.T) {
+	for _, cols := range []int{64, 127, 192} {
+		for _, outs := range []int{1, 31, 33, 65} {
+			for _, rows := range []int{1, 2, 3, 4} {
+				w, x := q4ProjectionFixture(cols, outs, rows)
+				want, got := make([]float32, rows*outs), make([]float32, rows*outs)
+				tasks := ((rows + 3) / 4) * ((outs + 31) / 32)
+				linearQ4Range(&fp32Kernel{x: x, y: want, w: w, n: rows}, 0, tasks)
+				for _, mode := range []string{"direct", "tile"} {
+					for i := range got {
+						got[i] = float32(math.NaN())
+					}
+					job := fp32Kernel{x: x, y: got, w: w, n: rows}
+					for tile := 0; tile < tasks; tile++ {
+						q4ProbeRange(mode, &job, tile, tile+1)
+					}
+					for i := range got {
+						if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
+							t.Fatalf("%s: cols=%d outs=%d rows=%d at %d: %g != %g", mode, cols, outs, rows, i, got[i], want[i])
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func BenchmarkQ4ProjectionRoles(b *testing.B) {
+	for _, shape := range []struct {
+		name    string
+		in, out int
+	}{{"gate-up", 3072, 8192}, {"down", 8192, 3072}} {
+		b.Run(shape.name, func(b *testing.B) {
+			const rows = 2
+			w, x := q4ProjectionFixture(shape.in, shape.out, rows)
+			for _, workers := range []int{1, 4} {
+				b.Run(fmt.Sprintf("workers%d", workers), func(b *testing.B) {
+					e := newKernelExecutor(workers)
+					defer e.close()
+					y := make([]float32, rows*shape.out)
+					job := fp32Kernel{x: x, y: y, w: w, n: rows}
+					tasks, work := (shape.out+31)/32, rows*shape.in*shape.out
+					for round, order := range q4ProbeOrders {
+						for _, mode := range order {
+							b.Run(fmt.Sprintf("round%d/%s", round, mode), func(b *testing.B) {
+								fn := func(lo, hi int) { q4ProbeRange(mode, &job, lo, hi) }
+								e.parallel(tasks, work, fn)
+								b.ReportAllocs()
+								b.ResetTimer()
+								for i := 0; i < b.N; i++ {
+									e.parallel(tasks, work, fn)
+								}
+							})
+						}
+					}
+				})
+			}
+		})
+	}
+}
