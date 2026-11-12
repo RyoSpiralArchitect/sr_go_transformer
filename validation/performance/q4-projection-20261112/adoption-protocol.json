@@ -1,0 +1,18 @@
+{
+  "runtime_base": "65e227d18a0121763c495124c573bbfb1d57d353",
+  "reference_sha256": "eeb5682e41fca6ee5c467453ee1fe4638c9caffbfa0518e3a1e075c6fca57799",
+  "candidate_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weights": "q4-mixed",
+  "kv": "f32",
+  "case_order": [1, 2, 2, 1, 2, 1, 1, 2],
+  "mode_order": [
+    ["reference", "candidate", "repeat", "control"],
+    ["control", "repeat", "candidate", "reference"],
+    ["repeat", "reference", "control", "candidate"],
+    ["candidate", "control", "reference", "repeat"]
+  ],
+  "cases": "8-token prefill per session followed by seven decode calls, then prefill-only cases with a total of two rows (two tokens in one session, one token in each of two sessions). One warmup per round/case.",
+  "variants": "Candidate and repeat use the default compiled dispatch. Reference and control substitute the base worker callback only for two-row forward calls. All modes share the remaining prefill, one-session decode and output head paths.",
+  "advance": "Exact IDs, logits, KV and workspace per case. Both candidate labels must have median paired two-session decode ratio <=0.95, with at least three of four ratios <1. Guard median paired ratios <=1.05 for all prefill cases and single-session decode. A/A and B/B total decode and prefill median ratios must be in [0.95,1.05]. Retain all individual ratios and prior failed records."
+}

@@ -99,8 +99,8 @@ with the patch applied.
 | Two-session decode | 0.7442 | 0.7112 | 0.7277 |
 
 Two-session decode passed the speed criterion in both pairs.
-Single-session prefill exceeded the 1.05 guard, so the first
-confirmation failed and the candidate remains a patch.
+Single-session prefill exceeded the 1.05 guard. That first
+confirmation failed, and its candidate is preserved in the patch.
 
 The eight-token prefill uses the existing four-row Q4 path in both
 builds. In `go tool objdump -s '\.linearQ4Range$'` of the ordinary
@@ -149,8 +149,51 @@ workspace sizes matched.
 The same executable reproduced a one-session prefill shift of the
 same magnitude as the reference/candidate confirmation. This bounds
 what can be attributed to the candidate from these runs. It leaves
-the original failed confirmation intact and the default runtime
-continues to use the reference kernel.
+the original failed confirmation intact. The reference kernel was
+still the default at this point in the experiment.
 
 [Control protocol](same-binary-protocol.json) ·
 [Control receipt](same-binary.json) · [Control summary](same-binary-summary.json)
+
+## Interleaved adoption confirmation
+
+The fresh comparison compiled the candidate runtime byte-for-byte and
+interleaved two labels for each kernel in one process. Candidate
+labels used the default dispatch. Reference labels replaced the Q4
+worker callback only for the two-row forward. The eight-token
+prefill and one-session decode ran the same runtime paths across all
+labels. The two-row prefill cases exercised two tokens in one session
+and one token in each of two sessions. The toolchain was Go 1.27.1
+on Apple M4 with four workers, Q4-mixed weights and FP32 KV.
+
+| Workload | Candidate / reference | Repeat / control |
+| --- | ---: | ---: |
+| One-session decode | 0.9545 | 1.0085 |
+| Two-session decode | 0.7179 | 0.7266 |
+| Eight-token prefill, one session | 1.0040 | 1.0264 |
+| Eight-token prefill, two sessions | 0.9813 | 0.9968 |
+| Two-row prefill, one session | 0.7192 | 0.6956 |
+| Two-row prefill, two sessions | 0.7469 | 0.7501 |
+
+Ratios are medians of four paired rounds. Both two-session decode
+comparisons shortened every round. Median same-path ratios ranged
+from 0.9607 to 1.0379 across workloads, with individual ratios from
+0.9179 to 1.1844. All 64 measured trials matched prompt IDs, generated
+IDs, logit and KV digests, and workspace capacity within each case.
+The new comparison passed its frozen criteria. The earlier
+cross-process failure remains part of the record.
+
+The binary check confirms that the normal Darwin arm64 range calls
+the two-output kernel. The parallel odd-tail fixture exercises the
+new kernel directly on every CI platform and also checks the
+ordinary dispatcher against the existing reference.
+
+From this revision with the candidate runtime installed, run:
+
+```sh
+python3 -S validation/performance/q4-projection-20261112/confirm_default.py \
+  --model "$MODEL_SNAPSHOT" --output runs/q4-adoption
+```
+
+[Frozen protocol](adoption-protocol.json) · [Receipt and paired ratios](adoption-receipt.json)
+· [All model trials](adoption-model.json)

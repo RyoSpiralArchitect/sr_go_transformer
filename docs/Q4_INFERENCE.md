@@ -185,6 +185,14 @@ projections. The Q4 benchmark reports 112 B and one callback allocation per
 call; it does not allocate a table per token. Timings do not isolate table
 lookup from weight compression, packing and arithmetic changes.
 
+On Darwin arm64, aligned two-row Q4 projections process two output
+channels per activation load. Each output keeps its original
+four accumulators and block order. A pinned Llama 3.2 3B Q4-mixed
+run on Apple M4 recorded 27–28% shorter two-session decode in a
+balanced comparison with the previous kernel. The same probe
+checked one-session decode and both two-row prefill shapes.
+[Model measurements and controls](../validation/performance/q4-projection-20261112/).
+
 ## Experiment boundary
 
 We explored activation-dependent bit-plane lookup tables, motivated by the

@@ -103,11 +103,18 @@ func TestQ4TwoRowOutputPairParallelTail(t *testing.T) {
 	guarded := make([]float32, rows*out+2)
 	guarded[0], guarded[len(guarded)-1] = 123, 456
 	baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: rows}, 0, 3)
-	linearQ4Into(e, guarded[1:len(guarded)-1], x, q, rows)
+	got := guarded[1 : len(guarded)-1]
+	job := fp32Kernel{x: x, y: got, w: q, n: rows}
+	e.parallel(3, rows*in*out, func(lo, hi int) { linearQ4TwoRowOutputPairRange(&job, lo, hi) })
+	exactWorkerFloats(t, got, want)
+	for i := range got {
+		got[i] = 123
+	}
+	linearQ4Into(e, got, x, q, rows)
 	if e.q4Fn == nil {
 		t.Fatal("fixture did not dispatch parallel Q4")
 	}
-	exactWorkerFloats(t, guarded[1:len(guarded)-1], want)
+	exactWorkerFloats(t, got, want)
 	if guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
 		t.Fatal("output overrun")
 	}
