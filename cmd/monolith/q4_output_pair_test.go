@@ -92,3 +92,24 @@ func TestQ4OutputPairParallelOddTile(t *testing.T) {
 	}
 	assertQ4InvocationCleared(t, e)
 }
+
+func TestQ4TwoRowOutputPairParallelTail(t *testing.T) {
+	const rows, in, out = 2, 2048, 65
+	e := newKernelExecutor(4)
+	defer e.close()
+	x, p, _ := linearFixture(rows, in, out)
+	q := quantizeQ4TestParam(t, p)
+	want := make([]float32, rows*out)
+	guarded := make([]float32, rows*out+2)
+	guarded[0], guarded[len(guarded)-1] = 123, 456
+	baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: rows}, 0, 3)
+	linearQ4Into(e, guarded[1:len(guarded)-1], x, q, rows)
+	if e.q4Fn == nil {
+		t.Fatal("fixture did not dispatch parallel Q4")
+	}
+	exactWorkerFloats(t, guarded[1:len(guarded)-1], want)
+	if guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
+		t.Fatal("output overrun")
+	}
+	assertQ4InvocationCleared(t, e)
+}
