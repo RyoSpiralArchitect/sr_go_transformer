@@ -1,0 +1,9 @@
+{
+  "purpose": "Locate the next wall-clock bottleneck on the reviewed runtime and check the historical two-session FP16 trajectory.",
+  "runtime_commit": "1f85033dd8f93b82cc9579f5a8ab1b9602a69849",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "conditions": "Llama 3.2 3B Q4-mixed, FP16 KV, two sessions, four workers, 128/1024 tokens per session.",
+  "method": "Existing stage-timing protocol interleaves four timer-off and four timer-on replays in each prefix. Report wall-time roles from timed replays and CPU samples separately. Compare IDs, logits, KV and workspace against the previous two-session receipt at both prefixes.",
+  "command": "python3 -S scripts/measure_context_sweep.py --model MODEL_SNAPSHOT --formats f16 --sessions 2 --max-prefix 1024 --stage-timing --output-dir runs/q4-post-merge/sweep"
+}

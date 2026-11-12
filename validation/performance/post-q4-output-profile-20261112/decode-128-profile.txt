@@ -1,0 +1,53 @@
+File: probe.test
+Type: cpu
+Time: 2026-11-12 14:27:19 JST
+Duration: 1.52s, Total samples = 4760ms (312.45%)
+Showing nodes accounting for 4760ms, 100% of 4760ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     1740ms 36.55%  runtime.notewakeup
+    1740ms 36.55% 36.55%     1740ms 36.55%  runtime.pthread_cond_signal
+         0     0% 36.55%     1740ms 36.55%  runtime.semawakeup
+         0     0% 36.55%     1740ms 36.55%  runtime.startm
+         0     0% 36.55%     1740ms 36.55%  runtime.wakep
+         0     0% 36.55%     1730ms 36.34%  _.goready.func1
+         0     0% 36.55%     1730ms 36.34%  runtime.ready
+         0     0% 36.55%     1730ms 36.34%  runtime.systemstack
+         0     0% 36.55%     1600ms 33.61%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*kernelExecutor).run
+         0     0% 36.55%     1420ms 29.83%  runtime.mcall
+         0     0% 36.55%     1420ms 29.83%  runtime.park_m
+         0     0% 36.55%     1420ms 29.83%  runtime.schedule
+         0     0% 36.55%     1410ms 29.62%  runtime.findRunnable
+         0     0% 36.55%     1190ms 25.00%  runtime.mPark (inline)
+         0     0% 36.55%     1190ms 25.00%  runtime.notesleep
+    1190ms 25.00% 61.55%     1190ms 25.00%  runtime.pthread_cond_wait
+         0     0% 61.55%     1190ms 25.00%  runtime.semasleep
+         0     0% 61.55%     1190ms 25.00%  runtime.stopm
+         0     0% 61.55%      820ms 17.23%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Into.func2
+         0     0% 61.55%      820ms 17.23%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Range
+     190ms  3.99% 65.55%      820ms 17.23%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4TwoRowOutputPairRange
+     180ms  3.78% 69.33%      760ms 15.97%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ8Into.func1
+     630ms 13.24% 82.56%      630ms 13.24%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ4TwoRowOutputPair64
+     520ms 10.92% 93.49%      580ms 12.18%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ8PairBlock64
+     220ms  4.62% 98.11%      220ms  4.62%  runtime.usleep
+         0     0% 98.11%      210ms  4.41%  runtime.runqgrab
+         0     0% 98.11%      210ms  4.41%  runtime.runqsteal
+         0     0% 98.11%      210ms  4.41%  runtime.stealWork
+      60ms  1.26% 99.37%       60ms  1.26%  runtime.asyncPreempt
+         0     0% 99.37%       20ms  0.42%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*decodeWorkspace).attend.func1
+      10ms  0.21% 99.58%       20ms  0.42%  github.com/RyoSpiralArchitect/sr_go_tranformer.attendF16
+         0     0% 99.58%       20ms  0.42%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionRange
+         0     0% 99.58%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*Model).prefillBorrowed (inline)
+         0     0% 99.58%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*Model).prefillSelected
+         0     0% 99.58%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.TestHFContextSweep
+         0     0% 99.58%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.fromF16 (inline)
+      10ms  0.21% 99.79%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.halfFloat (inline)
+         0     0% 99.79%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.inferenceNorm
+      10ms  0.21%   100%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.rmsInto
+         0     0%   100%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.runContextSweepDecode
+         0     0%   100%       10ms  0.21%  github.com/RyoSpiralArchitect/sr_go_tranformer.runContextSweepDecode.func1
+         0     0%   100%       10ms  0.21%  runtime.lock (inline)
+         0     0%   100%       10ms  0.21%  runtime.lock2
+         0     0%   100%       10ms  0.21%  runtime.lockWithRank (inline)
+         0     0%   100%       10ms  0.21%  runtime.osyield (inline)
+         0     0%   100%       10ms  0.21%  runtime.resetspinning
+         0     0%   100%       10ms  0.21%  testing.tRunner

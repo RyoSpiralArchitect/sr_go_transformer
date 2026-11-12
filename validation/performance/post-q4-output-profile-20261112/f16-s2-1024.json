@@ -1,0 +1,1031 @@
+{
+  "format": "monolith-context-sweep-v1",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "model_files": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs_sha256": {
+    "cmd/monolith/monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "testdata/probes/context_sweep_timing.go": "6541694e325d330bdeb0c1672e0ddb6653f0716e430aa2b3d7f2f5eca1401279",
+    "testdata/probes/context_sweep_stage_replay_test.go": "76dfd3a0b13a31f676557092dd56ca148884340230147f9c138e30ac4e994f0e",
+    "scripts/measure_context_sweep.py": "7c57b821937cc31e24b0963bfef1f4aa0d4246a032d768102c2ead27ad8d41f9",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "scripts/context_sweep_timing.py": "bb559ed24424b1762e0e7666cabe50685460e3aeed72ccffb693a398dbacf957",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0"
+  },
+  "binary_sha256": "612d737c502b18de102e7dba77e54c7de3929092ae0620952df7578b64c96ed6",
+  "host": "macOS-26.4.1-arm64-arm-64bit",
+  "cpu": "arm64",
+  "lengths": [
+    128,
+    1024
+  ],
+  "schedule": [
+    [
+      "f16",
+      2
+    ]
+  ],
+  "stage_timing": true,
+  "compare_shared_kv": false,
+  "compiled_source_sha256": "b37cd590b231fa78d6817ccd1316ffb2d851e9e8cbfbdc368e51a317a03dd3ae",
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "runs": [
+    {
+      "kv_format": "f16",
+      "sessions": 2,
+      "error": null,
+      "resources": {
+        "peak_rss_bytes": 2380464128,
+        "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+        "elapsed_seconds": 387.32139895900036,
+        "user_cpu_seconds": 1430.482705,
+        "system_cpu_seconds": 10.61404
+      },
+      "events": [
+        {
+          "chunk_per_session": 32,
+          "event": "start",
+          "format": "f16",
+          "lengths": [
+            128,
+            1024
+          ],
+          "plan": {
+            "format": "monolith-hf-plan-v1",
+            "model_type": "llama",
+            "tied_embeddings": true,
+            "rope_scaling": {
+              "rope_type": "llama3",
+              "factor": 32,
+              "low_freq_factor": 1,
+              "high_freq_factor": 4,
+              "original_max_position_embeddings": 8192
+            },
+            "eos_token_ids": [
+              128001
+            ],
+            "config": {
+              "vocab": 128256,
+              "dim": 3072,
+              "hidden": 8192,
+              "layers": 28,
+              "heads": 24,
+              "kv_heads": 8,
+              "context": 1031,
+              "rope_theta": 500000,
+              "norm_eps": 1e-05
+            },
+            "parameters": 3212749824,
+            "weight_bytes": 2004774912,
+            "weight_format": "q4-mixed",
+            "fp32_weight_bytes": 12850999296,
+            "quantized_parameters": 3212574720,
+            "q8_parameters": 394002432,
+            "q4_parameters": 2818572288,
+            "scale_bytes": 200785920,
+            "quantization_block": 64,
+            "quantization_buffer_bytes": 256,
+            "rope_bytes": 527872,
+            "kv_bytes_per_token": 229376,
+            "full_context_kv_bytes": 236486656,
+            "conversion_buffer_bytes": 65536,
+            "source_bytes": 6425528971,
+            "shards": 2,
+            "tensor_dtypes": {
+              "BF16": 254
+            }
+          },
+          "sessions": 2,
+          "workers": 4
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.224263417,
+              0.218901125,
+              0.212585334,
+              0.220089625,
+              0.213472875,
+              0.213579708,
+              0.221439667
+            ],
+            "token_ids": [
+              [
+                3350,
+                279,
+                2316,
+                315,
+                264,
+                2363,
+                814,
+                4934
+              ],
+              [
+                279,
+                1023,
+                574,
+                10409,
+                449,
+                19837,
+                13,
+                9062
+              ]
+            ],
+            "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+            "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+            "kv_payload_bytes": 36700160,
+            "workspace_bytes": 1274368
+          },
+          "event": "measurement",
+          "prefill_seconds": 35.58482879099999,
+          "prefill_workspace_bytes": 8892416,
+          "prefix": 128,
+          "prompt_sha256": "a438f27c6181f9ccb331b5bee40362de008fbbc9b3106ec6e0b477b5012a98c8",
+          "decode_median_ms": 218.901125
+        },
+        {
+          "event": "profile",
+          "file": "decode-128.cpu",
+          "prefix": 128
+        },
+        {
+          "event": "stages",
+          "prefix": 128,
+          "replays": [
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.207045292,
+                  0.206123334,
+                  0.213637875,
+                  0.223647541,
+                  0.228105084,
+                  0.222328125,
+                  0.216396667
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.2150995,
+                  0.214683125,
+                  0.201998959,
+                  0.20122925,
+                  0.201012042,
+                  0.201475208,
+                  0.202178667
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1085697692,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 71195577,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 257318709,
+                  "calls": 7
+                }
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.197199333,
+                  0.198514542,
+                  0.199736084,
+                  0.199099458,
+                  0.200175583,
+                  0.200866375,
+                  0.205140584
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1051559365,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 68323917,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 257424625,
+                  "calls": 7
+                }
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.206755209,
+                  0.207168416,
+                  0.206276667,
+                  0.202510583,
+                  0.200205083,
+                  0.201977916,
+                  0.202406792
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.19795975,
+                  0.200889292,
+                  0.204117375,
+                  0.201826667,
+                  0.204383417,
+                  0.221139875,
+                  0.227485459
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1093686758,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 71567716,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 268922083,
+                  "calls": 7
+                }
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.287425333,
+                  0.228532875,
+                  0.223512833,
+                  0.22374975,
+                  0.204534791,
+                  0.203241417,
+                  0.201778459
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.203126833,
+                  0.202148125,
+                  0.201660875,
+                  0.202452459,
+                  0.20197625,
+                  0.201320959,
+                  0.211859708
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.201601667,
+                  0.20594825,
+                  0.216114625,
+                  0.206035208,
+                  0.204509041,
+                  0.207192166,
+                  0.204687917
+                ],
+                "token_ids": [
+                  [
+                    3350,
+                    279,
+                    2316,
+                    315,
+                    264,
+                    2363,
+                    814,
+                    4934
+                  ],
+                  [
+                    279,
+                    1023,
+                    574,
+                    10409,
+                    449,
+                    19837,
+                    13,
+                    9062
+                  ]
+                ],
+                "logits_sha256": "72c136bfb289fd790ef561a589359c45caf05fdea9bb36d940303b1d4122d1f2",
+                "kv_sha256": "0ef2f5003519a682933fb0b20c9d43a65a3c08553ec2d2e684802bfd35c21481",
+                "kv_payload_bytes": 36700160,
+                "workspace_bytes": 1274368
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1089466344,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 70234711,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 262477792,
+                  "calls": 7
+                }
+              },
+              "exact": true
+            }
+          ],
+          "summary": {
+            "control_ms_per_call": 210.3274702857143,
+            "timed_ms_per_call": 205.98325892857144,
+            "timed_over_control": 0.9793454875331237,
+            "stage_ms_per_call": {
+              "layer_projections": 155.3688597142857,
+              "attention": 10.10216342857143,
+              "output_projection": 37.13588692857142,
+              "other": 3.363575071428581
+            }
+          }
+        },
+        {
+          "decode": {
+            "decode_step_seconds": [
+              0.232076625,
+              0.234052375,
+              0.265578958,
+              0.232534958,
+              0.237639834,
+              0.2607255,
+              0.264259
+            ],
+            "token_ids": [
+              [
+                311,
+                1373,
+                13,
+                3296,
+                6740,
+                11,
+                1475,
+                2199
+              ],
+              [
+                11714,
+                11,
+                264,
+                9760,
+                3090,
+                291,
+                279,
+                11012
+              ]
+            ],
+            "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+            "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+            "kv_payload_bytes": 242221056,
+            "workspace_bytes": 1288304
+          },
+          "event": "measurement",
+          "prefill_seconds": 337.189900538,
+          "prefill_workspace_bytes": 8906752,
+          "prefix": 1024,
+          "prompt_sha256": "0c8a61189019c209fc5fd8d74db1eabbb95867d51f652276544b587b38c9cf5d",
+          "decode_median_ms": 237.639834
+        },
+        {
+          "event": "profile",
+          "file": "decode-1024.cpu",
+          "prefix": 1024
+        },
+        {
+          "event": "stages",
+          "prefix": 1024,
+          "replays": [
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.235114917,
+                  0.213635209,
+                  0.210453042,
+                  0.214309708,
+                  0.226403583,
+                  0.230142541,
+                  0.231473875
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.224189917,
+                  0.246278166,
+                  0.246116958,
+                  0.254886834,
+                  0.246160875,
+                  0.312990875,
+                  0.237060834
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1224974516,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 229063954,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 289194082,
+                  "calls": 7
+                },
+                "shared_kv_calls": 196
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.204691333,
+                  0.224445333,
+                  0.229436167,
+                  0.23018075,
+                  0.236358333,
+                  0.23581125,
+                  0.235631667
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1094235625,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 200803797,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 277410290,
+                  "calls": 7
+                },
+                "shared_kv_calls": 196
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.210886292,
+                  0.229231,
+                  0.229546666,
+                  0.229487375,
+                  0.229899042,
+                  0.230252291,
+                  0.230681708
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.223313916,
+                  0.237291292,
+                  0.244480584,
+                  0.245847125,
+                  0.258105209,
+                  0.244065291,
+                  0.245138083
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1171171098,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 220285961,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 282979958,
+                  "calls": 7
+                },
+                "shared_kv_calls": 196
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.217286458,
+                  0.223025125,
+                  0.22916375,
+                  0.230364959,
+                  0.229881625,
+                  0.230171083,
+                  0.230353708
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.205439625,
+                  0.224428541,
+                  0.231036125,
+                  0.256479084,
+                  0.23805275,
+                  0.232536459,
+                  0.231633042
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "exact": true
+            },
+            {
+              "decode": {
+                "decode_step_seconds": [
+                  0.207631709,
+                  0.231697375,
+                  0.230081541,
+                  0.265698667,
+                  0.245553958,
+                  0.232944291,
+                  0.230408125
+                ],
+                "token_ids": [
+                  [
+                    311,
+                    1373,
+                    13,
+                    3296,
+                    6740,
+                    11,
+                    1475,
+                    2199
+                  ],
+                  [
+                    11714,
+                    11,
+                    264,
+                    9760,
+                    3090,
+                    291,
+                    279,
+                    11012
+                  ]
+                ],
+                "logits_sha256": "e4472e5b670a26dc959bf1147f31080648a8d938da3a89b8873c656e94e35c33",
+                "kv_sha256": "bc491078ab59ff81a531b40ba6d2ac7cc5fc56c05c032a71c03ddda16629e6cf",
+                "kv_payload_bytes": 242221056,
+                "workspace_bytes": 1288304
+              },
+              "timing": {
+                "layer_projections": {
+                  "elapsed_ns": 1121613537,
+                  "calls": 1372
+                },
+                "attention": {
+                  "elapsed_ns": 206648918,
+                  "calls": 196
+                },
+                "output_projection": {
+                  "elapsed_ns": 290866042,
+                  "calls": 7
+                },
+                "shared_kv_calls": 196
+              },
+              "exact": true
+            }
+          ],
+          "summary": {
+            "control_ms_per_call": 227.15936299999998,
+            "timed_ms_per_call": 238.73265471428573,
+            "timed_over_control": 1.0509478964962837,
+            "stage_ms_per_call": {
+              "layer_projections": 163.7703310714286,
+              "attention": 30.4953485,
+              "output_projection": 40.869574285714286,
+              "other": 3.468359142857139
+            }
+          }
+        },
+        {
+          "event": "complete"
+        }
+      ],
+      "journal_error": null,
+      "journal_sha256": "ca87431a4ef10f4e9500a752dfd6176110e088377c20b4fc2af1fcac45bc4775",
+      "complete": true,
+      "profiles": {
+        "128": {
+          "total_cpu_ms": 4760.0,
+          "q4_range_cpu_ms": 820.0,
+          "q8_worker_cpu_ms": 760.0,
+          "attention_range_cpu_ms": 20.0,
+          "cpu_profile_sha256": "5e23b67efe37c830f899b4f87ef27fb75c0f17892f5f817fa070fe8347954366"
+        },
+        "1024": {
+          "total_cpu_ms": 5510.0,
+          "q4_range_cpu_ms": 1080.0,
+          "q8_worker_cpu_ms": 850.0,
+          "attention_range_cpu_ms": 250.0,
+          "cpu_profile_sha256": "3561101e11955c321e6116ec03275963de09164ec0f03c328354c053e336dd98"
+        }
+      }
+    }
+  ],
+  "identities_unchanged": true
+}
