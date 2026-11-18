@@ -71,12 +71,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    protocol_path = RECORD/"matrix-protocol.json"
+    protocol = json.loads(protocol_path.read_text())
+    if (protocol["rows"], protocol["workers"]) != (2, 4):
+        parser.error("the matrix fixture requires two rows and four workers")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     build = output/"build"
     build.mkdir()
-    protocol_path = RECORD/"matrix-protocol.json"
-    protocol = json.loads(protocol_path.read_text())
     base_protocol = RECORD/"protocol.json"
     probe = RECORD/"probe_test.go.txt"
     matrix = RECORD/"matrix_test.go.txt"

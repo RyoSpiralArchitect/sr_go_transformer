@@ -26,6 +26,13 @@ output, Gate, Up and Down across the 28 layers.
 The table gives medians of eight paired ratios of summed seven-token
 times. In the two-session trial, the Q4 candidate ratio ranged from
 0.954 to 1.092, and the same-kernel ratio ranged from 0.949 to 1.285.
+When the candidate comparison ran second in its round and started
+with the candidate, projection time had a median ratio of 0.983
+and fell in all four pairs. When the comparison ran first and
+started with the reference, the median ratio was 1.034 and fell
+in one of four pairs. The starting arm and comparison position
+varied together under this schedule.
+
 One-session calls used the reference path under both labels. All 64
 trajectories matched generated IDs, full logits and KV digests, and
 workspace capacity. The two-session candidate dispatched 196
@@ -41,6 +48,8 @@ a distinguishable speedup in the model comparison.
 ## Matrix comparison
 
 Four synthetic matrices use the Llama 3.2 3B projection dimensions.
+A matrix fixture uses two input rows and four workers. The driver
+checks those protocol values before building.
 A second paired-output variant advances typed block views through the
 input and weight slices. All synthetic outputs matched bit for bit.
 
@@ -60,9 +69,14 @@ retaining both Q4 variants as experiments.
 
 ## Reproduction
 
-Use the archived commit, Go 1.27.1 on PATH, and the local pinned
-checkpoint specified by the protocol. Prime the Go module cache
-before the offline test builds.
+Run the commands from a checkout containing this experiment and
+the Q8 trajectory probe. Commit
+`6d1e5b5207548048a2a0ad4c53082d1da8584854` contains the sources
+identified by the original receipts. The reference runtime commit
+is `77fdf336d0739e87802e741393453eeaa8331912`. Reproduction uses
+`darwin/arm64`, Go 1.27.1 on PATH, Python 3.10 or later, and the
+local model snapshot specified by the protocol. Prime the Go
+module cache before the offline test builds.
 
 ```sh
 GOENV=off GOWORK=off GOFLAGS= GOTOOLCHAIN=local go mod download
