@@ -1,0 +1,116 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"math"
+	"runtime"
+	"testing"
+)
+
+func swigluProbeParam(in, out int, format string) *Param {
+	p := newInferenceParamFormat("test", out, in, true, format)
+	if p.Q4 != nil {
+		for i := range p.Q4.Values {
+			p.Q4.Values[i] = byte(i*17 + i/31)
+		}
+		for i := range p.Q4.Scales {
+			p.Q4.Scales[i] = float32(i%17+1) / 32768
+		}
+	}
+	return p
+}
+
+func testUpInputs(in, out int) decodeWorkspace {
+	w := decodeWorkspace{N: make([]float32, 2*in), G: make([]float32, 2*out), U: make([]float32, 2*out)}
+	for i := range w.N {
+		w.N[i] = float32((i*17)%127-63) / 32
+	}
+	for i := range w.G {
+		w.G[i] = float32((i*19)%157-78) / 64
+		w.U[i] = math.Float32frombits(0x7fc01234)
+	}
+	w.N[1], w.N[2] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+	return w
+}
+
+func sameSwiGLULive(t testing.TB, a, b []float32) {
+	t.Helper()
+	if len(a) != len(b) {
+		t.Fatal("length differs")
+	}
+	for i, v := range a {
+		if math.Float32bits(v) != math.Float32bits(b[i]) {
+			t.Fatalf("output %d differs", i)
+		}
+	}
+}
+
+func TestSwiGLULiveJob(t *testing.T) {
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+		t.Skip("candidate is measured only on Apple Silicon")
+	}
+	e := newKernelExecutor(4)
+	defer e.close()
+	for _, shape := range [][2]int{{320, 257}, {512, 131}, {1024, 513}} {
+		in, out := shape[0], shape[1]
+		w := testUpInputs(in, out)
+		up := swigluProbeParam(in, out, "q4")
+		wantU := make([]float32, len(w.U))
+		linearQ4Into(e, wantU, w.N, up, 2)
+		original := append([]float32(nil), w.G...)
+		wantG := append([]float32(nil), w.G...)
+		for i, v := range wantG {
+			wantG[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * wantU[i]
+		}
+		for range 3 {
+			copy(w.G, original)
+			if !w.parallelUpSwiGLU(e, up, 2) {
+				t.Fatal("eligible Q4 shape missed")
+			}
+			sameSwiGLULive(t, w.U, wantU)
+			sameSwiGLULive(t, w.G, wantG)
+			if w.upWeight != nil {
+				t.Fatal("weight retained after join")
+			}
+		}
+		if n := testing.AllocsPerRun(5, func() {
+			copy(w.G, original)
+			w.parallelUpSwiGLU(e, up, 2)
+		}); n != 0 {
+			t.Fatalf("warm Up/SwiGLU allocated %.1f objects", n)
+		}
+	}
+}
+
+func TestSwiGLULiveFallback(t *testing.T) {
+	many, one := newKernelExecutor(4), newKernelExecutor(1)
+	defer many.close()
+	defer one.close()
+	for _, tc := range []struct {
+		workers       *kernelExecutor
+		rows, in, out int
+		format        string
+		wide          bool
+	}{
+		{nil, 2, 320, 257, "q4", false}, {one, 2, 320, 257, "q4", false},
+		{many, 1, 320, 257, "q4", false}, {many, 3, 320, 257, "q4", false},
+		{many, 2, 319, 257, "q4", false}, {many, 2, 64, 32, "q4", false},
+		{many, 2, 320, 257, "q8", false}, {many, 2, 320, 257, "q4", true},
+	} {
+		w := testUpInputs(tc.in, tc.out)
+		if tc.wide {
+			w.N[0] = math.MaxFloat32
+		}
+		g, u := append([]float32(nil), w.G...), append([]float32(nil), w.U...)
+		if w.parallelUpSwiGLU(tc.workers, swigluProbeParam(tc.in, tc.out, tc.format), tc.rows) {
+			t.Fatal("unsupported shape reached candidate")
+		}
+		if w.upFn != nil || w.upWeight != nil {
+			t.Fatal("fallback retained a job")
+		}
+		sameSwiGLULive(t, w.G, g)
+		sameSwiGLULive(t, w.U, u)
+	}
+}
