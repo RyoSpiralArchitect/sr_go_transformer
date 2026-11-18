@@ -1,0 +1,153 @@
+{
+  "ordinary": {
+    "gate": false,
+    "sessions": {
+      "1": {
+        "workspace_exact": true,
+        "prefill_seconds": {
+          "process_medians": [
+            1.269096834,
+            1.314475125,
+            1.530158042,
+            1.233572667
+          ],
+          "pair_ratios": [
+            1.0357563660898708,
+            1.2404279722906668
+          ],
+          "median_ratio": 1.1380921691902688
+        },
+        "decode_seconds": {
+          "process_medians": [
+            1.250092168,
+            1.251967584,
+            1.926964961,
+            1.041733249
+          ],
+          "pair_ratios": [
+            1.0015002221820175,
+            1.8497681271570896
+          ],
+          "median_ratio": 1.4256341746695536
+        },
+        "allocations": {
+          "process_medians": [
+            23,
+            23,
+            24,
+            23
+          ],
+          "pair_ratios": [
+            1.0,
+            1.0434782608695652
+          ],
+          "median_ratio": 1.0217391304347827
+        },
+        "allocated_bytes": {
+          "process_medians": [
+            7373880,
+            7373880,
+            7373992,
+            7373880
+          ],
+          "pair_ratios": [
+            1.0,
+            1.000015188747308
+          ],
+          "median_ratio": 1.000007594373654
+        },
+        "workspace_bytes": {
+          "process_medians": [
+            1496576,
+            1496576,
+            1496576,
+            1496576
+          ],
+          "pair_ratios": [
+            1.0,
+            1.0
+          ],
+          "median_ratio": 1.0
+        }
+      },
+      "2": {
+        "workspace_exact": true,
+        "prefill_seconds": {
+          "process_medians": [
+            2.558849,
+            3.2213465,
+            2.278331917,
+            2.27740775
+          ],
+          "pair_ratios": [
+            1.2589044918242538,
+            1.0004057977760021
+          ],
+          "median_ratio": 1.129655144800128
+        },
+        "decode_seconds": {
+          "process_medians": [
+            1.554035292,
+            1.893986457,
+            1.2868358750000002,
+            1.296368169
+          ],
+          "pair_ratios": [
+            1.2187538254440107,
+            0.9926469237459349
+          ],
+          "median_ratio": 1.1057003745949727
+        },
+        "allocations": {
+          "process_medians": [
+            31,
+            22,
+            22,
+            30
+          ],
+          "pair_ratios": [
+            0.7096774193548387,
+            0.7333333333333333
+          ],
+          "median_ratio": 0.721505376344086
+        },
+        "allocated_bytes": {
+          "process_medians": [
+            14714192,
+            14713184,
+            14713184,
+            14714080
+          ],
+          "pair_ratios": [
+            0.9999314947093255,
+            0.9999391059447822
+          ],
+          "median_ratio": 0.9999353003270539
+        },
+        "workspace_bytes": {
+          "process_medians": [
+            2992640,
+            2992640,
+            2992640,
+            2992640
+          ],
+          "pair_ratios": [
+            1.0,
+            1.0
+          ],
+          "median_ratio": 1.0
+        }
+      }
+    }
+  },
+  "resident": {
+    "gate": true,
+    "cases": {
+      "s2-128": true,
+      "s2-1024": true,
+      "s1-128": true,
+      "s1-1024": true
+    }
+  },
+  "timing_gate": false
+}
