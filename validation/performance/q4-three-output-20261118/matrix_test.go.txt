@@ -1,0 +1,100 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"math"
+	"os"
+	"testing"
+	"time"
+)
+
+type q4MatrixTrial struct {
+	Shape      [2]int    `json:"shape"`
+	Round      int       `json:"round"`
+	Comparison int       `json:"comparison"`
+	Order      [2]string `json:"order"`
+	Elapsed    [2]int64  `json:"elapsed_ns"`
+}
+
+func TestQ4MatrixComparisons(t *testing.T) {
+	path := os.Getenv("MONOLITH_Q4_MATRIX_OUTPUT")
+	if path == "" {
+		t.Skip("isolated projection measurements")
+	}
+	e := newKernelExecutor(4)
+	defer e.close()
+	modes := map[string]func(*fp32Kernel, int, int){
+		"reference": linearQ4TwoRowOutputPairRange,
+		"triple":    linearQ4TwoRowOutputTripleRange,
+		"advance":   linearQ4AdvanceBlockRange,
+	}
+	var samples []q4MatrixTrial
+	for _, shape := range q4MatrixShapes {
+		in, out := shape[0], shape[1]
+		param := newInferenceParamFormat("matrix-trial", out, in, true, "q4")
+		for i := range param.Q4.Values {
+			param.Q4.Values[i] = byte(37*i + i/61)
+		}
+		for i := range param.Q4.Scales {
+			param.Q4.Scales[i] = float32(i%13+1) / 65536
+		}
+		x := make([]float32, 2*in)
+		for i := range x {
+			x[i] = float32((13*i)%313-156) / 171
+		}
+		want := make([]float32, 2*out)
+		linearQ4Into(e, want, x, param, 2)
+		outputs := [2][]float32{make([]float32, 2*out), make([]float32, 2*out)}
+		check := func(mode string, got []float32) {
+			for i, v := range got {
+				if math.Float32bits(v) != math.Float32bits(want[i]) || !finite(float64(v)) {
+					t.Fatalf("%s %v differs at output %d", mode, shape, i)
+				}
+			}
+		}
+		run := func(mode string, got []float32, iterations int) int64 {
+			for i := range got {
+				got[i] = float32(math.NaN())
+			}
+			job := fp32Kernel{y: got, x: x, w: param, n: 2}
+			calculator := modes[mode]
+			fn := func(lo, hi int) { calculator(&job, lo, hi) }
+			started := time.Now()
+			for i := 0; i < iterations; i++ {
+				e.parallel((out+31)/32, 2*in*out, fn)
+			}
+			return time.Since(started).Nanoseconds()
+		}
+		for _, mode := range []string{"reference", "triple", "advance"} {
+			run(mode, outputs[0], 1)
+			check(mode, outputs[0])
+		}
+		for round := 0; round < q4MatrixRounds; round++ {
+			for slot := range q4MatrixPairs {
+				i := (slot + round) % len(q4MatrixPairs)
+				order := q4MatrixPairs[i]
+				if round%2 != 0 {
+					order[0], order[1] = order[1], order[0]
+				}
+				sample := q4MatrixTrial{Shape: shape, Round: round, Comparison: i, Order: order}
+				for j, mode := range order {
+					sample.Elapsed[j] = run(mode, outputs[j], q4MatrixIterations)
+				}
+				for j, mode := range order {
+					check(mode, outputs[j])
+				}
+				samples = append(samples, sample)
+			}
+		}
+	}
+	data, err := json.MarshalIndent(samples, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0600); err != nil {
+		t.Fatal(err)
+	}
+}

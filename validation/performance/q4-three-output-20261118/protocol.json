@@ -1,0 +1,22 @@
+{
+  "baseline": "77fdf336d0739e87802e741393453eeaa8331912",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weights": "q4-mixed",
+  "kv": "f16",
+  "sessions": [2, 1],
+  "prefix": 128,
+  "workers": 4,
+  "steps": 7,
+  "rounds": 8,
+  "comparisons": [
+    ["reference", "reference"],
+    ["reference", "triple"]
+  ],
+  "order_seed": [0, 1],
+  "candidate": "Use a three-output Q4 block for aligned two-row projections, then retain paired and single outputs for the tail of each 32-output tile.",
+  "method": "Fork two independent KV trajectories from one committed prefix for each session count. Time the seven layer projections and total forward on every token. Rotate the comparison order and alternate the first branch as in the Q8 trajectory benchmark. The Q8 head uses the main runtime in every mode.",
+  "required_parity": "Every trial matches token IDs, full logits and KV digests, positions and workspace capacity. The triple kernel runs 196 times per decode call for the 28-layer two-session model and zero times for one session.",
+  "analysis": "Report eight trajectory ratios per comparison and stage, all same-path controls, and separate one-session results. Look for a repeatable projection reduction of at least 3% without an observed total-time regression."
+}
