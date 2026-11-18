@@ -1,0 +1,42 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "host": "Apple M4, Darwin/arm64",
+  "go": "go version go1.27.1 darwin/arm64",
+  "gomaxprocs": 4,
+  "rows": 2,
+  "shapes": {"3072x8192": [3072,8192], "4096x11008": [4096,11008]},
+  "arms": ["owner","owner_control","native","worker","worker_control"],
+  "orders": [
+    ["owner","owner_control","native","worker","worker_control"],
+    ["owner_control","worker","owner","worker_control","native"],
+    ["worker","worker_control","owner_control","native","owner"],
+    ["worker_control","native","worker","owner","owner_control"],
+    ["native","owner","worker_control","owner_control","worker"],
+    ["worker_control","worker","native","owner_control","owner"],
+    ["native","worker_control","owner","worker","owner_control"],
+    ["owner","native","owner_control","worker_control","worker"],
+    ["owner_control","owner","worker","native","worker_control"],
+    ["worker","owner_control","worker_control","owner","native"]
+  ],
+  "blocks": [
+    {"workers": [4,1], "shapes": ["3072x8192","4096x11008"], "stages": ["gate_up","down"], "reverse_orders_at": 1},
+    {"workers": [1,4], "shapes": ["4096x11008","3072x8192"], "stages": ["down","gate_up"], "reverse_orders_at": 4}
+  ],
+  "calls_per_sample": 24,
+  "method": {
+    "native": "The deployed Gate and Up Q4 dispatches, then activation over the full buffer.",
+    "owner_control": "Owner and owner_control run identical code. They use the same callback as worker, preserving two projection dispatches and full Up writes. After Up joins, the owner applies SwiGLU in one contiguous pass.",
+    "worker_control": "Worker and worker_control run identical code. The same callback computes and stores ordinary Up, then applies the same activation for its two disjoint output slices before joining. One worker uses the same complete activation slice as owner.",
+    "down": "All labels run the same Down kernel on one fixed buffer of reference SwiGLU results. Down is timed independently; no Gate/Up runs within its timing phase."
+  },
+  "criteria": {
+    "paired_ratio": "Median of candidate/reference total nanoseconds in each balanced round. Compare separately in each block and shape.",
+    "same_path_median_range": [0.98,1.02],
+    "same_path_median_abs_from_one_max": 0.04,
+    "min_wins_out_of_10": 7,
+    "max_speed_ratio": 0.99,
+    "inline": "Treat one worker as a negative control for parallelism. Worker/owner must be within the same-path envelope in every one-worker phase.",
+    "advance": "Require exact Up, activated Gate and Down, untouched task partition and borrow lifetime checks, and passing same-path and Down controls in both blocks. At four workers require worker/owner and worker/native medians <= 0.99 and >= 7 wins in every block and shape. One worker must meet the inline control. A pass only advances to ordinary-runtime/model confirmation, not production adoption."
+  }
+}
