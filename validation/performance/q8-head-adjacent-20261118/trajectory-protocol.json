@@ -1,0 +1,18 @@
+{
+  "prefix": 128,
+  "sessions": 2,
+  "kv": "f16",
+  "steps": 7,
+  "rounds": 8,
+  "comparisons": [
+    ["reference", "reference"],
+    ["reference", "pair"],
+    ["pair", "triple"],
+    ["reference", "triple"]
+  ],
+  "order_seed": [0, 1, 3, 2],
+  "schedule": "Rotate comparison order by the round. Run both branches at each token before moving to the next token. Reverse the first branch when round plus token plus comparison index is odd.",
+  "cache": "Fork the aligned prefix once per branch. Preallocate the append page outside measurement and rewind visible positions between trajectories. Each call commits independent KV on its branch.",
+  "identity": "Every trajectory matches the ordinary reference trajectory for all token IDs, full logit digest, full FP16 KV digest, position and workspace capacity.",
+  "analysis": "Sum elapsed time over seven calls for each arm before taking their ratio. Report all trial ratios, medians and quartiles. Same-path ratios estimate dispersion within this run."
+}

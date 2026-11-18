@@ -1,0 +1,275 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"math"
+	"reflect"
+	"slices"
+	"time"
+)
+
+type adjacentHeadKey struct{}
+
+type capturedHead struct {
+	Input  []float32
+	Logits []float32
+}
+
+type adjacentHeadContext struct {
+	mode     string
+	captures *[]capturedHead
+	headNS   int64
+	calls    int
+}
+
+func adjacentHeadDispatch(e *kernelExecutor, y, x []float32, w *Param, rows int, mode string) {
+	switch mode {
+	case "reference":
+		linearIntoWithExecutor(e, y, x, w, rows)
+	case "pair":
+		linearOutputHeadInto(e, y, x, w, rows)
+	case "triple":
+		// This experimental range only receives full, ordinary Q8 blocks.
+		if rows != 2 || w.Q8 == nil || w.Cols%64 != 0 || q8NeedsWideSum(x) {
+			linearIntoWithExecutor(e, y, x, w, rows)
+			return
+		}
+		linearQ8TripleTrial(e, y, x, w)
+		adjacentTiledCalls++
+	default:
+		panic("unknown head experiment mode")
+	}
+}
+
+func adjacentHeadProject(ctx context.Context, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	probe, _ := ctx.Value(adjacentHeadKey{}).(*adjacentHeadContext)
+	if probe == nil {
+		linearIntoWithExecutor(e, y, x, w, rows)
+		return
+	}
+	start := time.Now()
+	adjacentHeadDispatch(e, y, x, w, rows, probe.mode)
+	probe.headNS += time.Since(start).Nanoseconds()
+	probe.calls++
+	if probe.captures != nil {
+		*probe.captures = append(*probe.captures, capturedHead{slices.Clone(x), slices.Clone(y)})
+	}
+}
+
+type adjacentSample struct {
+	Round      int       `json:"round"`
+	Capture    int       `json:"capture"`
+	Comparison int       `json:"comparison"`
+	Order      [2]string `json:"order"`
+	Elapsed    [2]int64  `json:"elapsed_ns"`
+	Head       [2]int64  `json:"head_ns,omitempty"`
+	Dispatches [2]int    `json:"tiled_dispatches"`
+}
+
+type adjacentReceipt struct {
+	Reference      contextSweepDecode `json:"reference"`
+	ActivationSHA  []string           `json:"activation_sha256"`
+	LogitsSHA      []string           `json:"logits_sha256"`
+	NextKV         string             `json:"first_step_kv_sha256"`
+	WorkspaceBytes int64              `json:"one_step_workspace_bytes"`
+	Head           []adjacentSample   `json:"head_samples"`
+	Decode         []adjacentSample   `json:"one_step_samples"`
+}
+
+var adjacentTiledCalls int // All benchmark invocations are serial.
+
+func init() {
+	contextSweepStageProbe = measureAdjacentHeads
+}
+
+func headDigest(x []float32) string {
+	h := sha256.New()
+	perfHashFloats(h, x)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func sameHeadBits(a, b []float32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, value := range a {
+		if math.Float32bits(value) != math.Float32bits(b[i]) || !finite(float64(value)) {
+			return false
+		}
+	}
+	return true
+}
+
+func pairedOrder(comparison, round int) [2]string {
+	order := adjacentComparisons[comparison]
+	if round%2 != 0 {
+		order[0], order[1] = order[1], order[0]
+	}
+	return order
+}
+
+func measureAdjacentHeads(ctx context.Context, m *Model, e *kernelExecutor, workspace *decodeWorkspace, prefixes []*KVCache, first []float32, reference contextSweepDecode) (any, error) {
+	result := adjacentReceipt{}
+	if len(prefixes) != 2 || prefixes[0].format != "f16" || prefixes[1].format != "f16" {
+		return result, fmt.Errorf("expected two FP16 sessions")
+	}
+	head := m.Emb
+	if m.output != nil {
+		head = m.output
+	}
+	if head.Q8 == nil || head.Cols%64 != 0 {
+		return result, fmt.Errorf("expected aligned Q8 output weights")
+	}
+	var captures []capturedHead
+	collector := &adjacentHeadContext{mode: "reference", captures: &captures}
+	traceCtx := context.WithValue(ctx, adjacentHeadKey{}, collector)
+	observed, err := runContextSweepDecode(traceCtx, m, e, workspace, prefixes, first, "")
+	if err != nil {
+		return result, err
+	}
+	result.Reference = observed
+	if observed.Logits != reference.Logits || observed.KV != reference.KV ||
+		observed.KVBytes != reference.KVBytes || observed.Workspace != reference.Workspace ||
+		!reflect.DeepEqual(observed.IDs, reference.IDs) || len(captures) != contextSweepSteps {
+		return result, fmt.Errorf("capture diverged from the prefix reference")
+	}
+	if err := measureCapturedHeads(ctx, e, head, captures, &result); err != nil {
+		return result, err
+	}
+	err = measureOneStep(ctx, m, e, workspace, prefixes, captures[0].Logits, reference, &result)
+	return result, err
+}
+
+func measureCapturedHeads(ctx context.Context, e *kernelExecutor, head *Param, captures []capturedHead, result *adjacentReceipt) error {
+	for _, capture := range captures {
+		if len(capture.Input) != 2*head.Cols || len(capture.Logits) != 2*head.Rows || q8NeedsWideSum(capture.Input) {
+			return fmt.Errorf("unexpected head capture shape or wide input")
+		}
+		result.ActivationSHA = append(result.ActivationSHA, headDigest(capture.Input))
+		result.LogitsSHA = append(result.LogitsSHA, headDigest(capture.Logits))
+	}
+	output := [2][]float32{make([]float32, 2*head.Rows), make([]float32, 2*head.Rows)}
+	for _, mode := range []string{"reference", "pair", "triple"} {
+		adjacentHeadDispatch(e, output[0], captures[0].Input, head, 2, mode)
+		if !sameHeadBits(output[0], captures[0].Logits) {
+			return fmt.Errorf("%s failed head warmup parity", mode)
+		}
+	}
+	for round := 0; round < adjacentRounds; round++ {
+		for offset := range captures {
+			captureIndex := (offset + round) % len(captures)
+			capture := captures[captureIndex]
+			for _, slot := range adjacentOrderSeed {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				comparison := (slot + round + captureIndex) % len(adjacentComparisons)
+				row := adjacentSample{Round: round, Capture: captureIndex, Comparison: comparison, Order: pairedOrder(comparison, round)}
+				for i, mode := range row.Order {
+					before := adjacentTiledCalls
+					start := time.Now()
+					adjacentHeadDispatch(e, output[i], capture.Input, head, 2, mode)
+					row.Elapsed[i] = time.Since(start).Nanoseconds()
+					row.Dispatches[i] = adjacentTiledCalls - before
+				}
+				result.Head = append(result.Head, row)
+				if !sameHeadBits(output[0], capture.Logits) || !sameHeadBits(output[1], capture.Logits) {
+					return fmt.Errorf("head bits differ in round %d, capture %d, comparison %d", round, captureIndex, comparison)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func appendedKVDigest(caches []*KVCache) string {
+	h := sha256.New()
+	buf := make([]byte, 0, 4*caches[0].Model.Config.KVDim())
+	for _, cache := range caches {
+		for layer := range cache.Model.Blocks {
+			k, v := cache.rowF16(layer, cache.Pos-1)
+			buf = buf[:0]
+			for _, values := range [2][]uint16{k, v} {
+				for _, value := range values {
+					buf = binary.LittleEndian.AppendUint16(buf, value)
+				}
+			}
+			h.Write(buf)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func measureOneStep(ctx context.Context, m *Model, e *kernelExecutor, workspace *decodeWorkspace, prefixes []*KVCache, want []float32, reference contextSweepDecode, result *adjacentReceipt) error {
+	caches := make([]*KVCache, len(prefixes))
+	chunks := make([][]int, len(prefixes))
+	for i, prefix := range prefixes {
+		cache, err := forkContextSweepCache(prefix)
+		if err != nil {
+			return err
+		}
+		caches[i] = cache
+		defer cache.Close()
+		cache.ensurePages(cache.Pos + 1)
+		chunks[i] = reference.IDs[i][:1]
+	}
+
+	forward := func(mode string) (elapsed, head int64, dispatches int, err error) {
+		for i, cache := range caches {
+			cache.Pos = prefixes[i].Pos
+		}
+		timing := &adjacentHeadContext{mode: mode}
+		forwardCtx := context.WithValue(ctx, adjacentHeadKey{}, timing)
+		before := adjacentTiledCalls
+		start := time.Now()
+		logits, err := m.prefillBorrowed(forwardCtx, caches, chunks, e, workspace)
+		elapsed = time.Since(start).Nanoseconds()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		if timing.calls != 1 || !sameHeadBits(logits, want) {
+			return 0, 0, 0, fmt.Errorf("%s first step diverged", mode)
+		}
+		for i, cache := range caches {
+			if cache.Pos != prefixes[i].Pos+1 {
+				return 0, 0, 0, fmt.Errorf("invalid committed position")
+			}
+		}
+		kv := appendedKVDigest(caches)
+		if result.NextKV == "" {
+			result.NextKV = kv
+			result.WorkspaceBytes = workspace.floatBytes()
+		}
+		if kv != result.NextKV || workspace.floatBytes() != result.WorkspaceBytes {
+			return 0, 0, 0, fmt.Errorf("%s first-step KV or workspace mismatch", mode)
+		}
+		return elapsed, timing.headNS, adjacentTiledCalls - before, nil
+	}
+	for _, mode := range []string{"reference", "pair", "triple"} {
+		if _, _, _, err := forward(mode); err != nil {
+			return err
+		}
+	}
+	for round := 0; round < adjacentRounds; round++ {
+		for _, slot := range adjacentOrderSeed {
+			comparison := (slot + round) % len(adjacentComparisons)
+			row := adjacentSample{Round: round, Capture: 0, Comparison: comparison, Order: pairedOrder(comparison, round)}
+			for i, mode := range row.Order {
+				var err error
+				row.Elapsed[i], row.Head[i], row.Dispatches[i], err = forward(mode)
+				if err != nil {
+					return err
+				}
+			}
+			result.Decode = append(result.Decode, row)
+		}
+	}
+	return nil
+}

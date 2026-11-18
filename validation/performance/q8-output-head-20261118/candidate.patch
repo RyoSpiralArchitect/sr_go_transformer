@@ -1,0 +1,584 @@
+diff --git a/cmd/monolith/monolith.go b/cmd/monolith/monolith.go
+index a41213c..5ccaa4f 100644
+--- a/cmd/monolith/monolith.go
++++ b/cmd/monolith/monolith.go
+@@ -4430,0 +4431,508 @@ func dotQ8PairBlock64(x0, x1 *[64]float32, w *[64]int8) (float32, float32) {
++// The large vocabulary projection can reuse the two activation rows across
++// an output pair on Apple Silicon. Other widths and wide sums use the
++// ordinary dispatcher.
++func linearOutputHeadInto(e *kernelExecutor, y, x []float32, w *Param, rows int) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && rows == 2 &&
++		w.Q4 == nil && w.Q8 != nil && w.Cols%q8Block == 0 && !q8NeedsWideSum(x[:rows*w.Cols]) {
++		linearQ8OutputPairInto(e, y, x, w)
++		return
++	}
++	linearIntoWithExecutor(e, y, x, w, rows)
++}
++
++func linearQ8OutputPairInto(e *kernelExecutor, y, x []float32, w *Param) {
++	in, out := w.Cols, w.Rows
++	groups := in / 64
++	x0, x1 := x[:in], x[in:2*in]
++	e.parallel((out+31)/32, 2*in*out, func(lo, hi int) {
++		for tile := lo; tile < hi; tile++ {
++			o, end := tile*32, min(out, (tile+1)*32)
++			for ; o+1 < end; o += 2 {
++				w0, w1 := w.Q8.Values[o*in:(o+1)*in], w.Q8.Values[(o+1)*in:(o+2)*in]
++				s0, s1 := w.Q8.Scales[o*groups:(o+1)*groups], w.Q8.Scales[(o+1)*groups:(o+2)*groups]
++				var a00, a01, a10, a11 float32
++				for g := 0; g < groups; g++ {
++					j := g * 64
++					p00, p01, p10, p11 := dotQ8OutputPair64((*[64]float32)(x0[j:j+64]), (*[64]float32)(x1[j:j+64]),
++						(*[64]int8)(w0[j:j+64]), (*[64]int8)(w1[j:j+64]))
++					a00 += p00 * s0[g]
++					a01 += p01 * s1[g]
++					a10 += p10 * s0[g]
++					a11 += p11 * s1[g]
++				}
++				y[o], y[o+1], y[out+o], y[out+o+1] = a00, a01, a10, a11
++			}
++			for ; o < end; o++ {
++				weights := w.Q8.Values[o*in : (o+1)*in]
++				scales := w.Q8.Scales[o*groups : (o+1)*groups]
++				var a0, a1 float32
++				for g, scale := range scales {
++					j := g * 64
++					p0, p1 := dotQ8PairBlock64((*[64]float32)(x0[j:j+64]), (*[64]float32)(x1[j:j+64]),
++						(*[64]int8)(weights[j:j+64]))
++					a0 += p0 * scale
++					a1 += p1 * scale
++				}
++				y[o], y[out+o] = a0, a1
++			}
++		}
++	})
++}
++
++// Fixed block offsets let Go combine the adjacent activation loads.
++func dotQ8OutputPair64(x0, x1 *[64]float32, w0, w1 *[64]int8) (float32, float32, float32, float32) {
++	var a00, b00, c00, d00 float32
++	var a01, b01, c01, d01 float32
++	var a10, b10, c10, d10 float32
++	var a11, b11, c11, d11 float32
++	{
++		x0a, x0b := x0[0], x0[1]
++		x1a, x1b := x1[0], x1[1]
++		v0a, v0b := float32(w0[0]), float32(w0[1])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[0]), float32(w1[1])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[2], x0[3]
++		x1a, x1b := x1[2], x1[3]
++		v0a, v0b := float32(w0[2]), float32(w0[3])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[2]), float32(w1[3])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[4], x0[5]
++		x1a, x1b := x1[4], x1[5]
++		v0a, v0b := float32(w0[4]), float32(w0[5])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[4]), float32(w1[5])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[6], x0[7]
++		x1a, x1b := x1[6], x1[7]
++		v0a, v0b := float32(w0[6]), float32(w0[7])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[6]), float32(w1[7])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[8], x0[9]
++		x1a, x1b := x1[8], x1[9]
++		v0a, v0b := float32(w0[8]), float32(w0[9])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[8]), float32(w1[9])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[10], x0[11]
++		x1a, x1b := x1[10], x1[11]
++		v0a, v0b := float32(w0[10]), float32(w0[11])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[10]), float32(w1[11])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[12], x0[13]
++		x1a, x1b := x1[12], x1[13]
++		v0a, v0b := float32(w0[12]), float32(w0[13])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[12]), float32(w1[13])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[14], x0[15]
++		x1a, x1b := x1[14], x1[15]
++		v0a, v0b := float32(w0[14]), float32(w0[15])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[14]), float32(w1[15])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[16], x0[17]
++		x1a, x1b := x1[16], x1[17]
++		v0a, v0b := float32(w0[16]), float32(w0[17])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[16]), float32(w1[17])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[18], x0[19]
++		x1a, x1b := x1[18], x1[19]
++		v0a, v0b := float32(w0[18]), float32(w0[19])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[18]), float32(w1[19])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[20], x0[21]
++		x1a, x1b := x1[20], x1[21]
++		v0a, v0b := float32(w0[20]), float32(w0[21])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[20]), float32(w1[21])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[22], x0[23]
++		x1a, x1b := x1[22], x1[23]
++		v0a, v0b := float32(w0[22]), float32(w0[23])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[22]), float32(w1[23])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[24], x0[25]
++		x1a, x1b := x1[24], x1[25]
++		v0a, v0b := float32(w0[24]), float32(w0[25])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[24]), float32(w1[25])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[26], x0[27]
++		x1a, x1b := x1[26], x1[27]
++		v0a, v0b := float32(w0[26]), float32(w0[27])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[26]), float32(w1[27])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[28], x0[29]
++		x1a, x1b := x1[28], x1[29]
++		v0a, v0b := float32(w0[28]), float32(w0[29])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[28]), float32(w1[29])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[30], x0[31]
++		x1a, x1b := x1[30], x1[31]
++		v0a, v0b := float32(w0[30]), float32(w0[31])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[30]), float32(w1[31])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[32], x0[33]
++		x1a, x1b := x1[32], x1[33]
++		v0a, v0b := float32(w0[32]), float32(w0[33])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[32]), float32(w1[33])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[34], x0[35]
++		x1a, x1b := x1[34], x1[35]
++		v0a, v0b := float32(w0[34]), float32(w0[35])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[34]), float32(w1[35])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[36], x0[37]
++		x1a, x1b := x1[36], x1[37]
++		v0a, v0b := float32(w0[36]), float32(w0[37])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[36]), float32(w1[37])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[38], x0[39]
++		x1a, x1b := x1[38], x1[39]
++		v0a, v0b := float32(w0[38]), float32(w0[39])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[38]), float32(w1[39])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[40], x0[41]
++		x1a, x1b := x1[40], x1[41]
++		v0a, v0b := float32(w0[40]), float32(w0[41])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[40]), float32(w1[41])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[42], x0[43]
++		x1a, x1b := x1[42], x1[43]
++		v0a, v0b := float32(w0[42]), float32(w0[43])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[42]), float32(w1[43])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[44], x0[45]
++		x1a, x1b := x1[44], x1[45]
++		v0a, v0b := float32(w0[44]), float32(w0[45])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[44]), float32(w1[45])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[46], x0[47]
++		x1a, x1b := x1[46], x1[47]
++		v0a, v0b := float32(w0[46]), float32(w0[47])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[46]), float32(w1[47])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[48], x0[49]
++		x1a, x1b := x1[48], x1[49]
++		v0a, v0b := float32(w0[48]), float32(w0[49])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[48]), float32(w1[49])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[50], x0[51]
++		x1a, x1b := x1[50], x1[51]
++		v0a, v0b := float32(w0[50]), float32(w0[51])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[50]), float32(w1[51])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[52], x0[53]
++		x1a, x1b := x1[52], x1[53]
++		v0a, v0b := float32(w0[52]), float32(w0[53])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[52]), float32(w1[53])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[54], x0[55]
++		x1a, x1b := x1[54], x1[55]
++		v0a, v0b := float32(w0[54]), float32(w0[55])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[54]), float32(w1[55])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[56], x0[57]
++		x1a, x1b := x1[56], x1[57]
++		v0a, v0b := float32(w0[56]), float32(w0[57])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[56]), float32(w1[57])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[58], x0[59]
++		x1a, x1b := x1[58], x1[59]
++		v0a, v0b := float32(w0[58]), float32(w0[59])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[58]), float32(w1[59])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[60], x0[61]
++		x1a, x1b := x1[60], x1[61]
++		v0a, v0b := float32(w0[60]), float32(w0[61])
++		a00 += x0a * v0a
++		b00 += x0b * v0b
++		a10 += x1a * v0a
++		b10 += x1b * v0b
++		v1a, v1b := float32(w1[60]), float32(w1[61])
++		a01 += x0a * v1a
++		b01 += x0b * v1b
++		a11 += x1a * v1a
++		b11 += x1b * v1b
++	}
++	{
++		x0a, x0b := x0[62], x0[63]
++		x1a, x1b := x1[62], x1[63]
++		v0a, v0b := float32(w0[62]), float32(w0[63])
++		c00 += x0a * v0a
++		d00 += x0b * v0b
++		c10 += x1a * v0a
++		d10 += x1b * v0b
++		v1a, v1b := float32(w1[62]), float32(w1[63])
++		c01 += x0a * v1a
++		d01 += x0b * v1b
++		c11 += x1a * v1a
++		d11 += x1b * v1b
++	}
++	return (a00 + b00) + (c00 + d00), (a01 + b01) + (c01 + d01), (a10 + b10) + (c10 + d10), (a11 + b11) + (c11 + d11)
++}
++
+@@ -8505 +9013 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
+-		linearIntoWithExecutor(executor, w.Logits[:heads*c.Vocab], w.N[:heads*d], head, heads)
++		linearOutputHeadInto(executor, w.Logits[:heads*c.Vocab], w.N[:heads*d], head, heads)
+diff --git a/cmd/monolith/q8_block_test.go b/cmd/monolith/q8_block_test.go
+index b5375b0..4949ceb 100644
+--- a/cmd/monolith/q8_block_test.go
++++ b/cmd/monolith/q8_block_test.go
+@@ -168,0 +169,45 @@ func TestQ8BlocksExactAcrossTailsRowsAndWorkers(t *testing.T) {
++func TestQ8OutputPairExact(t *testing.T) {
++	const out = 65
++	e := newKernelExecutor(4)
++	defer e.close()
++	for _, in := range []int{2048, 2049} {
++		w := newInferenceParam("output-pair", out, in, true)
++		for i := range w.Q8.Values {
++			w.Q8.Values[i] = int8(37*i + i/61)
++		}
++		for i := range w.Q8.Scales {
++			w.Q8.Scales[i] = float32(i%13+1) / 65536
++		}
++		x := make([]float32, 3*in)
++		for i := range x {
++			x[i] = float32((13*i)%313-156) / 171
++		}
++		x[3], x[in+5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
++		for _, rows := range []int{1, 2, 3} {
++			want := make([]float32, rows*out)
++			guarded := make([]float32, len(want)+2)
++			guarded[0], guarded[len(guarded)-1] = 123, 456
++			got := guarded[1 : len(guarded)-1]
++			linearQ8Into(e, want, x, w, rows)
++			if rows == 2 && in%q8Block == 0 {
++				// Exercise the paired kernel and its odd tail on every OS.
++				linearQ8OutputPairInto(e, got, x, w)
++				exactWorkerFloats(t, got, want)
++			}
++			for i := range got {
++				got[i] = float32(math.NaN())
++			}
++			linearOutputHeadInto(e, got, x, w, rows)
++			exactWorkerFloats(t, got, want)
++			if guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
++				t.Fatalf("cols=%d rows=%d: sentinel changed", in, rows)
++			}
++		}
++		x[0] = math.MaxFloat32
++		want, got := make([]float32, 2*out), make([]float32, 2*out)
++		linearQ8Into(e, want, x, w, 2)
++		linearOutputHeadInto(e, got, x, w, 2)
++		exactWorkerFloats(t, got, want)
++	}
++}
++
+diff --git a/scripts/context_sweep_timing.py b/scripts/context_sweep_timing.py
+index b27c4f6..1332e82 100644
+--- a/scripts/context_sweep_timing.py
++++ b/scripts/context_sweep_timing.py
+@@ -33 +33 @@ def instrument_context_sweep(runtime, compare_shared_kv=False):
+-    replace_once('linearIntoWithExecutor(executor, w.Logits[:heads*c.Vocab], w.N[:heads*d], head, heads)',
++    replace_once('linearOutputHeadInto(executor, w.Logits[:heads*c.Vocab], w.N[:heads*d], head, heads)',
+diff --git a/testdata/probes/context_sweep_timing.go b/testdata/probes/context_sweep_timing.go
+index 44f18a9..b405e02 100644
+--- a/testdata/probes/context_sweep_timing.go
++++ b/testdata/probes/context_sweep_timing.go
+@@ -38 +38,5 @@ func contextSweepTimedProjection(timing *contextSweepTiming, output bool, e *ker
+-	linearIntoWithExecutor(e, y, x, param, rows)
++	if output {
++		linearOutputHeadInto(e, y, x, param, rows)
++	} else {
++		linearIntoWithExecutor(e, y, x, param, rows)
++	}

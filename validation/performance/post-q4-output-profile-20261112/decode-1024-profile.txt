@@ -1,0 +1,53 @@
+File: probe.test
+Type: cpu
+Time: 2026-11-12 14:32:36 JST
+Duration: 1.83s, Total samples = 5510ms (301.34%)
+Showing nodes accounting for 5510ms, 100% of 5510ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     2190ms 39.75%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*kernelExecutor).run
+         0     0%     0%     1980ms 35.93%  _.goready.func1
+         0     0%     0%     1980ms 35.93%  runtime.notewakeup
+    1980ms 35.93% 35.93%     1980ms 35.93%  runtime.pthread_cond_signal
+         0     0% 35.93%     1980ms 35.93%  runtime.ready
+         0     0% 35.93%     1980ms 35.93%  runtime.semawakeup
+         0     0% 35.93%     1980ms 35.93%  runtime.startm
+         0     0% 35.93%     1980ms 35.93%  runtime.systemstack
+         0     0% 35.93%     1980ms 35.93%  runtime.wakep
+         0     0% 35.93%     1340ms 24.32%  runtime.findRunnable
+         0     0% 35.93%     1340ms 24.32%  runtime.mcall
+         0     0% 35.93%     1340ms 24.32%  runtime.park_m
+         0     0% 35.93%     1340ms 24.32%  runtime.schedule
+         0     0% 35.93%     1210ms 21.96%  runtime.mPark (inline)
+         0     0% 35.93%     1210ms 21.96%  runtime.notesleep
+    1210ms 21.96% 57.89%     1210ms 21.96%  runtime.pthread_cond_wait
+         0     0% 57.89%     1210ms 21.96%  runtime.semasleep
+         0     0% 57.89%     1210ms 21.96%  runtime.stopm
+         0     0% 57.89%     1080ms 19.60%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Into.func2
+         0     0% 57.89%     1080ms 19.60%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Range
+     240ms  4.36% 62.25%     1080ms 19.60%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4TwoRowOutputPairRange
+     220ms  3.99% 66.24%      850ms 15.43%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ8Into.func1
+     840ms 15.25% 81.49%      840ms 15.25%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ4TwoRowOutputPair64
+     620ms 11.25% 92.74%      630ms 11.43%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ8PairBlock64
+         0     0% 92.74%      250ms  4.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*decodeWorkspace).attend.func1
+      90ms  1.63% 94.37%      250ms  4.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.attendSharedKV[go.shape.uint16,go.shape.[3][]float32]
+         0     0% 94.37%      250ms  4.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionRange
+         0     0% 94.37%      250ms  4.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionSharedKVRange[go.shape.uint16]
+         0     0% 94.37%      150ms  2.72%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionKVValue[go.shape.uint16] (inline)
+         0     0% 94.37%      150ms  2.72%  github.com/RyoSpiralArchitect/sr_go_tranformer.fromF16 (inline)
+     130ms  2.36% 96.73%      150ms  2.72%  github.com/RyoSpiralArchitect/sr_go_tranformer.halfFloat (inline)
+     130ms  2.36% 99.09%      130ms  2.36%  runtime.usleep
+         0     0% 99.09%      110ms  2.00%  runtime.runqgrab
+         0     0% 99.09%      110ms  2.00%  runtime.runqsteal
+         0     0% 99.09%      110ms  2.00%  runtime.stealWork
+      20ms  0.36% 99.46%       20ms  0.36%  math.Float32frombits (inline)
+         0     0% 99.46%       20ms  0.36%  runtime.lock (inline)
+         0     0% 99.46%       20ms  0.36%  runtime.lock2
+         0     0% 99.46%       20ms  0.36%  runtime.lockWithRank (inline)
+         0     0% 99.46%       20ms  0.36%  runtime.osyield (inline)
+         0     0% 99.46%       10ms  0.18%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionProbabilities
+         0     0% 99.46%       10ms  0.18%  math.Exp (inline)
+      10ms  0.18% 99.64%       10ms  0.18%  math.archExp
+      10ms  0.18% 99.82%       10ms  0.18%  runtime.(*timers).check
+      10ms  0.18%   100%       10ms  0.18%  runtime.asyncPreempt
+         0     0%   100%       10ms  0.18%  runtime.chanrecv
+         0     0%   100%       10ms  0.18%  runtime.chanrecv2

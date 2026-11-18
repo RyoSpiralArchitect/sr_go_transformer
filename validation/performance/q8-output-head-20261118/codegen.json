@@ -1,0 +1,31 @@
+{
+  "method": "Go objdump, instructions in the ordinary return path. Count SCVTF*, FMADDS, and FLDPS/FMOVS from R0/R1 (activation pointers). Count two activation values for FLDPS and one for FMOVS.",
+  "binary_sha256": "457df8bae469f969ad48cab165950534396b7e0b6a1a30619d180bd400cab4e6",
+  "disassembly_sha256": "0614f50ef42614b31da117a4e929a47eb4079e68d26a0c26c7300c57f0eae13a",
+  "symbols": {
+    "dotQ8PairBlock64": {
+      "instructions": 327,
+      "signed_int_to_float": 64,
+      "fma": 128,
+      "loaded_activation_values": 128
+    },
+    "q8ProbeLookupBlock": {
+      "instructions": 393,
+      "signed_int_to_float": 0,
+      "fma": 128,
+      "loaded_activation_values": 128
+    },
+    "q8ProbePairedBlock": {
+      "instructions": 589,
+      "signed_int_to_float": 128,
+      "fma": 256,
+      "loaded_activation_values": 128
+    },
+    "q8ProbePairedLookupBlock": {
+      "instructions": 719,
+      "signed_int_to_float": 0,
+      "fma": 256,
+      "loaded_activation_values": 128
+    }
+  }
+}

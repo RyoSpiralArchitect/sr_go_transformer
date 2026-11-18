@@ -1,0 +1,73 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"reflect"
+	"time"
+)
+
+type q8ReplayKey struct{}
+
+type q8ReplayTiming struct {
+	mode string
+	ns   []int64
+}
+
+var q8OutputPairDispatches int // The probe runs forwards serially.
+
+func q8ReplayProject(ctx context.Context, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	probe, _ := ctx.Value(q8ReplayKey{}).(*q8ReplayTiming)
+	if probe == nil {
+		linearOutputHeadInto(e, y, x, w, rows)
+		return
+	}
+	started := time.Now()
+	if probe.mode == "candidate" || probe.mode == "repeat" {
+		linearOutputHeadInto(e, y, x, w, rows)
+	} else {
+		linearIntoWithExecutor(e, y, x, w, rows)
+	}
+	probe.ns = append(probe.ns, time.Since(started).Nanoseconds())
+}
+
+type q8ReplaySample struct {
+	Mode       string             `json:"mode"`
+	Decode     contextSweepDecode `json:"decode"`
+	HeadNS     []int64            `json:"head_ns"`
+	Dispatches int                `json:"dispatches"`
+	Exact      bool               `json:"exact"`
+}
+
+func init() {
+	contextSweepStageProbe = replayQ8Head
+}
+
+func replayQ8Head(ctx context.Context, m *Model, e *kernelExecutor, workspace *decodeWorkspace, prefixes []*KVCache, first []float32, reference contextSweepDecode) (any, error) {
+	samples := make([]q8ReplaySample, 0, len(q8ReplayOrder))
+	for i, mode := range q8ReplayOrder {
+		timing := &q8ReplayTiming{mode: mode, ns: make([]int64, 0, contextSweepSteps)}
+		ctx := context.WithValue(ctx, q8ReplayKey{}, timing)
+		before := q8OutputPairDispatches
+		decode, err := runContextSweepDecode(ctx, m, e, workspace, prefixes, first, "")
+		if err != nil {
+			return samples, err
+		}
+		exact := decode.Logits == reference.Logits && decode.KV == reference.KV &&
+			decode.KVBytes == reference.KVBytes && decode.Workspace == reference.Workspace &&
+			reflect.DeepEqual(decode.IDs, reference.IDs)
+		calls := q8OutputPairDispatches - before
+		samples = append(samples, q8ReplaySample{mode, decode, timing.ns, calls, exact})
+		wantCalls := 0
+		if len(prefixes) == 2 && (mode == "candidate" || mode == "repeat") {
+			wantCalls = contextSweepSteps
+		}
+		if !exact || len(timing.ns) != contextSweepSteps || calls != wantCalls {
+			return samples, fmt.Errorf("replay %d: exact=%t timing=%d dispatches=%d want=%d", i, exact, len(timing.ns), calls, wantCalls)
+		}
+	}
+	return samples, nil
+}

@@ -1,0 +1,27 @@
+{
+  "binary_sha256": "6c668f11bbac350167667804efcc9c994bb3cbcb774bc0acb55dc326725661fe",
+  "disassembly_sha256": "c4af8a65eaa4e40ff72b5f8c10d1f6c2603e0e8434e114811e1c56fe46a7d013",
+  "symbols": {
+    "dotQ8PairBlock64": {
+      "instructions": 327,
+      "fma": 128,
+      "signed_int_to_float": 64,
+      "activation_load_values": 128,
+      "stack_references": 0
+    },
+    "dotQ8OutputPair64": {
+      "instructions": 589,
+      "fma": 256,
+      "signed_int_to_float": 128,
+      "activation_load_values": 128,
+      "stack_references": 0
+    },
+    "dotQ8TripleTrial64": {
+      "instructions": 851,
+      "fma": 384,
+      "signed_int_to_float": 192,
+      "activation_load_values": 128,
+      "stack_references": 0
+    }
+  }
+}

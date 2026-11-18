@@ -1,0 +1,61 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"math"
+	"runtime"
+	"testing"
+)
+
+func TestAdjacentQ8HeadFallbacksAndTails(t *testing.T) {
+	e := newKernelExecutor(4)
+	defer e.close()
+	for _, shape := range []struct {
+		rows, in, out int
+		wide          bool
+	}{
+		{2, 64, 1, false}, {2, 64, 2, false}, {2, 64, 3, false},
+		{2, 2048, 193, false}, {2, 2048, 194, false}, {2, 2048, 195, false},
+		{1, 2048, 193, false}, {3, 2048, 193, false}, {2, 2049, 193, false}, {2, 2048, 193, true},
+	} {
+		rows, in, out := shape.rows, shape.in, shape.out
+		w := newInferenceParam("head-exactness", out, in, true)
+		for i := range w.Q8.Values {
+			w.Q8.Values[i] = int8(37*i + i/61)
+		}
+		for i := range w.Q8.Scales {
+			w.Q8.Scales[i] = float32(i%13+1) / 65536
+		}
+		x := make([]float32, rows*in)
+		for i := range x {
+			x[i] = float32((13*i)%313-156) / 171
+		}
+		x[3], x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+		if shape.wide {
+			x[0] = math.MaxFloat32
+		}
+		want := make([]float32, rows*out)
+		linearIntoWithExecutor(e, want, x, w, rows)
+		guarded := make([]float32, len(want)+2)
+		guarded[0], guarded[len(guarded)-1] = 123, 456
+		got := guarded[1 : len(guarded)-1]
+		for _, mode := range []string{"pair", "triple"} {
+			for i := range got {
+				got[i] = float32(math.NaN())
+			}
+			before := adjacentTiledCalls
+			adjacentHeadDispatch(e, got, x, w, rows, mode)
+			wantCalls := 0
+			supported := mode == "triple" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64")
+			if supported && rows == 2 && in%q8Block == 0 && !shape.wide {
+				wantCalls = 1
+			}
+			if !sameHeadBits(got, want) || adjacentTiledCalls-before != wantCalls ||
+				guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
+				t.Fatalf("%s rows=%d in=%d out=%d wide=%v differed", mode, rows, in, out, shape.wide)
+			}
+		}
+	}
+}
