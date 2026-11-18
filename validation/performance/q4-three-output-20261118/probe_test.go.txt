@@ -1,0 +1,99 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"math"
+	"runtime"
+	"testing"
+	"time"
+)
+
+type q4TrialKey struct{}
+
+type q4TrialTiming struct {
+	mode         string
+	projectionNS int64
+	calls        int
+}
+
+var q4TrialActive bool
+var q4TrialDispatches int // Only the range beginning at zero increments this counter.
+
+func init() {
+	contextSweepStageProbe = measureQ4Trajectories
+}
+
+func q4TrialSelect(ctx context.Context) {
+	timing, _ := ctx.Value(q4TrialKey{}).(*q4TrialTiming)
+	q4TrialActive = timing != nil && timing.mode == "triple"
+}
+
+func q4TrialProjection(ctx context.Context, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	timing, _ := ctx.Value(q4TrialKey{}).(*q4TrialTiming)
+	if timing == nil || w.Q4 == nil {
+		linearIntoWithExecutor(e, y, x, w, rows)
+		return
+	}
+	start := time.Now()
+	linearIntoWithExecutor(e, y, x, w, rows)
+	timing.projectionNS += time.Since(start).Nanoseconds()
+	timing.calls++
+}
+
+func TestQ4ThreeOutputTrialExact(t *testing.T) {
+	e := newKernelExecutor(4)
+	defer e.close()
+	for _, shape := range []struct {
+		in, out, rows int
+		wide          bool
+	}{
+		{64, 1, 2, false}, {64, 2, 2, false}, {64, 3, 2, false},
+		{2048, 95, 2, false}, {2048, 96, 2, false}, {2048, 97, 2, false},
+		{2048, 193, 1, false}, {2048, 193, 3, false}, {2049, 193, 2, false}, {2048, 193, 2, true},
+	} {
+		in, out, rows := shape.in, shape.out, shape.rows
+		w := newInferenceParamFormat("q4-three-output", out, in, true, "q4")
+		for i := range w.Q4.Values {
+			w.Q4.Values[i] = byte(37*i + i/61)
+		}
+		for i := range w.Q4.Scales {
+			w.Q4.Scales[i] = float32(i%13+1) / 65536
+		}
+		x := make([]float32, rows*in)
+		for i := range x {
+			x[i] = float32((13*i)%313-156) / 171
+		}
+		x[3], x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+		if shape.wide {
+			x[0] = math.MaxFloat32
+		}
+		want := make([]float32, rows*out)
+		q4TrialActive = false
+		linearQ4Into(e, want, x, w, rows)
+		guarded := make([]float32, len(want)+2)
+		guarded[0], guarded[len(guarded)-1] = 123, 456
+		got := guarded[1 : len(guarded)-1]
+		for i := range got {
+			got[i] = float32(math.NaN())
+		}
+		q4TrialActive = true
+		count := q4TrialDispatches
+		linearQ4Into(e, got, x, w, rows)
+		q4TrialActive = false
+		wantCalls := 0
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && rows == 2 && in%q8Block == 0 && !shape.wide {
+			wantCalls = 1
+		}
+		if q4TrialDispatches-count != wantCalls || guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
+			t.Fatalf("unexpected dispatch or output bounds for rows=%d in=%d out=%d", rows, in, out)
+		}
+		for i := range got {
+			if math.Float32bits(got[i]) != math.Float32bits(want[i]) || !finite(float64(got[i])) {
+				t.Fatalf("projection differs at index %d for rows=%d in=%d out=%d", i, rows, in, out)
+			}
+		}
+	}
+}

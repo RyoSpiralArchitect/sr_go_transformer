@@ -1,0 +1,16 @@
+{
+  "binary_sha256": "850c89c4fb4a3c6daefd90cc2e77c1b8a42edc6bd272d796db0b4269830cd8c8",
+  "objdump_sha256": "3b1f0a8ce40a9a33923789fd3575413db51f95dc5ebde188ab51f01d33b8f297",
+  "symbols": {
+    "dotQ4TwoRowOutputPair64": {
+      "instructions": 527,
+      "fma": 256,
+      "stack_references": 0
+    },
+    "dotQ4TwoRowOutputTriple64": {
+      "instructions": 757,
+      "fma": 384,
+      "stack_references": 0
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "shapes": [[3072, 1024], [3072, 3072], [3072, 8192], [8192, 3072]],
+  "rows": 2,
+  "workers": 4,
+  "rounds": 8,
+  "iterations_per_arm": 16,
+  "comparisons": [
+    ["reference", "reference"],
+    ["reference", "triple"],
+    ["reference", "advance"]
+  ],
+  "reference": "Current paired-output Q4 kernel.",
+  "triple": "Same three-output Q4 candidate as the model experiment.",
+  "advance": "Current paired-output arithmetic with typed views of the start of each remaining input/weight slice. Advance the views by one block each iteration.",
+  "method": "Warm every mode per shape. Rotate the comparison order, reverse arm order on odd rounds, and verify bitwise outputs. Compare medians of paired elapsed ratios with the same-kernel control."
+}
