@@ -1,0 +1,19 @@
+{
+  "reference": "77fdf336d0739e87802e741393453eeaa8331912",
+  "candidate_runtime_sha256": "5975a9f7cbb76771c81974eab31979f3835bdd60b410fbae51ab54442d73136a",
+  "candidate": "Aligned two-row Q8 output pair in the default Darwin arm64 output-head function.",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "sessions": [1, 2],
+  "prefix": 128,
+  "kv": "f16",
+  "workers": 4,
+  "decode_calls": 7,
+  "schedule": [
+    ["reference", "candidate", "repeat", "control"],
+    ["control", "repeat", "candidate", "reference"],
+    ["repeat", "reference", "control", "candidate"],
+    ["candidate", "control", "reference", "repeat"]
+  ],
+  "method": "Build the same candidate runtime once. For each session count create a prefix once, then replay it in four interleaved rounds. The paired labels call the default dispatcher. The reference labels call the prior final-head dispatcher. Time the head in every replay, count actual candidate dispatches and retain all elapsed values.",
+  "advance": "Exact token IDs, logits, stored KV and workspace for every replay. Both two-session candidate labels need a median paired head ratio <=0.90 with at least three of four pairs shorter and a median paired total decode ratio <=0.99. Single-session candidate label ratios <=1.05; A/A and B/B median ratios in [0.95,1.05] for head and total. Keep the earlier failed timing control."
+}

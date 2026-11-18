@@ -1,0 +1,136 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"math"
+	"testing"
+	"time"
+)
+
+type q8HeadProbeKey struct{}
+
+type q8HeadProbe struct {
+	mode string
+	ns   []int64
+}
+
+var q8ProbeFloats = func() (table [256]float32) {
+	for i := range table {
+		table[i] = float32(int8(i))
+	}
+	return table
+}()
+
+type q8ProjectionFunc func(e *kernelExecutor, y, x []float32, w *Param)
+
+func q8HeadProbeProject(mode string, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	if rows == 2 && w.Q8 != nil && w.Cols%64 == 0 && mode != "reference" && mode != "control" && !q8NeedsWideSum(x) {
+		var project q8ProjectionFunc
+		switch mode {
+		case "aligned":
+			project = q8ProbeAligned
+		case "lookup":
+			project = q8ProbeLookup
+		case "paired":
+			project = q8ProbePaired
+		case "paired-lookup":
+			project = q8ProbePairedLookup
+		}
+		if project == nil {
+			panic("unknown Q8 projection mode")
+		}
+		project(e, y, x, w)
+		return
+	}
+	linearIntoWithExecutor(e, y, x, w, rows)
+}
+
+func q8HeadProbeTimed(ctx context.Context, e *kernelExecutor, y, x []float32, w *Param, rows int) {
+	probe, _ := ctx.Value(q8HeadProbeKey{}).(*q8HeadProbe)
+	if probe == nil {
+		linearIntoWithExecutor(e, y, x, w, rows)
+		return
+	}
+	started := time.Now()
+	q8HeadProbeProject(probe.mode, e, y, x, w, rows)
+	probe.ns = append(probe.ns, time.Since(started).Nanoseconds())
+}
+
+func q8HeadFixture(in, out, rows int) (*Param, []float32) {
+	w := newInferenceParamFormat("output", out, in, true, "q8")
+	for i := range w.Q8.Values {
+		w.Q8.Values[i] = int8(i*37 + i/61)
+	}
+	for i := range w.Q8.Scales {
+		w.Q8.Scales[i] = float32(i%13+1) / 65536
+	}
+	x := make([]float32, rows*in)
+	for i := range x {
+		x[i] = float32((13*i)%313-156) / 171
+	}
+	return w, x
+}
+
+func checkQ8HeadModes(t testing.TB, e *kernelExecutor, w *Param, x []float32, rows int) {
+	t.Helper()
+	want := make([]float32, rows*w.Rows)
+	guarded := make([]float32, len(want)+2)
+	guarded[0], guarded[len(guarded)-1] = 123, 456
+	got := guarded[1 : len(guarded)-1]
+	linearIntoWithExecutor(e, want, x, w, rows)
+	for _, mode := range q8ProbeOrders[0] {
+		for i := range got {
+			got[i] = float32(math.NaN())
+		}
+		q8HeadProbeProject(mode, e, got, x, w, rows)
+		for i, v := range got {
+			if math.IsNaN(float64(v)) || math.Float32bits(v) != math.Float32bits(want[i]) {
+				t.Fatalf("%s differs at %d: %g != %g", mode, i, v, want[i])
+			}
+		}
+		if guarded[0] != 123 || guarded[len(guarded)-1] != 456 {
+			t.Fatalf("%s overwrote guard values", mode)
+		}
+	}
+}
+
+func TestQ8HeadProbeExact(t *testing.T) {
+	for _, workers := range []int{1, 4} {
+		e := newKernelExecutor(workers)
+		for _, shape := range [][3]int{{192, 65, 1}, {192, 65, 2}, {192, 65, 4}, {127, 65, 2}, {2048, 65, 2}} {
+			in, out, rows := shape[0], shape[1], shape[2]
+			w, x := q8HeadFixture(in, out, rows)
+			checkQ8HeadModes(t, e, w, x, rows)
+			x[0] = math.MaxFloat32
+			checkQ8HeadModes(t, e, w, x, rows)
+		}
+		e.close()
+	}
+}
+
+func BenchmarkQ8HeadProbe(b *testing.B) {
+	for _, out := range []int{6144, 128256} {
+		b.Run(fmt.Sprintf("outputs%d", out), func(b *testing.B) {
+			const in, rows = 3072, 2
+			e := newKernelExecutor(4)
+			defer e.close()
+			w, x := q8HeadFixture(in, out, rows)
+			checkQ8HeadModes(b, e, w, x, rows)
+			y := make([]float32, rows*out)
+			for round, order := range q8ProbeOrders {
+				for _, mode := range order {
+					b.Run(fmt.Sprintf("round%d/%s", round, mode), func(b *testing.B) {
+						b.ReportAllocs()
+						for i := 0; i < b.N; i++ {
+							q8HeadProbeProject(mode, e, y, x, w, rows)
+						}
+					})
+				}
+			}
+		})
+	}
+}
