@@ -99,8 +99,10 @@ Put Go 1.27.1 on PATH, and set `MODEL_SNAPSHOT` to the local checkpoint
 specified in [protocol.json](protocol.json). The driver verifies model
 files, runtime source, staged sources and the executable. Run from the
 experiment checkout to reproduce the screen and the static counts.
+Populate the Go module cache before running the offline builds.
 
 ```sh
+GOENV=off GOWORK=off GOFLAGS= GOTOOLCHAIN=local go mod download
 python3 -S validation/performance/q8-output-head-20261118/run.py \
   --model "$MODEL_SNAPSHOT" --output runs/q8-output-head
 go tool objdump -s '\.(dotQ8PairBlock64|q8ProbeLookupBlock|q8ProbePairedBlock|q8ProbePairedLookupBlock)$' \
@@ -117,9 +119,14 @@ worktree at the frozen source revision.
 
 ```sh
 record="$PWD/validation/performance/q8-output-head-20261118"
+base=77fdf336d0739e87802e741393453eeaa8331912
+if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+  git fetch --depth=1 origin "$base"
+fi
 scratch="$(mktemp -d)"
-git worktree add --detach "$scratch/source" 77fdf336d0739e87802e741393453eeaa8331912
+git worktree add --detach "$scratch/source" "$base"
 cd "$scratch/source"
+GOENV=off GOWORK=off GOFLAGS= GOTOOLCHAIN=local go mod download
 git apply --unidiff-zero "$record/candidate.patch"
 dest=validation/performance/q8-output-head-20261118
 mkdir -p "$dest"

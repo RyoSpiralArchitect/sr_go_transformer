@@ -33,9 +33,11 @@ comparison can isolate conversion cost from activation reuse across
 two outputs, with one-session decode as a control.
 
 Reproduce with Go 1.27.1, the local pinned model snapshot, and an
-unused output directory.
+unused output directory. Populate the Go module cache before the
+offline build.
 
 ```sh
+GOENV=off GOWORK=off GOFLAGS= GOTOOLCHAIN=local go mod download
 python3 -S scripts/measure_context_sweep.py \
   --model "$MODEL_SNAPSHOT" --formats f16 --sessions 2 --max-prefix 1024 \
   --stage-timing --output-dir runs/q4-post-merge/sweep

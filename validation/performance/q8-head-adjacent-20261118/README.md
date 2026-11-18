@@ -20,7 +20,7 @@ logits bit for bit.
 
 | Head comparison | Baseline median | Candidate median | Median paired ratio | Candidate faster |
 | --- | ---: | ---: | ---: | ---: |
-| Two outputs / reference | 47.16 ms | 38.57 ms | 0.828 | 40 / 42 |
+| Two outputs / reference | 47.15 ms | 38.57 ms | 0.828 | 40 / 42 |
 | Three outputs / reference | 47.45 ms | 37.77 ms | 0.784 | 42 / 42 |
 | Three outputs / two outputs | 38.62 ms | 37.49 ms | 0.962 | 31 / 42 |
 
@@ -63,7 +63,7 @@ IDs, full logits and KV digests, and workspace capacity.
 | --- | ---: | ---: | ---: |
 | Reference / reference | 1.003 | 1.010 | 3 / 8 |
 | Two outputs / reference | 0.811 | 0.958 | 7 / 8 |
-| Three outputs / reference | 0.767 | 0.924 | 8 / 8 |
+| Three outputs / reference | 0.766 | 0.924 | 8 / 8 |
 | Three outputs / two outputs | 0.947 | 0.997 | 5 / 8 |
 
 Each ratio divides the sums of seven timed calls, then takes the
@@ -78,9 +78,16 @@ median. Its total ratio ranged from 0.900 to 1.071, with median
 
 Use the frozen runtime and archived patch at the commit containing
 this record. Place Go 1.27.1 on PATH and set `MODEL_SNAPSHOT` to the
-pinned local model revision in the protocol.
+pinned local model revision in the protocol. The setup fetches the
+frozen base if needed and populates the Go module cache for the
+offline builds.
 
 ```sh
+base=77fdf336d0739e87802e741393453eeaa8331912
+if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+  git fetch --depth=1 origin "$base"
+fi
+GOENV=off GOWORK=off GOFLAGS= GOTOOLCHAIN=local go mod download
 record=validation/performance/q8-head-adjacent-20261118
 python3 -S "$record/run.py" --model "$MODEL_SNAPSHOT" --output runs/q8-head-adjacent
 python3 -S "$record/trajectory.py" --model "$MODEL_SNAPSHOT" --output runs/q8-head-trajectory
