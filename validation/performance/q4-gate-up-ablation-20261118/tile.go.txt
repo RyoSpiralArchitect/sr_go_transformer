@@ -1,0 +1,25 @@
+func RANGE_FUNC(j *gateUpWork, lo, hi int) {
+	in, out := j.gate.w.Cols, j.gate.w.Rows
+	x0, x1 := j.gate.x[:in], j.gate.x[in:2*in]
+	groups, stride := in/64, in/2
+	g, u := j.gate.w.Q4, j.up.w.Q4
+	for tile := lo; tile < hi; tile++ {
+		for o := tile*32; o < min(out, (tile+1)*32); o++ {
+			gw, uw := g.Values[o*stride:(o+1)*stride], u.Values[o*stride:(o+1)*stride]
+			gs, us := g.Scales[o*groups:(o+1)*groups], u.Scales[o*groups:(o+1)*groups]
+			var a, b, c, d float32
+			for block := 0; block < groups; block++ {
+				k, i := block*64, block*32
+				a0, a1 := (*[64]float32)(x0[k:k+64]), (*[64]float32)(x1[k:k+64])
+				p, q, r, s := DOT_BLOCK(a0, a1, a0, a1,
+					(*[32]byte)(gw[i:i+32]), (*[32]byte)(uw[i:i+32]))
+				a += p * gs[block]
+				b += q * us[block]
+				c += r * gs[block]
+				d += s * us[block]
+			}
+			j.gate.y[o], j.gate.y[out+o] = a, c
+			j.up.y[o], j.up.y[out+o] = b, d
+		}
+	}
+}

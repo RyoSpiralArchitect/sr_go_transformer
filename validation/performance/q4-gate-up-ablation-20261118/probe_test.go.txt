@@ -1,0 +1,227 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"reflect"
+	"runtime"
+	"strconv"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+type gateUpWork struct {
+	gate, up fp32Kernel
+}
+
+func (j *gateUpWork) pack(lo, hi int) {
+	linearQ4Range(&j.gate, lo, hi)
+	linearQ4Range(&j.up, lo, hi)
+}
+
+func (j *gateUpWork) split(lo, hi int)  { gateUpSplitRange(j, lo, hi) }
+func (j *gateUpWork) shared(lo, hi int) { gateUpSharedRange(j, lo, hi) }
+
+type gateUpFixture struct {
+	e                     *kernelExecutor
+	workers               int
+	x, g, u, frozen, down []float32
+	gate, up, wDown       *Param
+	j                     gateUpWork
+	callbacks             map[string]func(int, int)
+}
+
+func fixtureWeights(in, out, seed int) *Param {
+	p := newInferenceParamFormat("fixture", out, in, true, "q4")
+	for i := range p.Q4.Values {
+		p.Q4.Values[i] = byte(seed + 17*i + i/31)
+	}
+	for i := range p.Q4.Scales {
+		p.Q4.Scales[i] = float32((i+seed)%41+1) / 4096
+	}
+	return p
+}
+
+func newGateUpFixture(in, hidden, workers int) *gateUpFixture {
+	f := &gateUpFixture{e: newKernelExecutor(workers), workers: workers,
+		x: make([]float32, 2*in), g: make([]float32, 2*hidden), u: make([]float32, 2*hidden),
+		down: make([]float32, 2*in), gate: fixtureWeights(in, hidden, 3),
+		up: fixtureWeights(in, hidden, 17), wDown: fixtureWeights(hidden, in, 29)}
+	for i := range f.x {
+		f.x[i] = float32((29*i+i/59)%251-125) / 128
+	}
+	f.x[3], f.x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+	f.callbacks = map[string]func(int, int){"packed": f.j.pack, "split": f.j.split, "shared": f.j.shared}
+	return f
+}
+
+func (f *gateUpFixture) project(mode string) {
+	cb := f.callbacks[mode]
+	if cb == nil {
+		linearQ4Into(f.e, f.g, f.x, f.gate, 2)
+		linearQ4Into(f.e, f.u, f.x, f.up, 2)
+	} else {
+		// Same arithmetic path checks as the two separate Q4 projections.
+		// Use both scans: otherwise a cheaper admission check is confounded
+		// with the single join. Extreme inputs use the reference path.
+		in, out := f.gate.Cols, f.gate.Rows
+		a, b := q8NeedsWideSum(f.x[:2*in]), q8NeedsWideSum(f.x[:2*in])
+		if a || b {
+			f.project("reference")
+			return
+		}
+		f.j = gateUpWork{fp32Kernel{x: f.x, y: f.g, w: f.gate, n: 2}, fp32Kernel{x: f.x, y: f.u, w: f.up, n: 2}}
+		f.e.parallel((out+31)/32, 2*in*out, cb)
+		f.j = gateUpWork{}
+	}
+	for i, v := range f.g {
+		f.g[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * f.u[i]
+	}
+}
+
+func sameFloats(a, b []float32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if math.Float32bits(v) != math.Float32bits(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func fixturePoison(x []float32) {
+	for i := range x {
+		x[i] = float32(math.NaN())
+	}
+}
+
+func checkGateUp(t *testing.T, f *gateUpFixture) {
+	t.Helper()
+	f.project("reference")
+	f.frozen = append([]float32(nil), f.g...)
+	wantUp := append([]float32(nil), f.u...)
+	linearQ4Into(f.e, f.down, f.frozen, f.wDown, 2)
+	wantDown := append([]float32(nil), f.down...)
+	for _, mode := range []string{"control", "packed", "split", "shared"} {
+		fixturePoison(f.g)
+		fixturePoison(f.u)
+		fixturePoison(f.down)
+		f.project(mode)
+		if !sameFloats(f.g, f.frozen) || !sameFloats(f.u, wantUp) {
+			t.Fatalf("%s changed Gate/Up at %dx%d; %d workers", mode, f.gate.Cols, f.gate.Rows, f.workers)
+		}
+		linearQ4Into(f.e, f.down, f.g, f.wDown, 2)
+		if !sameFloats(f.down, wantDown) || !reflect.DeepEqual(f.j, gateUpWork{}) {
+			t.Fatalf("%s changed Down or retained a job", mode)
+		}
+	}
+}
+
+func TestGateUpAblationExact(t *testing.T) {
+	for _, in := range []int{64, 320, 1024} {
+		for _, hidden := range []int{1, 31, 32, 33, 129, 257} {
+			for _, workers := range []int{1, 4} {
+				f := newGateUpFixture(in, hidden, workers)
+				checkGateUp(t, f)
+				f.e.close()
+			}
+		}
+	}
+}
+
+func TestGateUpAblationDispatch(t *testing.T) {
+	for _, workers := range []int{1, 4} {
+		f := newGateUpFixture(1024, 256, workers)
+		var calls atomic.Int32
+		f.e.q4Fn = func(lo, hi int) { calls.Add(1); linearQ4Range(&f.e.linear, lo, hi) }
+		cb := f.callbacks["packed"]
+		f.callbacks["packed"] = func(lo, hi int) { calls.Add(1); cb(lo, hi) }
+		f.project("reference")
+		reference := calls.Swap(0)
+		f.project("packed")
+		packed := calls.Load()
+		f.e.close()
+		if workers == 4 && (reference != 8 || packed != 4) || workers == 1 && (reference != 0 || packed != 1) {
+			t.Fatalf("%d workers: observed %d / %d callbacks", workers, reference, packed)
+		}
+	}
+}
+
+var orders = [10][5]string{
+	{"reference", "control", "shared", "packed", "split"},
+	{"control", "packed", "reference", "split", "shared"},
+	{"packed", "split", "control", "shared", "reference"},
+	{"split", "shared", "packed", "reference", "control"},
+	{"shared", "reference", "split", "control", "packed"},
+	{"split", "packed", "shared", "control", "reference"},
+	{"shared", "split", "reference", "packed", "control"},
+	{"reference", "shared", "control", "split", "packed"},
+	{"control", "reference", "packed", "shared", "split"},
+	{"packed", "control", "split", "reference", "shared"},
+}
+
+type ablationShot struct {
+	Block, Workers, Round, Calls int
+	Mode, Stage                  string
+	ElapsedNS                    int64
+}
+
+func TestGateUpAblationTiming(t *testing.T) {
+	path := os.Getenv("MONOLITH_ABLATION_OUT")
+	if path == "" {
+		t.Skip("manual controlled timing")
+	}
+	block, err := strconv.Atoi(os.Getenv("MONOLITH_ABLATION_BLOCK"))
+	if err != nil || block < 0 || block > 1 || runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("expected block 0/1 and GOMAXPROCS=4")
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	for _, workers := range [2]int{4 - 3*block, 1 + 3*block} {
+		f := newGateUpFixture(3072, 8192, workers)
+		checkGateUp(t, f)
+		active := [2]string{"gate_up", "down"}
+		if block == 1 {
+			active = [2]string{"down", "gate_up"}
+		}
+		for _, stage := range active {
+			fmt.Fprintf(os.Stderr, "block %d, %d workers: %s\n", block, workers, stage)
+			for round := range orders {
+				index := round
+				if (workers == 1) != (block == 1) {
+					index = len(orders) - 1 - round
+				}
+				for _, mode := range orders[index] {
+					const calls = 20
+					start := time.Now()
+					if stage == "gate_up" {
+						for range calls {
+							f.project(mode)
+						}
+					} else {
+						for range calls {
+							linearQ4Into(f.e, f.down, f.frozen, f.wDown, 2)
+						}
+					}
+					ns := time.Since(start).Nanoseconds()
+					if err := enc.Encode(ablationShot{block, workers, round, calls, mode, stage, ns}); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		}
+		f.e.close()
+	}
+}

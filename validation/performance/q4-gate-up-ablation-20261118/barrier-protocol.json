@@ -1,0 +1,13 @@
+{
+  "interpretation": "A separate mechanism control retaining the first ablation. Submit the same 4+4 jobs in both variants; move the midpoint completion drain to the end. Overlap and the resulting worker assignment can change. One worker executes identical code across all three labels.",
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "workers_by_block": [[4,1],[1,4]],
+  "reverse_orders_at": [1,4],
+  "rounds_per_block": 6,
+  "calls_per_sample": 24,
+  "minimum_wins": 5,
+  "max_speed_ratio": 0.99,
+  "control_median_range": [0.98,1.02],
+  "control_absolute_from_one_median_max": 0.04,
+  "decision": "For attribution at 4 workers require both blocks to pass timing and controls. At 1 worker also require one_join/reference to satisfy control bounds. A pass does not reopen the first candidate's adoption gate."
+}
