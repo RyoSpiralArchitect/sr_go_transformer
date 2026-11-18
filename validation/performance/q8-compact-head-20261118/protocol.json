@@ -1,0 +1,44 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "runtime_sha256": {
+    "baseline": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "pair": "fd438e17e76f97b12ac3ccffcf9a037d2cd29a2edad1cf1b35851a2dc76f95e7",
+    "shared": "df00135bf7058d212ac2d20068ebee2afeccb9ff5b2ee2cff7cad0214d540371"
+  },
+  "model_id": "llama32-3b",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "go_version": "go version go1.27.1 darwin/arm64",
+  "cpu": "Apple M4",
+  "weights": "q4-mixed",
+  "workers": 4,
+  "executor_bytes": 120,
+  "decode_steps": 7,
+  "min_memory_free_percent": 20,
+  "cases": [
+    {"id": "short-s1", "sessions": 1, "prefix": 8, "kv": "f32", "phases": ["prefill", "decode"]},
+    {"id": "short-s2", "sessions": 2, "prefix": 8, "kv": "f32", "phases": ["decode", "prefill"]},
+    {"id": "prefix-s2", "sessions": 2, "prefix": 128, "kv": "f16", "phases": ["decode"]},
+    {"id": "prefix-s1", "sessions": 1, "prefix": 128, "kv": "f16", "phases": ["decode"]}
+  ],
+  "orders": [
+    ["reference", "control", "shared", "pair"],
+    ["control", "pair", "reference", "shared"],
+    ["pair", "shared", "control", "reference"],
+    ["shared", "reference", "pair", "control"]
+  ],
+  "rounds": 8,
+  "analysis": {
+    "orders": "Four balanced orders, then the same orders in reverse round order. Advance the first order by one for each successive phase. The two baseline processes run the same binary. Execute one command at a time.",
+    "control_median_min": 0.97,
+    "control_median_max": 1.03,
+    "control_median_absolute_deviation_from_one_max": 0.05,
+    "ratio": "Within each round divide elapsed time by the geometric mean of its two baselines. Take the median over rounds; use the candidate-before-reference and candidate-after-reference strata for the direction check.",
+    "two_session_decode_max_ratio": 0.99,
+    "two_session_decode_min_wins": 6,
+    "single_session_decode_max_ratio": 1.03,
+    "prefill_max_ratio": 1.05,
+    "shared_over_pair_max_ratio": 1.03,
+    "shared_min_saved_allocations_per_two_session_trace": 7,
+    "requirements": "Exact checkpoint, outputs, token IDs, KV state, positions and workspace throughout. Same-path control must pass per phase; no added swapouts and free memory at the defined checkpoints. For each two-session decode phase require both order strata < 1. The shared variant must also meet its overhead and allocation bounds. Confirm an eligible variant with a pinned large-vocabulary 7B checkpoint before landing. Do not rerun failed gates until a new protocol explains the difference."
+  }
+}

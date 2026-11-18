@@ -1,0 +1,320 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+	"reflect"
+	"runtime"
+	"testing"
+	"time"
+)
+
+const residentSteps = 7
+const residentChunk = 32
+
+type residentRequest struct {
+	Op               string
+	Sessions, Prefix int
+	KV               string
+}
+
+type residentSignature struct {
+	Logits, KV         string
+	IDs                [][]int
+	Positions          []int
+	Workspace, KVBytes int64
+}
+
+type residentSample struct {
+	Signature              residentSignature
+	Ns                     []int64
+	Allocated, Allocations uint64
+}
+
+type residentCase struct {
+	model                   *Model
+	e                       *kernelExecutor
+	prompt                  [][]int
+	prefix                  []*KVCache
+	first                   []int
+	prefillWork, decodeWork decodeWorkspace
+}
+
+func (c *residentCase) close() {
+	for _, cache := range c.prefix {
+		cache.Close()
+	}
+}
+
+func residentIDs(dst []int, logits []float32, vocab int) error {
+	for i := range dst {
+		row := logits[i*vocab : (i+1)*vocab]
+		best := 0
+		for j, v := range row {
+			if !finite(float64(v)) {
+				return fmt.Errorf("nonfinite logit in session %d, column %d", i, j)
+			}
+			if v > row[best] {
+				best = j
+			}
+		}
+		dst[i] = best
+	}
+	return nil
+}
+
+func residentFinish(logits string, ids [][]int, caches []*KVCache, w *decodeWorkspace) residentSignature {
+	out := residentSignature{Logits: logits, IDs: ids, Workspace: w.floatBytes()}
+	h := sha256.New()
+	half := make([]byte, 0, 2*caches[0].Model.Config.KVDim())
+	for _, cache := range caches {
+		out.Positions = append(out.Positions, cache.Pos)
+		for _, page := range cache.Pages {
+			out.KVBytes += int64(len(page.Data))*4 + int64(len(page.F16))*2
+		}
+		for layer := range cache.Model.Blocks {
+			for pos := 0; pos < cache.Pos; pos++ {
+				if cache.format == "f16" {
+					k, v := cache.rowF16(layer, pos)
+					for _, x := range [2][]uint16{k, v} {
+						half = half[:0]
+						for _, value := range x {
+							half = binary.LittleEndian.AppendUint16(half, value)
+						}
+						h.Write(half)
+					}
+				} else {
+					k, v := cache.row(layer, pos)
+					perfHashFloats(h, k)
+					perfHashFloats(h, v)
+				}
+			}
+		}
+	}
+	out.KV = hex.EncodeToString(h.Sum(nil))
+	return out
+}
+
+func (c *residentCase) prefill(ctx context.Context) (residentSample, error) {
+	caches := make([]*KVCache, len(c.prompt))
+	for i := range caches {
+		caches[i] = c.model.NewCache()
+		defer caches[i].Close()
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	start := time.Now()
+	logits, err := c.model.prefillBorrowed(ctx, caches, c.prompt, c.e, &c.prefillWork)
+	ns := time.Since(start).Nanoseconds()
+	runtime.ReadMemStats(&after)
+	if err != nil {
+		return residentSample{}, err
+	}
+	best := make([]int, len(caches))
+	if err := residentIDs(best, logits, c.model.Config.Vocab); err != nil {
+		return residentSample{}, err
+	}
+	h := sha256.New()
+	perfHashFloats(h, logits)
+	signature := residentFinish(hex.EncodeToString(h.Sum(nil)), [][]int{best}, caches, &c.prefillWork)
+	return residentSample{signature, []int64{ns}, after.TotalAlloc - before.TotalAlloc, after.Mallocs - before.Mallocs}, nil
+}
+
+func (c *residentCase) decode(ctx context.Context) (residentSample, error) {
+	chunks := make([][]int, len(c.prefix))
+	for i, cache := range c.prefix {
+		// Keep only the original prefix logically live. These direct KV
+		// caches are private; each subsequent step overwrites its suffix.
+		cache.Pos = len(c.prompt[i])
+	}
+	ids := [residentSteps + 1][2]int{}
+	copy(ids[0][:], c.first)
+	h := sha256.New()
+	ns := make([]int64, 0, residentSteps)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for step := range residentSteps {
+		for i := range chunks {
+			chunks[i] = ids[step][i : i+1]
+		}
+		start := time.Now()
+		logits, err := c.model.prefillBorrowed(ctx, c.prefix, chunks, c.e, &c.decodeWork)
+		ns = append(ns, time.Since(start).Nanoseconds())
+		if err != nil {
+			return residentSample{}, err
+		}
+		perfHashFloats(h, logits)
+		if err := residentIDs(ids[step+1][:len(chunks)], logits, c.model.Config.Vocab); err != nil {
+			return residentSample{}, err
+		}
+	}
+	runtime.ReadMemStats(&after)
+	trace := make([][]int, len(ids))
+	for i := range ids {
+		trace[i] = ids[i][:len(c.prefix)]
+	}
+	signature := residentFinish(hex.EncodeToString(h.Sum(nil)), trace, c.prefix, &c.decodeWork)
+	return residentSample{signature, ns, after.TotalAlloc - before.TotalAlloc, after.Mallocs - before.Mallocs}, nil
+}
+
+func prepareResident(ctx context.Context, m *Model, e *kernelExecutor, bases [][]int, req residentRequest) (*residentCase, residentSignature, error) {
+	m.kvFormat = req.KV // The old case is closed and the executor is idle.
+	c := &residentCase{model: m, e: e, first: make([]int, req.Sessions)}
+	for _, base := range bases[:req.Sessions] {
+		p := make([]int, req.Prefix)
+		for i := range p {
+			p[i] = base[i%len(base)]
+		}
+		c.prompt = append(c.prompt, p)
+		c.prefix = append(c.prefix, m.NewCache())
+	}
+	chunks := make([][]int, req.Sessions)
+	var logits []float32
+	var err error
+	for hi := 0; hi < req.Prefix; {
+		lo := hi
+		hi = min(hi+residentChunk, req.Prefix)
+		for i := range chunks {
+			chunks[i] = c.prompt[i][lo:hi]
+		}
+		logits, err = m.prefillBorrowed(ctx, c.prefix, chunks, e, &c.prefillWork)
+		if err != nil {
+			c.close()
+			return nil, residentSignature{}, err
+		}
+	}
+	if err := residentIDs(c.first, logits, m.Config.Vocab); err != nil {
+		c.close()
+		return nil, residentSignature{}, err
+	}
+	h := sha256.New()
+	perfHashFloats(h, logits)
+	signature := residentFinish(hex.EncodeToString(h.Sum(nil)), [][]int{c.first}, c.prefix, &c.prefillWork)
+	for _, cache := range c.prefix {
+		cache.ensurePages(cache.Pos + residentSteps)
+	}
+	return c, signature, nil
+}
+
+func TestHFResidentHeadPerf(t *testing.T) {
+	dir := os.Getenv("MONOLITH_RESIDENT_MODEL")
+	if dir == "" {
+		t.Skip("manual offline resident model comparison")
+	}
+	if runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("probe requires four threads")
+	}
+	ctx := context.Background()
+	m, plan, err := loadHFModelFormat(ctx, dir, 2048, 8192, "q4-mixed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := m.output
+	if head == nil {
+		head = m.Emb
+	}
+	if head.Q8 == nil || head.Q4 != nil || head.Rows < 64<<10 || head.Cols%q8Block != 0 {
+		t.Fatal("requires an aligned Q8 output head with at least 65,536 outputs")
+	}
+	tok, err := loadHFTokenizer(dir, *m.hf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Documents []struct{ Text string } `json:"evaluation_documents"`
+	}
+	b, err := os.ReadFile(os.Getenv("MONOLITH_RESIDENT_CORPUS"))
+	if err != nil || len(b) > 64<<10 || json.Unmarshal(b, &corpus) != nil || len(corpus.Documents) < 2 {
+		t.Fatal("invalid corpus", err)
+	}
+	base := make([][]int, 2)
+	for i := range base {
+		ids, err := tok.encodePrompt(ctx, corpus.Documents[i].Text, m.Config.Context)
+		if err != nil || len(ids) < 8 {
+			t.Fatal("invalid prompt", err)
+		}
+		base[i] = ids
+	}
+	e := newKernelExecutor(4)
+	defer e.close()
+	out := json.NewEncoder(os.Stdout)
+	reply := func(value any) {
+		if err := out.Encode(value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	in := json.NewDecoder(os.Stdin)
+	var c *residentCase
+	defer func() {
+		if c != nil {
+			c.close()
+		}
+	}()
+	reply(map[string]any{"ready": plan, "prompts": base, "executor_bytes": reflect.TypeOf(kernelExecutor{}).Size()})
+	for {
+		var req residentRequest
+		if err := in.Decode(&req); err != nil {
+			t.Fatal("request:", err)
+		}
+		switch req.Op {
+		case "quit":
+			reply(map[string]bool{"stopped": true})
+			return
+		case "prepare":
+			if req.Sessions < 1 || req.Sessions > 2 || req.Prefix < 8 || req.Prefix > 1024 ||
+				req.Prefix+residentSteps > m.Config.Context || (req.KV != "f16" && req.KV != "f32") {
+				t.Fatal("unsupported case", req)
+			}
+			if c != nil {
+				c.close()
+				c = nil
+			}
+			var checkpoint residentSignature
+			c, checkpoint, err = prepareResident(ctx, m, e, base, req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var prefill *residentSignature
+			if req.Prefix == 8 {
+				warm, err := c.prefill(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				prefill = &warm.Signature
+			}
+			warm, err := c.decode(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runtime.GC() // No forced collection in a measured call.
+			reply(map[string]any{"checkpoint": checkpoint, "prefill": prefill, "decode": warm.Signature})
+		case "prefill", "decode":
+			if c == nil {
+				t.Fatal("prepare before timing")
+			}
+			var s residentSample
+			if req.Op == "prefill" {
+				if len(c.prompt[0]) != 8 {
+					t.Fatal("prefill timing only supports short cases")
+				}
+				s, err = c.prefill(ctx)
+			} else {
+				s, err = c.decode(ctx)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			reply(s)
+		default:
+			t.Fatal("unknown command", req.Op)
+		}
+	}
+}

@@ -1,0 +1,37 @@
+{
+  "common": "protocol.json",
+  "supersedes_timing": "The four-process screen stopped after swapping began while loading. These cases use the same binaries and probe with at most two live models. Do not pool the runs.",
+  "cases": [
+    {"id": "short-s1", "sessions": 1, "prefix": 8, "kv": "f32", "phases": ["prefill", "decode"]},
+    {"id": "short-s2", "sessions": 2, "prefix": 8, "kv": "f32", "phases": ["decode", "prefill"]},
+    {"id": "prefix-s2", "sessions": 2, "prefix": 128, "kv": "f16", "phases": ["decode"]}
+  ],
+  "rounds_per_block": 3,
+  "sample_spacing": "Each of two blocks has one same-binary control, one reference/pair, and one reference/shared comparison; the second block reverses comparison order and first-arm order. Each round alternates first arm independently of case order. Three prefix prepares per host block; all comparisons use the same probe executable per runtime.",
+  "blocks": [
+    {"right": ["baseline", "shared", "pair"], "cases": [0, 1, 2], "reverse": false},
+    {"right": ["pair", "shared", "baseline"], "cases": [2, 1, 0], "reverse": true}
+  ],
+  "direct": {
+    "left": "pair",
+    "right": "shared",
+    "cases": [2, 1, 0],
+    "reverse": false,
+    "rounds": 4
+  },
+  "start_min_free_percent": 55,
+  "group_min_free_percent": 33,
+  "one_side_swapout_pages_max": 0,
+  "phase_control_absolute_deviation_max": 0.06,
+  "phase_control_median_min": 0.96,
+  "phase_control_median_max": 1.04,
+  "two_session_decode_min_wins": 5,
+  "two_session_decode_max_ratio": 0.99,
+  "two_session_order_and_block_medians_max": 1.0,
+  "single_session_decode_max_ratio": 1.03,
+  "prefill_max_ratio": 1.05,
+  "shared_over_pair_max_ratio": 1.03,
+  "shared_min_saved_allocations_per_two_session_trace": 7,
+  "adoption": "All numerical signatures and capacities match in every arm. Both eligible candidates need stable controls and memory, no prefill or 1-session regression, and both 2-session decode wins. The shared candidate also needs the direct incremental gate. Repeat an eligible path on pinned Qwen2.5 7B on Apple M4 before landing. Stop rather than retry on a failed performance gate.",
+  "timebox_seconds": 900
+}

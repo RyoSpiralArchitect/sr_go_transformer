@@ -1,0 +1,209 @@
+{
+  "complete": true,
+  "first_missing": null,
+  "exact_observed": true,
+  "executor_bytes": 120,
+  "memory": {
+    "min_free_percent": 54,
+    "swapout_pages_added": 0,
+    "passes": true
+  },
+  "controls_pass": null,
+  "variants": null,
+  "share_increment_pass": null,
+  "advances_to_7b": [],
+  "cases": {
+    "short-s1": {
+      "prefill": {
+        "shared-over-pair": {
+          "values": [
+            0.9915029657959232,
+            0.9969608096499935,
+            0.9942094685011783,
+            0.9710628479090118
+          ],
+          "median": 0.9928562171485508,
+          "low": 0.9710628479090118,
+          "high": 0.9969608096499935,
+          "wins": 4,
+          "median_abs_from_one": 0.007143782851449232,
+          "median_ms_per_call": [
+            1207.275438,
+            1186.789125
+          ],
+          "ratio_by_first_arm": {
+            "left": 0.9928562171485508,
+            "right": 0.9840118287795026
+          },
+          "ratio_by_block": {
+            "0": 0.9928562171485508
+          },
+          "median_allocations": [
+            5.0,
+            4.0
+          ],
+          "median_allocated_bytes": [
+            7340312.0,
+            7340200.0
+          ],
+          "allocations_saved": 1.0,
+          "pairs": 4,
+          "expected_pairs": 4
+        }
+      },
+      "decode": {
+        "shared-over-pair": {
+          "values": [
+            0.9917758053343915,
+            1.0207003185784511,
+            1.0027497426316276,
+            1.012411058669032
+          ],
+          "median": 1.0075804006503297,
+          "low": 0.9917758053343915,
+          "high": 1.0207003185784511,
+          "wins": 1,
+          "median_abs_from_one": 0.010317626667320279,
+          "median_ms_per_call": [
+            152.10590164285713,
+            153.84491964285712
+          ],
+          "ratio_by_first_arm": {
+            "left": 1.0165556886237415,
+            "right": 0.9972627739830096
+          },
+          "ratio_by_block": {
+            "0": 1.0075804006503297
+          },
+          "median_allocations": [
+            14.0,
+            14.0
+          ],
+          "median_allocated_bytes": [
+            29456.0,
+            29456.0
+          ],
+          "allocations_saved": 0.0,
+          "pairs": 4,
+          "expected_pairs": 4
+        }
+      }
+    },
+    "short-s2": {
+      "decode": {
+        "shared-over-pair": {
+          "values": [
+            0.9883666753105411,
+            1.045849340073889,
+            1.0181714647648945,
+            1.0130388292431796
+          ],
+          "median": 1.015605147004037,
+          "low": 0.9883666753105411,
+          "high": 1.045849340073889,
+          "wins": 1,
+          "median_abs_from_one": 0.015605147004037034,
+          "median_ms_per_call": [
+            196.3276667142857,
+            199.31467257142856
+          ],
+          "ratio_by_first_arm": {
+            "left": 1.0294440846585342,
+            "right": 1.0032690700377178
+          },
+          "ratio_by_block": {
+            "0": 1.015605147004037
+          },
+          "median_allocations": [
+            21.0,
+            7.0
+          ],
+          "median_allocated_bytes": [
+            29232.0,
+            28672.0
+          ],
+          "allocations_saved": 14.0,
+          "pairs": 4,
+          "expected_pairs": 4
+        }
+      },
+      "prefill": {
+        "shared-over-pair": {
+          "values": [
+            0.996251364553171,
+            1.0478600514097498,
+            0.9399818458606716,
+            1.012430748151583
+          ],
+          "median": 1.0043410563523771,
+          "low": 0.9399818458606716,
+          "high": 1.0478600514097498,
+          "wins": 2,
+          "median_abs_from_one": 0.030145399780666438,
+          "median_ms_per_call": [
+            2480.5905205,
+            2454.328146
+          ],
+          "ratio_by_first_arm": {
+            "left": 0.9681166052069212,
+            "right": 1.0301453997806664
+          },
+          "ratio_by_block": {
+            "0": 1.0043410563523771
+          },
+          "median_allocations": [
+            8.0,
+            6.0
+          ],
+          "median_allocated_bytes": [
+            14680256.0,
+            14680176.0
+          ],
+          "allocations_saved": 2.0,
+          "pairs": 4,
+          "expected_pairs": 4
+        }
+      }
+    },
+    "prefix-s2": {
+      "decode": {
+        "shared-over-pair": {
+          "values": [
+            1.278437200367481,
+            1.1539025179884688,
+            0.9979802756069003,
+            0.9711494486215229
+          ],
+          "median": 1.0759413967976845,
+          "low": 0.9711494486215229,
+          "high": 1.278437200367481,
+          "wins": 2,
+          "median_abs_from_one": 0.09137653468347295,
+          "median_ms_per_call": [
+            201.4015597142857,
+            220.6297352142857
+          ],
+          "ratio_by_first_arm": {
+            "left": 1.1382087379871906,
+            "right": 1.0625259833049958
+          },
+          "ratio_by_block": {
+            "0": 1.0759413967976845
+          },
+          "median_allocations": [
+            21.5,
+            7.0
+          ],
+          "median_allocated_bytes": [
+            29288.0,
+            28672.0
+          ],
+          "allocations_saved": 14.5,
+          "pairs": 4,
+          "expected_pairs": 4
+        }
+      }
+    }
+  },
+  "journal_sha256": "9a2468a5ef2549d1a7cab7cfe7fd9dc05f20dbc76bf08630dd0023694cb7877a"
+}

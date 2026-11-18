@@ -1,0 +1,10 @@
+{
+  "base_protocol": "pairs.json",
+  "reason": "The 15 minute screen ended before the direct comparison. Run only the missing pair/shared block, with short preparation cases first, as incremental evidence. This cannot reopen the 3B adoption gate.",
+  "left": "pair",
+  "right": "shared",
+  "cases": [0, 1, 2],
+  "rounds": 4,
+  "reverse": false,
+  "timebox_seconds": 360
+}
