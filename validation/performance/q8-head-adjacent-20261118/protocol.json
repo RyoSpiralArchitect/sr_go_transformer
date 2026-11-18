@@ -1,0 +1,27 @@
+{
+  "baseline": "77fdf336d0739e87802e741393453eeaa8331912",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "archived_pair_runtime_sha256": "5975a9f7cbb76771c81974eab31979f3835bdd60b410fbae51ab54442d73136a",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weights": "q4-mixed",
+  "kv": "f16",
+  "sessions": 2,
+  "prefix": 128,
+  "workers": 4,
+  "activation_steps": 7,
+  "rounds": 6,
+  "comparisons": [
+    ["reference", "reference"],
+    ["reference", "pair"],
+    ["pair", "pair"],
+    ["pair", "triple"],
+    ["triple", "triple"],
+    ["reference", "triple"]
+  ],
+  "comparison_order_seed": [0, 1, 5, 2, 4, 3],
+  "schedule": "Rotate captures by the round. For each capture, rotate comparison order by round plus capture index. Reverse the two calls in each comparison on odd rounds. For one-step decode use the same comparison order with capture index zero.",
+  "head": "Record the seven normalized input pairs along the reference decode. Warm each variant on capture zero. Time adjacent head calls using the same captured inputs, shared weights, disjoint reusable output arrays and original four workers. Compare every output bit after timing both calls.",
+  "decode": "Start every measured call from the same committed prefix and the same next IDs. Reuse one private page per session and rewind the cursors between calls. Warm each variant once. Compare logits, written KV row for each layer, positions and workspace bytes. Time only the ordinary forward call and its head.",
+  "analysis": "Report every sample, medians and 25th/75th percentiles of paired ratios by order, plus same-mode variation. Ratios always use the order shown in comparisons. Use captures as repeated observations of this exact workload."
+}
