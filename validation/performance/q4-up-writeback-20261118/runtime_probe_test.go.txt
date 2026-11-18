@@ -1,0 +1,19 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import "runtime"
+
+func upWritebackEligible(m *Model, b Block, e *kernelExecutor, w *decodeWorkspace, rows int) bool {
+	return runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && m.Position == nil && rows == 2 &&
+		e != nil && b.Gate.Q4 != nil && b.Up.Q4 != nil && m.Config.Dim%q8Block == 0 &&
+		!q8NeedsWideSum(w.N)
+}
+
+func probeUpLocal(e *kernelExecutor, g, u, x []float32, gate, up *Param) {
+	// This path is for bounded correctness only. The timing fixture uses
+	// cached method values, so the temporary probe descriptor is not timed.
+	var j upJob
+	runUpRange(e, &j, j.local, g, u, x, gate, up)
+}

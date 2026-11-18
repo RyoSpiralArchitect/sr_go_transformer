@@ -1,0 +1,236 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+)
+
+type upJob struct {
+	gate, up fp32Kernel
+}
+
+func applyUp(gate, up float32) float32 {
+	return float32(float64(gate)/(1+math.Exp(-float64(gate)))) * up
+}
+
+func (j *upJob) store(lo, hi int) {
+	linearQ4TwoRowOutputPairRange(&j.gate, lo, hi)
+	storeUpRange(&j.up, j.gate.y, lo, hi)
+}
+
+func (j *upJob) local(lo, hi int) {
+	linearQ4TwoRowOutputPairRange(&j.gate, lo, hi)
+	localUpRange(&j.up, j.gate.y, lo, hi)
+}
+
+// One owned descriptor, identical worker partition and lazy method values in
+// both arms. Only store() writes the full Up output. In the timed fixture its
+// slice is present in both arms; capacity is not the variable under test.
+type upTrial struct {
+	e                     *kernelExecutor
+	job                   upJob
+	store, local          func(int, int)
+	x, g, u, down, frozen []float32
+	gate, up, wDown       *Param
+}
+
+func sampleWeights(in, out, seed int) *Param {
+	p := newInferenceParamFormat("test", out, in, true, "q4")
+	for i := range p.Q4.Values {
+		p.Q4.Values[i] = byte(seed + 17*i + i/31)
+	}
+	for i := range p.Q4.Scales {
+		p.Q4.Scales[i] = float32((i+seed)%41+1) / 4096
+	}
+	return p
+}
+
+func newUpTrial(in, out, workers int) *upTrial {
+	f := &upTrial{
+		e: newKernelExecutor(workers), x: make([]float32, 2*in), g: make([]float32, 2*out),
+		u: make([]float32, 2*out), down: make([]float32, 2*in), gate: sampleWeights(in, out, 3),
+		up: sampleWeights(in, out, 17), wDown: sampleWeights(out, in, 29),
+	}
+	for i := range f.x {
+		f.x[i] = float32((29*i+i/59)%251-125) / 128
+	}
+	f.x[3], f.x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+	f.store, f.local = f.job.store, f.job.local
+	return f
+}
+
+func runUpRange(e *kernelExecutor, job *upJob, cb func(int, int), g, u, x []float32, gate, up *Param) {
+	*job = upJob{gate: fp32Kernel{x: x, y: g, w: gate, n: 2}, up: fp32Kernel{x: x, y: u, w: up, n: 2}}
+	e.parallel((gate.Rows+31)/32, 2*gate.Cols*gate.Rows, cb)
+	*job = upJob{}
+}
+
+func (f *upTrial) project(mode string) {
+	switch mode {
+	case "reference", "reference_control":
+		linearQ4Into(f.e, f.g, f.x, f.gate, 2)
+		linearQ4Into(f.e, f.u, f.x, f.up, 2)
+		for i, g := range f.g {
+			f.g[i] = applyUp(g, f.u[i])
+		}
+	case "store", "store_control", "local":
+		in := f.gate.Cols * 2
+		if q8NeedsWideSum(f.x[:in]) || q8NeedsWideSum(f.x[:in]) {
+			f.project("reference")
+			return
+		}
+		cb := f.store
+		if mode == "local" {
+			cb = f.local
+		}
+		runUpRange(f.e, &f.job, cb, f.g, f.u, f.x, f.gate, f.up)
+	default:
+		panic("unexpected mode")
+	}
+}
+
+func sameUpBits(a, b []float32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, x := range a {
+		if math.Float32bits(x) != math.Float32bits(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func poisonUp(a []float32) {
+	for i := range a {
+		a[i] = math.Float32frombits(0x7fc02468)
+	}
+}
+
+func verifyUpTrial(t *testing.T, f *upTrial) {
+	t.Helper()
+	f.project("reference")
+	f.frozen = append([]float32(nil), f.g...)
+	wantUp := append([]float32(nil), f.u...)
+	linearQ4Into(f.e, f.down, f.frozen, f.wDown, 2)
+	wantDown := append([]float32(nil), f.down...)
+	for _, mode := range []string{"store", "local"} {
+		poisonUp(f.g)
+		poisonUp(f.u)
+		poisonUp(f.down)
+		f.project(mode)
+		if !sameUpBits(f.g, f.frozen) {
+			t.Fatalf("%s changed the intermediate; %dx%d", mode, f.gate.Cols, f.gate.Rows)
+		}
+		if mode == "store" && !sameUpBits(f.u, wantUp) {
+			t.Fatal("store changed Up bits")
+		}
+		if mode == "local" {
+			for _, x := range f.u {
+				if math.Float32bits(x) != 0x7fc02468 {
+					t.Fatal("local touched reserved Up")
+				}
+			}
+		}
+		if f.job.gate.x != nil || f.job.gate.y != nil || f.job.gate.w != nil || f.job.gate.n != 0 ||
+			f.job.up.x != nil || f.job.up.y != nil || f.job.up.w != nil || f.job.up.n != 0 {
+			t.Fatal("borrowed projection job outlived the join")
+		}
+		linearQ4Into(f.e, f.down, f.g, f.wDown, 2)
+		if !sameUpBits(f.down, wantDown) {
+			t.Fatal("Down changed")
+		}
+	}
+}
+
+func TestUpWritebackExact(t *testing.T) {
+	for _, in := range []int{64, 320, 1024} {
+		for _, out := range []int{1, 31, 32, 33, 131, 257} {
+			for _, workers := range []int{1, 4} {
+				f := newUpTrial(in, out, workers)
+				verifyUpTrial(t, f)
+				f.e.close()
+			}
+		}
+	}
+}
+
+var upOrders = [10][5]string{
+	{"reference", "reference_control", "local", "store", "store_control"},
+	{"reference_control", "store", "reference", "store_control", "local"},
+	{"store", "store_control", "reference_control", "local", "reference"},
+	{"store_control", "local", "store", "reference", "reference_control"},
+	{"local", "reference", "store_control", "reference_control", "store"},
+	{"store_control", "store", "local", "reference_control", "reference"},
+	{"local", "store_control", "reference", "store", "reference_control"},
+	{"reference", "local", "reference_control", "store_control", "store"},
+	{"reference_control", "reference", "store", "local", "store_control"},
+	{"store", "reference_control", "store_control", "reference", "local"},
+}
+
+type upSample struct {
+	Block, Workers, Round, Calls int
+	Mode, Stage                  string
+	ElapsedNS                    int64
+}
+
+func TestUpWritebackTiming(t *testing.T) {
+	path := os.Getenv("MONOLITH_UP_OUT")
+	if path == "" {
+		t.Skip("manual controlled timing")
+	}
+	block, err := strconv.Atoi(os.Getenv("MONOLITH_UP_BLOCK"))
+	if err != nil || block < 0 || block > 1 || runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("expected block 0/1 and GOMAXPROCS=4")
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	for _, workers := range [2]int{4 - 3*block, 1 + 3*block} {
+		f := newUpTrial(3072, 8192, workers)
+		verifyUpTrial(t, f)
+		stages := [2]string{"gate_up", "down"}
+		if block == 1 {
+			stages = [2]string{"down", "gate_up"}
+		}
+		for _, stage := range stages {
+			fmt.Fprintf(os.Stderr, "block %d, workers %d, stage %s\n", block, workers, stage)
+			for round := range upOrders {
+				index := round
+				if (workers == 1) != (block == 1) {
+					index = len(upOrders) - 1 - round
+				}
+				for _, mode := range upOrders[index] {
+					const calls = 32
+					start := time.Now()
+					if stage == "gate_up" {
+						for range calls {
+							f.project(mode)
+						}
+					} else {
+						for range calls {
+							linearQ4Into(f.e, f.down, f.frozen, f.wDown, 2)
+						}
+					}
+					ns := time.Since(start).Nanoseconds()
+					if err := enc.Encode(upSample{block, workers, round, calls, mode, stage, ns}); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		}
+		f.e.close()
+	}
+}
