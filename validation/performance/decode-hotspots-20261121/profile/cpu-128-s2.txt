@@ -1,0 +1,28 @@
+File: hotspot.test
+Type: cpu
+Time: 2026-11-21 19:54:18 JST
+Duration: 1.34s, Total samples = 4250ms (316.61%)
+Showing nodes accounting for 4230ms, 99.53% of 4250ms total
+Dropped 8 nodes (cum <= 21.25ms)
+Showing top 20 nodes out of 29
+      flat  flat%   sum%        cum   cum%
+    2170ms 51.06% 51.06%     2170ms 51.06%  runtime.pthread_cond_signal
+     850ms 20.00% 71.06%      850ms 20.00%  runtime.pthread_cond_wait
+     520ms 12.24% 83.29%      550ms 12.94%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ8PairBlock64
+     310ms  7.29% 90.59%      310ms  7.29%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ4TwoRowOutputPair64
+     120ms  2.82% 93.41%      430ms 10.12%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4TwoRowOutputPairRange
+     120ms  2.82% 96.24%      680ms 16.00%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ8Into.func1
+     100ms  2.35% 98.59%      100ms  2.35%  runtime.usleep
+      40ms  0.94% 99.53%       40ms  0.94%  runtime.asyncPreempt
+         0     0% 99.53%     2170ms 51.06%  _.goready.func1
+         0     0% 99.53%     1120ms 26.35%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*kernelExecutor).run
+         0     0% 99.53%      430ms 10.12%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Into.func2
+         0     0% 99.53%      430ms 10.12%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Range
+         0     0% 99.53%      950ms 22.35%  runtime.findRunnable
+         0     0% 99.53%      850ms 20.00%  runtime.mPark (inline)
+         0     0% 99.53%      950ms 22.35%  runtime.mcall
+         0     0% 99.53%      850ms 20.00%  runtime.notesleep
+         0     0% 99.53%     2170ms 51.06%  runtime.notewakeup
+         0     0% 99.53%      950ms 22.35%  runtime.park_m
+         0     0% 99.53%     2170ms 51.06%  runtime.ready
+         0     0% 99.53%      100ms  2.35%  runtime.runqgrab

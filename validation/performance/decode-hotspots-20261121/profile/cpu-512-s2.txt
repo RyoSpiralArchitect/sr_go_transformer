@@ -1,0 +1,28 @@
+File: hotspot.test
+Type: cpu
+Time: 2026-11-21 19:57:18 JST
+Duration: 1.64s, Total samples = 5000ms (304.61%)
+Showing nodes accounting for 4980ms, 99.60% of 5000ms total
+Dropped 7 nodes (cum <= 25ms)
+Showing top 20 nodes out of 32
+      flat  flat%   sum%        cum   cum%
+    2550ms 51.00% 51.00%     2550ms 51.00%  runtime.pthread_cond_signal
+    1370ms 27.40% 78.40%     1370ms 27.40%  runtime.pthread_cond_wait
+     460ms  9.20% 87.60%      510ms 10.20%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ8PairBlock64
+     180ms  3.60% 91.20%      180ms  3.60%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ4TwoRowOutputPair64
+     160ms  3.20% 94.40%      160ms  3.20%  runtime.usleep
+     120ms  2.40% 96.80%      630ms 12.60%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ8Into.func1
+      60ms  1.20% 98.00%      240ms  4.80%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4TwoRowOutputPairRange
+      50ms  1.00% 99.00%       50ms  1.00%  runtime.asyncPreempt
+      30ms   0.6% 99.60%       50ms  1.00%  github.com/RyoSpiralArchitect/sr_go_tranformer.attendF16
+         0     0% 99.60%     2550ms 51.00%  _.goready.func1
+         0     0% 99.60%       50ms  1.00%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*decodeWorkspace).attend.func1
+         0     0% 99.60%      920ms 18.40%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*kernelExecutor).run
+         0     0% 99.60%       50ms  1.00%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionRange
+         0     0% 99.60%      240ms  4.80%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Into.func2
+         0     0% 99.60%      240ms  4.80%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Range
+         0     0% 99.60%     1530ms 30.60%  runtime.findRunnable
+         0     0% 99.60%     1370ms 27.40%  runtime.mPark (inline)
+         0     0% 99.60%     1530ms 30.60%  runtime.mcall
+         0     0% 99.60%     1370ms 27.40%  runtime.notesleep
+         0     0% 99.60%     2550ms 51.00%  runtime.notewakeup

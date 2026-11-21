@@ -1,0 +1,76 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "model": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "assets": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs": {
+    "cmd/monolith/monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/measure_context_sweep.py": "7c57b821937cc31e24b0963bfef1f4aa0d4246a032d768102c2ead27ad8d41f9",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0",
+    "validation/performance/decode-hotspots-20261121/hotspots_test.go.txt": "47edc52239141061461d9a79479bcab71fc0e55942a5338c591679e152f90fae",
+    "validation/performance/decode-hotspots-20261121/instrument.py": "7df837b5b210bc14400bf7c129cc80cb0f869f86cefa24b7f63919b5add1eef8",
+    "validation/performance/decode-hotspots-20261121/protocol.json": "20e6eb79c0d06724022d0346125fa22d09051be509b1db620a4ce4ac5d152d84",
+    "validation/performance/decode-hotspots-20261121/run.py": "021e342fbf8f9bd26dc070a5f9d93afa7b302fe0ca1b3592b77ed66f4ee77354"
+  },
+  "staged": {
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "hotspots_test.go": "47edc52239141061461d9a79479bcab71fc0e55942a5338c591679e152f90fae",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "timed_forward_test.go": "78e1331d9ea0e592f8fbdb922c10bd953834e614fed6fa68ad353faf3530f4d6",
+    "replay_test.go": "161400e4e9b24ebd29893f355414f8661c54d14bf866b4baaba1f9077c106f97"
+  },
+  "binary_sha256": "37dc0fb7fc85b866beb7367a8ff77f56b54b0678fd43d333da768c60f1b7e496",
+  "exact_fixture_sha256": "3a7a4aad0ddd79696a9fc488356fd1913a3787ff21089999da9dfe5b4b771146",
+  "resources": {
+    "peak_rss_bytes": 2418147328,
+    "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+    "elapsed_seconds": 252.02106841699788,
+    "user_cpu_seconds": 908.941367,
+    "system_cpu_seconds": 5.391839
+  },
+  "exit_error": null,
+  "journal_error": null,
+  "journal_sha256": "93ce51f0ce3c5059a55cd2b5962abe13de95ab51125340bd582074d8bc54c94f",
+  "complete": true,
+  "profiles": {
+    "cpu-128-s2.pprof": {
+      "raw_sha256": "cb64af8280460f2b44623f158a81d511e9cb5c0ffb2dc81a8b8b9a9291c52309",
+      "text_sha256": "4f17cd95f76597f8b2d480c548ccd1e789769ba41316c65c707843f6d76567fd",
+      "status": 0
+    },
+    "cpu-128-s1.pprof": {
+      "raw_sha256": "268ba5286bf7877790dca23abbe305d2b23bf0757ed0ed9d24225a7f77488bdf",
+      "text_sha256": "739e57c1c74ac4e504c4afbe38f5bbc133c7384141738bbc16851d6210717717",
+      "status": 0
+    },
+    "cpu-512-s1.pprof": {
+      "raw_sha256": "462419a18cdcdb25752c8ed8bba9f976ac7b463f526f55ab6a552b5774b8aa25",
+      "text_sha256": "26a6c0580af6297c7d4f5fe6ada6a625f1c22e53c0ad787f186924b7cba51845",
+      "status": 0
+    },
+    "cpu-512-s2.pprof": {
+      "raw_sha256": "f1232f7611b663e9d35aa098e390a624f9f98b8d3e6b254fabb97f072323bf26",
+      "text_sha256": "f039f9beff0789aefca366ca370bbb3b83de9ab486cd6de893f4ba84ab57f804",
+      "status": 0
+    }
+  }
+}

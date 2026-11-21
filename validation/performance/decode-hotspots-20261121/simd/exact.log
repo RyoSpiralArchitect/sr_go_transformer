@@ -1,0 +1,6 @@
+=== RUN   TestSIMDQ4BlockExact
+--- PASS: TestSIMDQ4BlockExact (0.21s)
+=== RUN   TestSIMDQ4RangeExact
+--- PASS: TestSIMDQ4RangeExact (0.03s)
+PASS
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer	1.786s

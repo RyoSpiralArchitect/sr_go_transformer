@@ -1,0 +1,16 @@
+{
+  "parent": "protocol.json",
+  "goexperiment": "simd",
+  "candidate_scope": "Gate, Up and Down only; aligned Q4, exactly two rows on Darwin/arm64; wide or unsupported calls use the original projection. Preserve the worker ranges, four FP32 lanes, block scales, two-stage reduction, full Up store and SwiGLU placement.",
+  "order": [
+    ["plain","control","simd_control","simd"], ["control","simd","plain","simd_control"],
+    ["simd","simd_control","control","plain"], ["simd_control","plain","simd","control"],
+    ["simd","simd_control","control","plain"], ["simd_control","plain","simd","control"],
+    ["control","simd","plain","simd_control"], ["plain","control","simd_control","simd"]
+  ],
+  "controls": {"median_range":[0.97,1.03],"median_abs_from_one_max":0.05},
+  "gate": {"two_session_max_median_ratio":0.95,"min_wins_out_of_8":7,"min_memory_free_percent":40,"max_new_swapout_pages":0},
+  "parity": "The two reference labels run the ordinary model method. The two SIMD labels run a staged copy of that method with three FFN calls changed. Compare the complete seven-step outputs, KV, token IDs, positions and workspace from the same private KV tails, and compare with the prior ordinary-toolchain profile on the same corpus prefixes. Check SIMD dispatch counts per call. All four labels share a process, compiler, executor and model.",
+  "advancement": "Require complete exactness, stable reference/reference and SIMD/SIMD controls, preserved one-session performance (all SIMD labels fall back), both two-session prefix medians at least 5% shorter with at least 7 wins each, and SIMD-first and reference-first medians both below one. This is a live diagnostic, not an ordinary build comparison or default adoption.",
+  "budget_seconds": 735
+}
