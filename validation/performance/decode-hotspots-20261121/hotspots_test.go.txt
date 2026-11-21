@@ -1,0 +1,269 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"testing"
+	"time"
+)
+
+type hotspotStage int
+
+const (
+	queryStage hotspotStage = iota
+	keyStage
+	valueStage
+	attnOutStage
+	gateStage
+	upStage
+	downStage
+	attentionStage
+	activationStage
+	headStage
+	hotspotStageCount
+)
+
+type hotspotSpan struct {
+	NS    int64 `json:"ns"`
+	Calls int   `json:"calls"`
+}
+
+type hotspotTrace struct {
+	spans  [hotspotStageCount]hotspotSpan
+	shared int
+}
+
+func (t *hotspotTrace) add(stage hotspotStage, start time.Time) {
+	span := &t.spans[stage]
+	span.NS += time.Since(start).Nanoseconds()
+	span.Calls++
+}
+
+func (t *hotspotTrace) project(stage hotspotStage, e *kernelExecutor, y, x []float32, p *Param, rows int) {
+	start := time.Now()
+	linearIntoWithExecutor(e, y, x, p, rows)
+	t.add(stage, start)
+}
+
+type hotspotKey struct{}
+type hotspotRun struct {
+	steps [contextSweepSteps]hotspotTrace
+}
+
+type hotspotReplay struct {
+	Round  int                              `json:"round"`
+	Arm    string                           `json:"arm"`
+	Decode contextSweepDecode               `json:"decode"`
+	Stages [][hotspotStageCount]hotspotSpan `json:"stages,omitempty"`
+	Shared []int                            `json:"shared_kv_calls,omitempty"`
+}
+
+func hotspotReplayOne(ctx context.Context, m *Model, e *kernelExecutor, w *decodeWorkspace, caches []*KVCache, first []float32, rnd int, arm string) (hotspotReplay, error) {
+	result := hotspotReplay{Round: rnd, Arm: arm}
+	var timer hotspotRun
+	if arm == "stages" {
+		ctx = context.WithValue(ctx, hotspotKey{}, &timer)
+	}
+	r, err := runContextSweepDecode(ctx, m, e, w, caches, first, "")
+	result.Decode = r
+	if err != nil {
+		return result, err
+	}
+	if arm == "stages" {
+		for i, trace := range timer.steps {
+			var total int64
+			for stage, span := range trace.spans {
+				want := len(m.Blocks)
+				if hotspotStage(stage) == headStage {
+					want = 1
+				}
+				if span.NS <= 0 || span.Calls != want {
+					return result, fmt.Errorf("unexpected count or duration at step %d, stage %d", i, stage)
+				}
+				total += span.NS
+			}
+			if float64(total)*1e-9 > r.Seconds[i]+1e-9 {
+				return result, fmt.Errorf("overlapping intervals at step %d", i)
+			}
+			result.Stages = append(result.Stages, trace.spans)
+			result.Shared = append(result.Shared, trace.shared)
+		}
+	}
+	return result, nil
+}
+
+func hotspotExact(a, b contextSweepDecode) bool {
+	return a.Logits == b.Logits && a.KV == b.KV && a.KVBytes == b.KVBytes && a.Workspace == b.Workspace && reflect.DeepEqual(a.IDs, b.IDs)
+}
+
+// The two ordinary labels use the same function and memory as the stage
+// replay. All six permutations balance position and every pair's order.
+var hotspotOrders = [6][3]string{
+	{"plain", "control", "stages"}, {"plain", "stages", "control"},
+	{"control", "plain", "stages"}, {"control", "stages", "plain"},
+	{"stages", "plain", "control"}, {"stages", "control", "plain"},
+}
+
+func TestDecodeHotspotFixture(t *testing.T) {
+	m, err := NewModel(Config{Vocab: 320, Dim: 128, Heads: 4, KVHeads: 2, Hidden: 256, Layers: 2, Context: 64, RopeTheta: 10000, NormEps: 1e-5}, 29)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	e := newKernelExecutor(4)
+	defer e.close()
+	for _, fmt := range []string{"f32", "f16"} {
+		m.kvFormat = fmt
+		cache := m.NewCache()
+		defer cache.Close()
+		chunk := make([]int, 32)
+		for i := range chunk {
+			chunk[i] = i + 7
+		}
+		var prefill, decode decodeWorkspace
+		first, err := m.prefillBorrowed(ctx, []*KVCache{cache}, [][]int{chunk}, e, &prefill)
+		if err != nil {
+			t.Fatal(err)
+		}
+		base, err := hotspotReplayOne(ctx, m, e, &decode, []*KVCache{cache}, first, 0, "plain")
+		if err != nil {
+			t.Fatal(err)
+		}
+		timed, err := hotspotReplayOne(ctx, m, e, &decode, []*KVCache{cache}, first, 0, "stages")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !hotspotExact(base.Decode, timed.Decode) || len(timed.Stages) != contextSweepSteps || cache.Pos != len(chunk) || len(cache.Pages) != 1 {
+			t.Fatal("stage clocks changed the decode, checkpoint, or stage count")
+		}
+	}
+}
+
+func TestHFDecodeHotspots(t *testing.T) {
+	dir := os.Getenv("MONOLITH_HOTSPOT_MODEL")
+	if dir == "" {
+		t.Skip("manual offline profile")
+	}
+	if runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("requires GOMAXPROCS=4")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	defer cancel()
+	out := os.Getenv("MONOLITH_HOTSPOT_OUTPUT")
+	j, err := os.OpenFile(filepath.Join(out, "events.jsonl"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	enc := json.NewEncoder(j)
+	record := func(v any) {
+		t.Helper()
+		if err := enc.Encode(v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lengths := [2]int{128, 512}
+	m, plan, err := loadHFModelKVFormat(ctx, dir, lengths[1]+contextSweepSteps, 8192, "q4-mixed", 1024<<20, true, "f16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Position != nil || m.Config.Layers != 28 || m.Config.Dim != 3072 || m.Config.Vocab != 128256 {
+		t.Fatal("not the expected Llama 3.2 3B architecture")
+	}
+	tok, err := loadHFTokenizer(dir, *m.hf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Documents []struct{ Text string } `json:"evaluation_documents"`
+	}
+	if err := readBoundedJSON(os.Getenv("MONOLITH_HOTSPOT_CORPUS"), 64<<10, &corpus); err != nil || len(corpus.Documents) < 2 {
+		t.Fatal("invalid corpus", err)
+	}
+	ids, caches := make([][]int, 2), make([]*KVCache, 2)
+	for i := range ids {
+		line := corpus.Documents[i].Text + "\n"
+		p, err := tok.encodePrompt(ctx, line, 4096)
+		if err != nil || len(p) == 0 {
+			t.Fatal("prompt:", err)
+		}
+		repeat, err := tok.encodeText(ctx, line, 4096, false)
+		if err != nil || len(repeat) == 0 {
+			t.Fatal("repeat:", err)
+		}
+		for len(p) < lengths[1] {
+			p = append(p, repeat[:min(lengths[1]-len(p), len(repeat))]...)
+		}
+		ids[i], caches[i] = p[:lengths[1]], m.NewCache()
+		defer caches[i].Close()
+	}
+	e := newKernelExecutor(4)
+	defer e.close()
+	record(map[string]any{"event": "start", "plan": plan, "lengths": lengths, "workers": 4, "format": "f16"})
+	var prefill decodeWorkspace
+	var first []float32
+	off := 0
+	for p, length := range lengths {
+		var prefillSeconds float64
+		for off < length {
+			end := off + contextSweepChunk
+			start := time.Now()
+			first, err = m.prefillSelected(ctx, caches, [][]int{ids[0][off:end], ids[1][off:end]}, e, &prefill, []bool{end == length, end == length})
+			prefillSeconds += time.Since(start).Seconds()
+			if err != nil {
+				t.Fatal(err)
+			}
+			off = end
+		}
+		record(map[string]any{"event": "prefix", "length": length, "chunked_pair_prefill_seconds": prefillSeconds})
+		for _, n := range [2]int{2 - p, 1 + p} {
+			used := caches[:n]
+			start := first[:n*m.Config.Vocab]
+			prompt, err := json.Marshal([][]int{ids[0][:length], ids[1][:length]}[:n])
+			if err != nil {
+				t.Fatal(err)
+			}
+			var w decodeWorkspace
+			base, err := hotspotReplayOne(ctx, m, e, &w, used, start, -1, "plain")
+			record(map[string]any{"event": "warm", "prefix": length, "sessions": n, "prompt_sha256": fmt.Sprintf("%x", sha256.Sum256(prompt)), "result": base})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for rnd := range hotspotOrders {
+				idx := rnd
+				if (p+n)%2 == 0 {
+					idx = len(hotspotOrders) - 1 - rnd
+				}
+				for _, arm := range hotspotOrders[idx] {
+					row, err := hotspotReplayOne(ctx, m, e, &w, used, start, rnd, arm)
+					record(map[string]any{"event": "sample", "prefix": length, "sessions": n, "result": row})
+					if err != nil || !hotspotExact(base.Decode, row.Decode) {
+						t.Fatalf("replay parity/timer failed at prefix %d sessions %d %s round %d: %v", length, n, arm, rnd, err)
+					}
+				}
+				t.Logf("prefix=%d sessions=%d paired round=%d/6", length, n, rnd+1)
+			}
+			profileName := fmt.Sprintf("cpu-%d-s%d.pprof", length, n)
+			prof, err := runContextSweepDecode(ctx, m, e, &w, used, start, filepath.Join(out, profileName))
+			if err != nil || !reflect.DeepEqual(prof.IDs, base.Decode.IDs) {
+				t.Fatal("profile token IDs changed:", err)
+			}
+			record(map[string]any{"event": "profile", "prefix": length, "sessions": n, "file": profileName, "token_ids": prof.IDs})
+			for _, c := range caches {
+				if c.Pos != length || len(c.Pages) != length/pageTokens {
+					t.Fatal("decode modified the shared prefix")
+				}
+			}
+		}
+	}
+	record(map[string]string{"event": "complete"})
+}

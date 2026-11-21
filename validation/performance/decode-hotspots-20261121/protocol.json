@@ -1,0 +1,29 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "go": "go version go1.27.1 darwin/arm64",
+  "cpu": "Apple M4",
+  "model_id": "llama32-3b",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weight_format": "q4-mixed",
+  "kv": "f16",
+  "workers": 4,
+  "steps": 7,
+  "lengths": [128, 512],
+  "prefill_chunk": 32,
+  "case_order": [[128,2],[128,1],[512,1],[512,2]],
+  "orders": [
+    ["plain","control","stages"],["plain","stages","control"],
+    ["control","plain","stages"],["control","stages","plain"],
+    ["stages","plain","control"],["stages","control","plain"]
+  ],
+  "reverse_orders_if": "(length index + sessions) is even",
+  "stages": ["query","key","value","attention_output","gate","up","down","attention","swiglu","vocabulary"],
+  "controls": {
+    "ratio_range": [0.95,1.05],
+    "median_absolute_deviation_from_one_max": 0.08,
+    "note": "Use within-round control/plain and stages/plain. Either missing bound makes absolute stage durations exploratory. A dominant stage must still rank consistently across rounds, with computed wall share reported within timed replays."
+  },
+  "target_selection": "Report median per-call stage durations and median of per-replay shares, and largest stage counts; report grouped FFN and QKV too. Prefer a repeated large stage under different session counts for an implementation hypothesis. Distinguish mutually exclusive wall spans from separate CPU samples. Do not infer speedup from this profile.",
+  "budget_seconds": 735
+}

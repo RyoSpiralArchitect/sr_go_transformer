@@ -1,0 +1,4 @@
+=== RUN   TestDecodeHotspotFixture
+--- PASS: TestDecodeHotspotFixture (0.12s)
+PASS
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer	1.555s

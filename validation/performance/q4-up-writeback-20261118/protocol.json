@@ -1,0 +1,35 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "gomaxprocs": 4,
+  "shape": {"input": 3072, "hidden": 8192, "rows": 2},
+  "modes": ["reference", "reference_control", "store", "store_control", "local"],
+  "orders": [
+    ["reference", "reference_control", "local", "store", "store_control"],
+    ["reference_control", "store", "reference", "store_control", "local"],
+    ["store", "store_control", "reference_control", "local", "reference"],
+    ["store_control", "local", "store", "reference", "reference_control"],
+    ["local", "reference", "store_control", "reference_control", "store"],
+    ["store_control", "store", "local", "reference_control", "reference"],
+    ["local", "store_control", "reference", "store", "reference_control"],
+    ["reference", "local", "reference_control", "store_control", "store"],
+    ["reference_control", "reference", "store", "local", "store_control"],
+    ["store", "reference_control", "store_control", "reference", "local"]
+  ],
+  "blocks": [
+    {"workers": [4, 1], "stages": ["gate_up", "down"], "reverse_orders_at": 1},
+    {"workers": [1, 4], "stages": ["down", "gate_up"], "reverse_orders_at": 4}
+  ],
+  "calls_per_sample": 32,
+  "local_vs_store": "Store and local use a single join, the same output partition, the pinned two-row paired inner loop in both matrices, and compute SwiGLU at the same site from the calculated Up scalars. Store additionally saves both rows of Up to the preexisting workspace: 65,536 bytes of logical store traffic on this fixture. Both reserve the same allocation. The two comparison modes scan the input twice, just like reference. The reference pipeline also uses a separate activation pass, so its ratio is an aggregate, not a pure writeback effect.",
+  "down": "Identical calls across labels. Use a single frozen slice produced by the reference path, and measure it separately with no preceding timed Gate/Up for that arm.",
+  "gate": {
+    "control_median_range": [0.98, 1.02],
+    "control_median_abs_from_one_max": 0.04,
+    "min_wins_per_block": 7,
+    "elapsed_ratio_max": 0.99,
+    "advance": "Require exactness, same-path and Down controls, and both local/store and local/reference to pass independently in each of the two blocks for both worker counts. Only then advance to production-shaped live model timing before proposing adoption."
+  }
+}

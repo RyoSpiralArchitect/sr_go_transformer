@@ -1,0 +1,28 @@
+File: hotspot.test
+Type: cpu
+Time: 2026-11-21 19:56:47 JST
+Duration: 1.23s, Total samples = 3710ms (302.43%)
+Showing nodes accounting for 3700ms, 99.73% of 3710ms total
+Dropped 9 nodes (cum <= 18.55ms)
+Showing top 20 nodes out of 38
+      flat  flat%   sum%        cum   cum%
+    1810ms 48.79% 48.79%     1810ms 48.79%  runtime.pthread_cond_signal
+     890ms 23.99% 72.78%      890ms 23.99%  runtime.pthread_cond_wait
+     480ms 12.94% 85.71%      590ms 15.90%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ8Into.func1
+     210ms  5.66% 91.37%      210ms  5.66%  github.com/RyoSpiralArchitect/sr_go_tranformer.dotQ4OutputQuadDirect64
+     130ms  3.50% 94.88%      130ms  3.50%  runtime.usleep
+     110ms  2.96% 97.84%      110ms  2.96%  runtime.asyncPreempt
+      30ms  0.81% 98.65%       50ms  1.35%  github.com/RyoSpiralArchitect/sr_go_tranformer.attendF16
+      20ms  0.54% 99.19%      230ms  6.20%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4OutputQuadDirectRange
+      20ms  0.54% 99.73%       20ms  0.54%  math.Float32frombits (inline)
+         0     0% 99.73%     1820ms 49.06%  _.goready.func1
+         0     0% 99.73%       50ms  1.35%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*decodeWorkspace).attend.func1
+         0     0% 99.73%      880ms 23.72%  github.com/RyoSpiralArchitect/sr_go_tranformer.(*kernelExecutor).run
+         0     0% 99.73%       50ms  1.35%  github.com/RyoSpiralArchitect/sr_go_tranformer.attentionRange
+         0     0% 99.73%       20ms  0.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.fromF16 (inline)
+         0     0% 99.73%       20ms  0.54%  github.com/RyoSpiralArchitect/sr_go_tranformer.halfFloat (inline)
+         0     0% 99.73%      230ms  6.20%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Into.func2
+         0     0% 99.73%      230ms  6.20%  github.com/RyoSpiralArchitect/sr_go_tranformer.linearQ4Range
+         0     0% 99.73%     1000ms 26.95%  runtime.findRunnable
+         0     0% 99.73%       20ms  0.54%  runtime.lock (inline)
+         0     0% 99.73%       20ms  0.54%  runtime.lock2

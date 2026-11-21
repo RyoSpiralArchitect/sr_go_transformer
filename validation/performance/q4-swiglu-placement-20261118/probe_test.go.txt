@@ -1,0 +1,304 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"runtime"
+	"strconv"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+// Both modes project Gate through the deployed Q4 path, then use the
+// same Up dispatch, callback, and Q4 kernel. The callback always saves
+// Up. Only the position of the activation pass moves.
+type swigluTrial struct {
+	exec               *kernelExecutor
+	gate, up, down     *Param
+	x, g, u, d, frozen []float32
+	upJob              fp32Kernel
+	workerActivation   bool
+	handleUp           func(lo, hi int)
+}
+
+// Used by every arm, with the same per-element operations as prefill.
+//
+//go:noinline
+func swigluActivate(g, u []float32) {
+	u = u[:len(g)]
+	for i, v := range g {
+		g[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * u[i]
+	}
+}
+
+func (f *swigluTrial) upRange(lo, hi int) {
+	linearQ4Range(&f.upJob, lo, hi)
+	if f.workerActivation {
+		out := f.up.Rows
+		start, end := lo*32, min(hi*32, out)
+		if start == 0 && end == out {
+			// An inline dispatch owns both complete rows. This is the
+			// same contiguous activation call that the owner uses.
+			swigluActivate(f.g, f.u)
+		} else {
+			for row := range 2 {
+				offset := row * out
+				swigluActivate(f.g[offset+start:offset+end], f.u[offset+start:offset+end])
+			}
+		}
+	}
+}
+
+func (f *swigluTrial) project(worker bool) {
+	linearQ4Into(f.exec, f.g, f.x, f.gate, 2)
+	// Match the ordinary Up wide-sum check and preserve the fallback.
+	if q8NeedsWideSum(f.x[:2*f.up.Cols]) {
+		linearQ4WideInto(f.exec, f.u, f.x, f.up, 2)
+		swigluActivate(f.g, f.u)
+		return
+	}
+	f.workerActivation = worker
+	f.upJob = fp32Kernel{x: f.x, y: f.u, w: f.up, n: 2}
+	f.exec.parallel((f.up.Rows+31)/32, 2*f.up.Rows*f.up.Cols, f.handleUp)
+	f.upJob = fp32Kernel{}
+	if !worker {
+		swigluActivate(f.g, f.u)
+	}
+}
+
+func (f *swigluTrial) reference() {
+	linearQ4Into(f.exec, f.g, f.x, f.gate, 2)
+	linearQ4Into(f.exec, f.u, f.x, f.up, 2)
+	for i, v := range f.g {
+		f.g[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * f.u[i]
+	}
+}
+
+func swigluWeights(in, out, seed int) *Param {
+	p := newInferenceParamFormat("fixture", out, in, true, "q4")
+	for i := range p.Q4.Values {
+		p.Q4.Values[i] = byte(seed + 17*i + i/31)
+	}
+	for i := range p.Q4.Scales {
+		p.Q4.Scales[i] = float32((i+seed)%41+1) / 4096
+	}
+	return p
+}
+
+func newSwiGLUTrial(in, out, workers int) *swigluTrial {
+	f := &swigluTrial{
+		exec: newKernelExecutor(workers), gate: swigluWeights(in, out, 3), up: swigluWeights(in, out, 17), down: swigluWeights(out, in, 29),
+		x: make([]float32, 2*in), g: make([]float32, 2*out), u: make([]float32, 2*out), d: make([]float32, 2*in),
+	}
+	for i := range f.x {
+		f.x[i] = float32((29*i+i/59)%251-125) / 128
+	}
+	f.x[3], f.x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+	f.handleUp = f.upRange
+	return f
+}
+
+func equalSwiGLUBits(a, b []float32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if math.Float32bits(v) != math.Float32bits(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func clearSwiGLUOutput(a []float32) {
+	for i := range a {
+		a[i] = math.Float32frombits(0x7fc02468)
+	}
+}
+
+func verifySwiGLUTrial(t *testing.T, f *swigluTrial, wide bool) {
+	t.Helper()
+	if wide {
+		f.x[0] = 1e35
+		// Exercise the wide input without overflowing the reference SwiGLU.
+		for _, w := range []*Param{f.gate, f.up} {
+			for i := range w.Q4.Scales {
+				w.Q4.Scales[i] *= 1e-20
+			}
+		}
+		if !q8NeedsWideSum(f.x) {
+			t.Fatal("wide guard not exercised")
+		}
+	}
+	f.reference()
+	f.frozen = append([]float32(nil), f.g...)
+	origUp := append([]float32(nil), f.u...)
+	linearQ4Into(f.exec, f.d, f.frozen, f.down, 2)
+	wantDown := append([]float32(nil), f.d...)
+	for _, worker := range []bool{false, true, false, true} {
+		clearSwiGLUOutput(f.g)
+		clearSwiGLUOutput(f.u)
+		f.project(worker)
+		if !equalSwiGLUBits(f.g, f.frozen) || !equalSwiGLUBits(f.u, origUp) {
+			t.Fatalf("worker=%t: Up or SwiGLU changed for %dx%d", worker, f.gate.Cols, f.gate.Rows)
+		}
+		if f.upJob.x != nil || f.upJob.y != nil || f.upJob.w != nil || f.upJob.n != 0 {
+			t.Fatal("Up retained a borrowed job")
+		}
+		clearSwiGLUOutput(f.d)
+		linearQ4Into(f.exec, f.d, f.g, f.down, 2)
+		if !equalSwiGLUBits(f.d, wantDown) {
+			t.Fatal("Down bits differ")
+		}
+	}
+}
+
+func TestSwiGLUPlacementExact(t *testing.T) {
+	for _, in := range []int{64, 320, 1024} {
+		for _, out := range []int{1, 31, 32, 33, 131, 257} {
+			for _, workers := range []int{1, 4} {
+				f := newSwiGLUTrial(in, out, workers)
+				verifySwiGLUTrial(t, f, false)
+				f.exec.close()
+			}
+		}
+	}
+	for _, workers := range []int{1, 4} {
+		f := newSwiGLUTrial(320, 33, workers)
+		verifySwiGLUTrial(t, f, true)
+		f.exec.close()
+	}
+}
+
+func TestSwiGLUPlacementDispatch(t *testing.T) {
+	for _, workers := range []int{1, 4} {
+		f := newSwiGLUTrial(1024, 257, workers)
+		var active, gate atomic.Int32
+		calls := make([]atomic.Int32, (f.up.Rows+31)/32)
+		f.exec.q4Fn = func(lo, hi int) {
+			gate.Add(1)
+			linearQ4Range(&f.exec.linear, lo, hi)
+		}
+		f.handleUp = func(lo, hi int) {
+			active.Add(1)
+			for i := lo; i < hi; i++ {
+				calls[i].Add(1)
+			}
+			f.upRange(lo, hi)
+		}
+		for _, mode := range []bool{false, true} {
+			f.project(mode)
+			wantGate := int32(workers)
+			if workers == 1 {
+				wantGate = 0
+			}
+			if gate.Swap(0) != wantGate || active.Swap(0) != int32(workers) {
+				t.Fatalf("worker=%t changed dispatch at %d workers", mode, workers)
+			}
+			for i := range calls {
+				if calls[i].Swap(0) != 1 {
+					t.Fatal("missing or overlapping tile")
+				}
+			}
+		}
+		f.exec.close()
+	}
+}
+
+// A Williams design over five arms followed by its reverse rows.
+// Every arm occupies every slot twice and precedes each other arm five times.
+var swigluOrders = [10][5]string{
+	{"owner", "owner_control", "native", "worker", "worker_control"},
+	{"owner_control", "worker", "owner", "worker_control", "native"},
+	{"worker", "worker_control", "owner_control", "native", "owner"},
+	{"worker_control", "native", "worker", "owner", "owner_control"},
+	{"native", "owner", "worker_control", "owner_control", "worker"},
+	{"worker_control", "worker", "native", "owner_control", "owner"},
+	{"native", "worker_control", "owner", "worker", "owner_control"},
+	{"owner", "native", "owner_control", "worker_control", "worker"},
+	{"owner_control", "owner", "worker", "native", "worker_control"},
+	{"worker", "owner_control", "worker_control", "owner", "native"},
+}
+
+type swigluSample struct {
+	Block, Workers, Round, Calls int
+	Shape, Stage, Arm            string
+	ElapsedNS                    int64
+}
+
+func TestSwiGLUPlacementTiming(t *testing.T) {
+	path := os.Getenv("MONOLITH_SWIGLU_OUT")
+	if path == "" {
+		t.Skip("manual controlled timing")
+	}
+	block, err := strconv.Atoi(os.Getenv("MONOLITH_SWIGLU_BLOCK"))
+	if err != nil || block < 0 || block > 1 || runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("expected block 0/1 and GOMAXPROCS=4")
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	for _, workers := range [2]int{4 - 3*block, 1 + 3*block} {
+		shapes := [2]int{0, 1}
+		if block == 1 {
+			shapes = [2]int{1, 0}
+		}
+		for _, shape := range shapes {
+			dims := [2][2]int{{3072, 8192}, {4096, 11008}}[shape]
+			name := [2]string{"3072x8192", "4096x11008"}[shape]
+			f := newSwiGLUTrial(dims[0], dims[1], workers)
+			verifySwiGLUTrial(t, f, false)
+			stages := [2]string{"gate_up", "down"}
+			if block == 1 {
+				stages = [2]string{"down", "gate_up"}
+			}
+			for _, stage := range stages {
+				fmt.Fprintf(os.Stderr, "block %d, %d workers, %s: %s\n", block, workers, name, stage)
+				for round := range swigluOrders {
+					index := round
+					if (workers == 1) != (block == 1) {
+						index = len(swigluOrders) - 1 - round
+					}
+					for _, arm := range swigluOrders[index] {
+						const calls = 24
+						start := time.Now()
+						if stage == "gate_up" {
+							switch arm {
+							case "native":
+								for range calls {
+									f.reference()
+								}
+							case "owner", "owner_control":
+								for range calls {
+									f.project(false)
+								}
+							case "worker", "worker_control":
+								for range calls {
+									f.project(true)
+								}
+							}
+						} else {
+							for range calls {
+								linearQ4Into(f.exec, f.d, f.frozen, f.down, 2)
+							}
+						}
+						ns := time.Since(start).Nanoseconds()
+						if err := enc.Encode(swigluSample{block, workers, round, calls, name, stage, arm, ns}); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+			}
+			f.exec.close()
+		}
+	}
+}

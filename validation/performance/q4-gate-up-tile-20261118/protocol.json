@@ -1,0 +1,23 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "baseline_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "host": "Apple M4, Darwin/arm64",
+  "go": "go1.27.1",
+  "rows": 2,
+  "shape": {"input": 3072, "hidden": 8192},
+  "workers": [4, 1],
+  "rounds": 6,
+  "calls_per_sample": 16,
+  "orders": "All six lane orders for baseline, same-path control and tile. Reverse their round order at one worker.",
+  "timers": "Gate/Up includes SwiGLU and worker joins. Down is measured separately and computes the same projection in every arm. Sum the two stages before forming FFN ratios.",
+  "preflight": {
+    "numerical": "Bit equality for the fused output and the Down result; odd tails and disjoint tile ranges under race detection.",
+    "same_path_median": [0.97, 1.03],
+    "same_path_median_absolute_deviation": 0.05,
+    "gate_up_median_ratio_max": 0.98,
+    "combined_median_ratio_max": 0.99,
+    "combined_min_wins": 5,
+    "down_median_ratio_max": 1.03,
+    "interpretation": "Both worker counts must pass for a model timing candidate. This is a synthetic workload, not an inference speed or resident-memory claim."
+  }
+}

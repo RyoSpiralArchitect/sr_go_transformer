@@ -1,0 +1,86 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"math"
+	"reflect"
+	"runtime"
+	"testing"
+)
+
+func compactHeadFixture(t *testing.T, in, out, rows int) ([]float32, *Param) {
+	t.Helper()
+	x, dense, _ := linearFixture(rows, in, out)
+	w := quantizeTestParam(t, dense)
+	return x, w
+}
+
+func TestCompactHeadTransitions(t *testing.T) {
+	const in, out = 64, 65537 // large vocabulary and one unpaired output
+	x, q8 := compactHeadFixture(t, in, out, 3)
+	x[1] = math.Float32frombits(1 << 31)
+	x[2] = math.SmallestNonzeroFloat32
+	x4, dense, _ := linearFixture(2, 513, 259)
+	w4 := quantizeQ4TestParam(t, dense)
+	y4, want4 := make([]float32, 2*w4.Rows), make([]float32, 2*w4.Rows)
+	linearIntoWithExecutor(nil, want4, x4, w4, 2)
+	unalignedX, unalignedW := compactHeadFixture(t, in+1, out, 2)
+
+	for _, workers := range []int{1, 4} {
+		e := newKernelExecutor(workers)
+		defer e.close()
+		if reflect.TypeOf(*e).Size() != reflect.TypeOf(compactProjectionLayout{}).Size() {
+			t.Fatal("executor footprint changed")
+		}
+		got, want := make([]float32, 3*out+2), make([]float32, 3*out)
+		got[0], got[len(got)-1] = -12, 13
+		call := func(ex *kernelExecutor, x []float32, w *Param, rows int) {
+			t.Helper()
+			n := rows * w.Rows
+			linearIntoWithExecutor(ex, want[:n], x, w, rows)
+			for i := range got[1 : n+1] {
+				got[i+1] = float32(math.NaN())
+			}
+			linearOutputHeadInto(ex, got[1:n+1], x, w, rows)
+			exactWorkerFloats(t, got[1:n+1], want[:n])
+			if got[0] != -12 || got[len(got)-1] != 13 {
+				t.Fatal("head touched fixed output guards")
+			}
+			assertQ4InvocationCleared(t, e)
+		}
+		call(e, x[:in], q8, 1)
+		call(e, x[:3*in], q8, 3)
+		call(nil, x[:2*in], q8, 2)
+		call(e, unalignedX, unalignedW, 2)
+		save := x[0]
+		x[0] = math.MaxFloat32
+		call(e, x[:2*in], q8, 2)
+		x[0] = save
+		if e.q4Fn != nil {
+			t.Fatal("a fallback initialized the shared callback")
+		}
+		call(e, x[:2*in], q8, 2) // Also exercises initialization with Q8 first.
+		shares := runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && workers > 1 && compactHeadShared
+		if (e.q4Fn != nil) != shares {
+			t.Fatal("unexpected shared callback initialization")
+		}
+		for range 2 {
+			linearIntoWithExecutor(e, y4, x4, w4, 2)
+			exactWorkerFloats(t, y4, want4)
+			assertQ4InvocationCleared(t, e)
+			call(e, x[:2*in], q8, 2)
+		}
+		if shares {
+			samples := testing.AllocsPerRun(5, func() {
+				linearIntoWithExecutor(e, y4, x4, w4, 2)
+				linearOutputHeadInto(e, got[1:2*out+1], x[:2*in], q8, 2)
+			})
+			if samples != 0 {
+				t.Fatalf("warm shared pair allocated %.1f objects", samples)
+			}
+			assertQ4InvocationCleared(t, e)
+		}
+	}
+}

@@ -1,0 +1,43 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "model_repo": "mlx-community/Llama-3.2-3B-bf16",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "platform": "Darwin/arm64",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "workers": 4,
+  "measured_arms": 160,
+  "pairs": 80,
+  "complete": true,
+  "exact": true,
+  "executables_reproduced_byte_identical": true,
+  "targeted_race": {
+    "passed": true,
+    "source_sha256": {
+      "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+      "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+      "monolith.go": "fa08aeeac256512f549bac77f6edf1c73d5fc1961128383c012f480cfc542eac",
+      "compat_test.go": "a303c96630644cc6cfdfa5a71ead991afbdbad9cd74bc010af7111c562005a7a",
+      "long_test.go": "9c5ac0ab6f6e921df67c33e08d1f4e4198d88a6405fd423334d287a5986e62af",
+      "reference_test.go": "dba16c34672f0ddc80732555f177f321fc2f5d2e4271c3480a262dfa70e80a34"
+    },
+    "log_sha256": "ef8d571f558dc6b4394615cf9a991a318edb88eb1ce66e74a0f63de6786cc9b1"
+  },
+  "decision": {
+    "runtime_adopted": false,
+    "stable_controls": false,
+    "positive_model_signal": false
+  },
+  "files_sha256": {
+    "README.md": "8947cee12dec5a67785acf4b0e80ffb40045201ca2caade8b1a9dbbedfdbdcd9",
+    "assess.py": "1ca56fe4dc98bf0785a2bcec8b8db98f4c150e3821ba221a2ea43a6248fa2ae0",
+    "assessment.json": "7eea3d21a5d14ba595eaca5dc3b01a10aaddb4ae155077c6d468dc3ed72ff440",
+    "compat_test.go.txt": "a303c96630644cc6cfdfa5a71ead991afbdbad9cd74bc010af7111c562005a7a",
+    "events.jsonl": "ad4a4b0593b2349cc0fb8518972ee3f0bbb56e76842e0cbabcde5a3c84193234",
+    "live.py": "2033c0c07e8d16673c956f516d2d72b26d93812c4788963488d0764cde0c180f",
+    "long.py": "ceb97af427d27f260d957969b96d7a719b89b103f3bb2cac9b9736957edc3265",
+    "protocol.json": "3cd1a8d97ebc83a55404a9f821c0e2bbe3a8524978404fea759140c808a18c5e",
+    "variant.py": "efe3257531c885939c418c55aaa890f07124bf5133b94e51059d129e41c15d11",
+    "verify.sh": "e486bab42ce38ea1138a2b8eaaa60de554052860a192c517fa0c9b6e25632556"
+  }
+}

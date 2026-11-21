@@ -1,0 +1,4 @@
+=== RUN   TestSIMDFFNDispatchExact
+--- PASS: TestSIMDFFNDispatchExact (0.06s)
+PASS
+ok  	github.com/RyoSpiralArchitect/sr_go_tranformer	1.547s

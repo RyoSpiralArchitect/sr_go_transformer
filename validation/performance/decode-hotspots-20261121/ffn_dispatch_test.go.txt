@@ -1,0 +1,67 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build darwin && arm64 && goexperiment.simd
+
+package main
+
+import (
+	"math"
+	"testing"
+)
+
+func TestSIMDFFNDispatchExact(t *testing.T) {
+	q4, inputs := simdQ4Fixture(640, 257)
+	tail, tailInputs := simdQ4Fixture(641, 257)
+	wide := append([]float32(nil), inputs...)
+	wide[0] = math.MaxFloat32 / 2
+	four := append(append([]float32(nil), inputs...), inputs...)
+	q8 := newInferenceParamFormat("fixture", 33, 640, true, "q8")
+	for i := range q8.Q8.Values {
+		q8.Q8.Values[i] = int8(i%127 - 63)
+	}
+	for i := range q8.Q8.Scales {
+		q8.Q8.Scales[i] = 1.0 / 127
+	}
+	cases := []struct {
+		name   string
+		w      *Param
+		x      []float32
+		rows   int
+		calls  int
+		noExec bool
+	}{
+		{"eligible", q4, inputs, 2, 1, false},
+		{"one-row", q4, inputs[:640], 1, 0, false},
+		{"four-rows", q4, four, 4, 0, false},
+		{"unaligned", tail, tailInputs, 2, 0, false},
+		{"wide-input", q4, wide, 2, 0, false},
+		{"q8", q8, inputs, 2, 0, false},
+		{"no-executor", q4, inputs, 2, 0, true},
+		{"eligible-again", q4, inputs, 2, 1, false},
+	}
+	for _, workers := range []int{1, 4} {
+		e := newKernelExecutor(workers)
+		var d simdFFN
+		for _, c := range cases {
+			executor := e
+			if c.noExec {
+				executor = nil
+			}
+			want, got := make([]float32, c.rows*c.w.Rows), make([]float32, c.rows*c.w.Rows)
+			for i := range got {
+				got[i] = float32(math.NaN())
+			}
+			linearIntoWithExecutor(executor, want, c.x, c.w, c.rows)
+			calls := d.calls
+			d.project(executor, got, c.x, c.w, c.rows)
+			if !sameSIMD(got, want) || d.calls-calls != c.calls {
+				t.Errorf("%s workers=%d: projection or dispatch differs", c.name, workers)
+			}
+			if d.job.x != nil || d.job.y != nil || d.job.w != nil || d.job.n != 0 {
+				t.Errorf("%s workers=%d: joined job retained borrowed state", c.name, workers)
+			}
+		}
+		e.close()
+	}
+}

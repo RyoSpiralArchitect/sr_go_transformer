@@ -1,0 +1,186 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"math"
+	"os"
+	"reflect"
+	"runtime"
+	"testing"
+	"time"
+)
+
+// The experiment is limited to two rows, aligned columns, and two Q4
+// matrices with the same shape. Each tile owns its combined output.
+type gateUpTile struct {
+	x, y     []float32
+	gate, up *Param
+}
+
+func (j *gateUpTile) run(lo, hi int) {
+	in, out := j.gate.Cols, j.gate.Rows
+	x0, x1 := j.x[:in], j.x[in:2*in]
+	groups, stride := in/64, in/2
+	for tile := lo; tile < hi; tile++ {
+		for o := tile * 32; o < min(out, (tile+1)*32); o++ {
+			g, u := j.gate.Q4, j.up.Q4
+			gw, uw := g.Values[o*stride:(o+1)*stride], u.Values[o*stride:(o+1)*stride]
+			gs, us := g.Scales[o*groups:(o+1)*groups], u.Scales[o*groups:(o+1)*groups]
+			var gate0, up0, gate1, up1 float32
+			for block := 0; block < groups; block++ {
+				k, i := block*64, block*32
+				g0, u0, g1, u1 := dotQ4TwoRowOutputPair64(
+					(*[64]float32)(x0[k:k+64]), (*[64]float32)(x1[k:k+64]),
+					(*[32]byte)(gw[i:i+32]), (*[32]byte)(uw[i:i+32]))
+				gate0 += g0 * gs[block]
+				gate1 += g1 * gs[block]
+				up0 += u0 * us[block]
+				up1 += u1 * us[block]
+			}
+			j.y[o] = float32(float64(gate0)/(1+math.Exp(-float64(gate0)))) * up0
+			j.y[out+o] = float32(float64(gate1)/(1+math.Exp(-float64(gate1)))) * up1
+		}
+	}
+}
+
+type gateUpTrial struct {
+	x, g, u, down   []float32
+	gate, up, wdown *Param
+	exec            *kernelExecutor
+	tiled           gateUpTile
+	tile            func(int, int)
+}
+
+func projectionFixture(in, out, seed int) *Param {
+	p := newInferenceParamFormat("fixture", out, in, true, "q4")
+	for i := range p.Q4.Values {
+		p.Q4.Values[i] = byte(seed + 17*i + i/31)
+	}
+	for i := range p.Q4.Scales {
+		p.Q4.Scales[i] = float32((i+seed)%41+1) / 4096
+	}
+	return p
+}
+
+func newGateUpTrial(in, hidden, workers int) *gateUpTrial {
+	j := &gateUpTrial{x: make([]float32, 2*in), g: make([]float32, 2*hidden), u: make([]float32, 2*hidden),
+		down: make([]float32, 2*in), gate: projectionFixture(in, hidden, 3), up: projectionFixture(in, hidden, 17),
+		wdown: projectionFixture(hidden, in, 29), exec: newKernelExecutor(workers)}
+	for i := range j.x {
+		j.x[i] = float32((29*i+i/59)%251-125) / 128
+	}
+	j.x[3], j.x[5] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+	j.tile = j.tiled.run
+	return j
+}
+
+func (j *gateUpTrial) ffn(fused bool) [2]int64 {
+	start := time.Now()
+	if fused {
+		j.tiled = gateUpTile{x: j.x, y: j.g, gate: j.gate, up: j.up}
+		j.exec.parallel((j.gate.Rows+31)/32, 4*j.gate.Rows*j.gate.Cols, j.tile)
+		j.tiled = gateUpTile{}
+	} else {
+		linearQ4Into(j.exec, j.g, j.x, j.gate, 2)
+		linearQ4Into(j.exec, j.u, j.x, j.up, 2)
+		for i, v := range j.g {
+			j.g[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * j.u[i]
+		}
+	}
+	up := time.Since(start).Nanoseconds()
+	start = time.Now()
+	linearQ4Into(j.exec, j.down, j.g, j.wdown, 2)
+	down := time.Since(start).Nanoseconds()
+	return [2]int64{up, down}
+}
+
+func gateUpSameBits(a, b []float32) bool {
+	for i, x := range a {
+		if math.Float32bits(x) != math.Float32bits(b[i]) {
+			return false
+		}
+	}
+	return len(a) == len(b)
+}
+
+func testGateUpExact(t *testing.T, j *gateUpTrial) {
+	t.Helper()
+	j.ffn(false)
+	g, down := append([]float32(nil), j.g...), append([]float32(nil), j.down...)
+	for i := range j.g {
+		j.g[i] = float32(math.NaN())
+	}
+	for i := range j.down {
+		j.down[i] = float32(math.NaN())
+	}
+	j.ffn(true)
+	if !gateUpSameBits(j.g, g) || !gateUpSameBits(j.down, down) {
+		t.Fatalf("differing intermediate or Down output: %dx%d", j.gate.Cols, j.gate.Rows)
+	}
+	if !reflect.DeepEqual(j.tiled, gateUpTile{}) {
+		t.Fatal("worker kept borrowed tile state")
+	}
+}
+
+func TestGateUpTileExact(t *testing.T) {
+	for _, in := range []int{64, 320, 1024} {
+		for _, hidden := range []int{1, 31, 32, 33, 257} {
+			for _, workers := range []int{1, 4} {
+				j := newGateUpTrial(in, hidden, workers)
+				testGateUpExact(t, j)
+				j.exec.close()
+			}
+		}
+	}
+}
+
+var gateUpOrders = [6][3]string{
+	{"baseline", "control", "tile"}, {"baseline", "tile", "control"},
+	{"control", "baseline", "tile"}, {"control", "tile", "baseline"},
+	{"tile", "baseline", "control"}, {"tile", "control", "baseline"},
+}
+
+func TestGateUpTileTiming(t *testing.T) {
+	output := os.Getenv("MONOLITH_GATE_UP_OUT")
+	if output == "" {
+		t.Skip("manual Q4 two-row timing")
+	}
+	if runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("requires four threads")
+	}
+	file, err := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	type shot struct {
+		Workers, Round, Calls int
+		Arm                   string
+		GateUpNS, DownNS      int64
+	}
+	for _, workers := range []int{4, 1} {
+		j := newGateUpTrial(3072, 8192, workers)
+		testGateUpExact(t, j)
+		for round, order := range gateUpOrders {
+			if workers == 1 {
+				order = gateUpOrders[len(gateUpOrders)-1-round]
+			}
+			for _, arm := range order {
+				s := shot{Workers: workers, Round: round, Calls: 16, Arm: arm}
+				for range s.Calls {
+					d := j.ffn(arm == "tile")
+					s.GateUpNS += d[0]
+					s.DownNS += d[1]
+				}
+				if err := enc.Encode(s); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		j.exec.close()
+	}
+}

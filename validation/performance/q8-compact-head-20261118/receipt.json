@@ -1,0 +1,57 @@
+{
+  "decision": "hold",
+  "runtime_adopted": false,
+  "qwen_7b_executed": false,
+  "binary_reproduction_exact": true,
+  "first_four_process": {
+    "completed": false,
+    "stop": "manual interrupt after startup added 150412 swapout pages",
+    "measured_arms": 47,
+    "last_event": "sample"
+  },
+  "first_two_process": {
+    "completed": false,
+    "stop": "900-second global timeout preparing the second shared one-session case",
+    "observed_arms": 138,
+    "observed_parity_exact": true,
+    "last_event": "checkpoint"
+  },
+  "direct_followup": {
+    "completed": true,
+    "observed_arms": 40,
+    "parity_exact": true,
+    "eligible_as_adoption_evidence": false,
+    "incremental_gate": false
+  },
+  "targeted_tests": {
+    "pair": {
+      "race": "PASS",
+      "executor_bytes": 120,
+      "raw_local_log_sha256": "803461b0996a08accc59dc01b536a707fa974e6e1584110090ead17fd31d2b32"
+    },
+    "shared": {
+      "race": "PASS",
+      "executor_bytes": 120,
+      "raw_local_log_sha256": "a441dd0703acf2e3a209052928bc72cc954a0ca0b29a7d52d308d639c0e9dc7e"
+    }
+  },
+  "files_sha256": {
+    "four-process/journal.jsonl": "b095b2c83145afec7498fe75fb3a03a90c4dece63c96dd9ad5f045ce43e16a61",
+    "two-process-journal.jsonl": "1ebf0ea4682ecbb9b2c016a7db49dd9081c36a69e55bfbcaff97b2e0378d60c4",
+    "direct-journal.jsonl": "9a2468a5ef2549d1a7cab7cfe7fd9dc05f20dbc76bf08630dd0023694cb7877a",
+    "run.py": "03d74616434ff8b35958c2edbf3bb1fd9570db6e6dd501105ca2580bb27cfeec",
+    "variants.py": "2ad8e9662f1e0f9e71bedcef5a9341df35ce10bb967ebf0e7f4994394a7580e6",
+    "resident_test.go.txt": "43037033772fba795d0ba9239b77e83f238e34ac5ba2e7db6d4a97b4625b04eb",
+    "protocol.json": "3ad5585647d24dca59d4add4384ed8b275187fabae3b42f5434a0f69e42481f1",
+    "pairs.py": "5cae0b21f0c7ac8d7272ba0022387ed438d78708fb68ab57be1d202072fca625",
+    "pairs.json": "f81e508d2407f429fb3cc765df5f5a159adbe0237fef493558d5d48347708092",
+    "direct.py": "5a28173555fe1cf796459a0426f5136b53674ec50754345af278d752eae69402",
+    "direct.json": "9b9ca9cdd92bb05f2ce6265e47711aa08c2bb8324153703faa49643e1cb10d13",
+    "two-process-assessment.json": "1ddc4f15364c5204c19e3e4e661717c1ce8bfbc411b06008870832a76d7a7148",
+    "direct-assessment.json": "6e6112cb05f4b3e46dad67984a49002b97e81e7918e2d536737e71b2942c1ac7",
+    "assess.py": "c759ae449f336870f691e4e02d5691b09ee8befd776dfa658229c9cf0e723dfd",
+    "rebuild.py": "303d81fc8bb21d946cb081b2d205f0fe5d57b649a4a19a8c1c19de46fe1b01a2",
+    "verify.sh": "f7ef4dc7839c476bb390376e9be17b75fc9efd6a71911b10672ec2573c4a5df6",
+    "verify_test.go.txt": "ab9b6604009af3f566658df07693e5c8b3d673eb3b3a7af5c85a550aee0429e7"
+  }
+}

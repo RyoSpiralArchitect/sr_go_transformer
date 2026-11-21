@@ -1,0 +1,168 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"math"
+	"runtime"
+	"slices"
+	"testing"
+)
+
+func longWritebackModel() *Model {
+	// At stride 1056 this shape holds 6 + 3 + 3 auxiliary vectors:
+	// Logits and Gate alone cannot cover the four-lane attention plan.
+	c := Config{Vocab: 3200, Dim: 1536, Hidden: 1600, Heads: 12, KVHeads: 3, Layers: 2, Context: 1088,
+		RopeTheta: 10000, NormEps: 1e-5}
+	m := allocateModelStorageFormat(c, nil, "q4-mixed")
+	for i, p := range m.Params {
+		switch {
+		case p.Q4 != nil:
+			for j := range p.Q4.Values {
+				p.Q4.Values[j] = byte(j*13 + j/127 + i*11)
+			}
+			for j := range p.Q4.Scales {
+				p.Q4.Scales[j] = float32(1+j%13) / 32768
+			}
+		case p.Q8 != nil:
+			for j := range p.Q8.Values {
+				p.Q8.Values[j] = int8((j*17+j/83+i)%127 - 63)
+			}
+			for j := range p.Q8.Scales {
+				p.Q8.Scales[j] = float32(1+j%13) / 32768
+			}
+		default:
+			for j := range p.Data {
+				p.Data[j] = 1
+			}
+		}
+	}
+	return m
+}
+
+func makeWritebackCaches(t *testing.T, m *Model, positions []int) []*KVCache {
+	t.Helper()
+	caches := make([]*KVCache, len(positions))
+	for row, pos := range positions {
+		cache := m.NewCache()
+		t.Cleanup(cache.Close)
+		cache.Pos = pos
+		cache.ensurePages(pos)
+		k, v := make([]float32, m.Config.KVDim()), make([]float32, m.Config.KVDim())
+		for i := range k {
+			k[i] = float32((i+row)%19-9) / 32
+			v[i] = float32((13*row+i)%29-14) / 16
+		}
+		for l := range m.Blocks {
+			for i := 0; i < pos; i += pageTokens {
+				if err := cache.store(l, i, k, v); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		caches[row] = cache
+	}
+	return caches
+}
+
+func exactWritebackCaches(t *testing.T, a, b []*KVCache) {
+	t.Helper()
+	for row, x := range a {
+		y := b[row]
+		if x.Pos != y.Pos || len(x.Pages) != len(y.Pages) {
+			t.Fatal("KV position or coverage changed")
+		}
+		for i, p := range x.Pages {
+			q := y.Pages[i]
+			if !sameUpBits(p.Data, q.Data) || !slices.Equal(p.F16, q.F16) {
+				t.Fatal("KV bits changed")
+			}
+		}
+	}
+}
+
+func TestUpWritebackLongAttention(t *testing.T) {
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+		t.Skip("specific dispatch requires Darwin arm64")
+	}
+	for _, kv := range []string{"f32", "f16"} {
+		t.Run(kv, func(t *testing.T) {
+			m := longWritebackModel()
+			m.kvFormat = kv
+			for _, workers := range []int{1, 4} {
+				t.Run(fmt.Sprintf("workers%d", workers), func(t *testing.T) {
+					e := newKernelExecutor(workers)
+					defer e.close()
+					positions := []int{1027, 1024}
+					want, got := makeWritebackCaches(t, m, positions), makeWritebackCaches(t, m, positions)
+					var ref, local decodeWorkspace
+					local.U = make([]float32, 2*m.Config.Hidden)
+					poisonUp(local.U)
+					chunks := [][]int{{17}, {39}}
+					plan := planInferenceAttention(e, m.Config, 2, 1028)
+					shared := planSharedKVAttention(plan, m.Config, kv, 2, 2*m.Config.Vocab, len(local.U))
+					noUp := planSharedKVAttention(plan, m.Config, kv, 2, 2*m.Config.Vocab, 0)
+					if !shared.sharedKV || (workers == 4) == noUp.sharedKV {
+						t.Fatalf("case must exercise a real Up dependency at four workers: %+v / %+v", shared, noUp)
+					}
+					a, err := m.prefillSelected(context.Background(), want, chunks, e, &ref, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					b, err := m.prefillWritebackProbe(context.Background(), got, chunks, e, &local, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !sameUpBits(a, b) {
+						t.Fatal("long logits differ")
+					}
+					exactWritebackCaches(t, want, got)
+					if ref.floatBytes() != local.floatBytes() {
+						t.Fatal("reserved workspace changed")
+					}
+					if workers == 4 {
+						stride, length := shared.stride, got[1].Pos
+						for i := range 3 {
+							var sum float64
+							for _, v := range local.U[i*stride : i*stride+length] {
+								sum += float64(v)
+							}
+							if !(math.Abs(sum-1) <= 1e-6) {
+								t.Fatal("Up did not retain normalized attention scores", sum)
+							}
+							if math.Float32bits(local.U[i*stride+length]) != 0x7fc02468 {
+								t.Fatal("candidate wrote outside the score vector")
+							}
+						}
+					} else {
+						for _, v := range local.U {
+							if math.Float32bits(v) != 0x7fc02468 {
+								t.Fatal("one-worker Up scratch was unexpectedly touched")
+							}
+						}
+					}
+					t.Logf("shared with Up=%t without Up=%t; workspace=%d bytes", shared.sharedKV, noUp.sharedKV, local.floatBytes())
+
+					// The same workspace must still support a subsequent
+					// chunk which requires an ordinary three-row Up.
+					chunks = [][]int{{8, 9}, {33}}
+					a, err = m.prefillSelected(context.Background(), want, chunks, e, &ref, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					b, err = m.prefillWritebackProbe(context.Background(), got, chunks, e, &local, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !sameUpBits(a, b) || !sameUpBits(ref.U, local.U) || ref.floatBytes() != local.floatBytes() {
+						t.Fatal("three-row fallback changed after borrowed attention")
+					}
+					exactWritebackCaches(t, want, got)
+				})
+			}
+		})
+	}
+}

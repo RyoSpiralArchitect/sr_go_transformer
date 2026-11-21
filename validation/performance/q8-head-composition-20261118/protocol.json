@@ -1,0 +1,30 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "baseline_runtime_sha256": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+  "candidate_runtime_sha256": "595223ea95564917dec1bcdc3844716e37d766b242ce357e86ccd1554e1b15be",
+  "platform": "Darwin/arm64",
+  "go": "go1.27.1",
+  "model_id": "llama32-3b",
+  "model_revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "weights": "q4-mixed",
+  "workers": 4,
+  "decode_calls": 7,
+  "ordinary": {
+    "prefix": 8,
+    "kv": "f32",
+    "schedule": "reference,candidate with session order 1,2; candidate,reference with session order 2,1",
+    "trials_per_process_case": 3,
+    "analysis": "Divide candidate by reference process medians within each matched session order, then take the median of those two ratios. Keep both ratios for each stage and session count.",
+    "gate": "All numerical signatures and workspace sizes match. Two-session decode median ratio <= 0.99. Prefill and one-session decode median ratios <= 1.05 for each session count or stage where applicable."
+  },
+  "resident": {
+    "prefixes": [128, 1024],
+    "kv": "f16",
+    "session_order": [2, 1],
+    "rounds": 8,
+    "schedule": "Reference/reference and reference/candidate pairs in each round. Alternate pair position every round. In two-round blocks swap the starting arm independently of pair position, and alternate the first arm at each token.",
+    "analysis": "For each case and comparison divide right by left seven-call sums and take the median over rounds. Keep both starting-arm strata, both pair-position strata, and the same-path controls.",
+    "gate": "Exact token IDs, logit and KV hashes, positions and workspace. Same-path total medians in [0.97, 1.03] for every case. At each two-session prefix require output head ratio <= 0.95, total ratio <= 0.99, at least 6 of 8 total wins and both starting-arm total medians < 1. One-session total ratio <= 1.03 in both cases."
+  },
+  "adoption": "Exercise ordinary and resident gates plus focused numerical/fallback and race checks, and the clean tree checks. Use both alignment tiling and a cached executor callback if they pass; the cached callback separately must remove the warm allocation on the paired path. No Q4 runtime changes, or three-output dispatch, in this candidate."
+}

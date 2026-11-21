@@ -1,0 +1,68 @@
+{
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "goexperiment": "simd",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "assets": {
+    "tokenizer_config.json": "8004530facf809ac432114de2a4dcc65fcb632da5ec16d666091aeb6a2ee444a",
+    "model-00001-of-00002.safetensors": "53c5d0d0bf614dd47699da0c3381565d9c29ffd20830dd0c0c41aec063ff0844",
+    "config.json": "3ac8521f7b26049f57889a2a16c4ad9c30f32ed17c003d6899dc916300be6d63",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "model-00002-of-00002.safetensors": "27918a4050dd52d318aadaa0f743d6aab0043a7ebc269ffda573c024541e4ff2",
+    "model.safetensors.index.json": "de5995e586fc98a942b576a6752034a6d0a741d2dece5f61e697d99c8bb99b3d"
+  },
+  "inputs": {
+    "cmd/monolith/monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "cmd/monolith/context_sweep_perf_test.go": "d0ab498bea54273ab314ec3ebee77ccd656e9720bf9290dd680eaa33e5f4d7a3",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "validation/hf/model-profiles.json": "f74422fda9faf45623d1267d645fe951ea4a3cc7c734db3d8f5782ede1f4b94b",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/performance/decode-hotspots-20261121/simd.py": "18a83bca73a207d8b59f37537c435ebd5111d6ce1e18772befa5e6e568b22f88",
+    "validation/performance/decode-hotspots-20261121/hotspots_test.go.txt": "47edc52239141061461d9a79479bcab71fc0e55942a5338c591679e152f90fae",
+    "validation/performance/decode-hotspots-20261121/instrument.py": "7df837b5b210bc14400bf7c129cc80cb0f869f86cefa24b7f63919b5add1eef8",
+    "validation/performance/decode-hotspots-20261121/protocol.json": "20e6eb79c0d06724022d0346125fa22d09051be509b1db620a4ce4ac5d152d84",
+    "validation/performance/decode-hotspots-20261121/live-protocol.json": "da750c0b964085992a844bf917fd34ec92237435223763edf9998ff6c0725c1c",
+    "validation/performance/decode-hotspots-20261121/simd_live.py": "fe4e7ab743219e4e4811c096fde45de323abdfc5d50db6c1ef4c51624545b26f",
+    "validation/performance/decode-hotspots-20261121/run.py": "021e342fbf8f9bd26dc070a5f9d93afa7b302fe0ca1b3592b77ed66f4ee77354",
+    "scripts/go.sh": "363c07f379265addabdd6e3319c4664840534a362f7644abd8eb436670705cc0",
+    "scripts/compare_inference.py": "1396e191a8073158fa129e8599f9319cae954c420fe53c5d1ac3632a07867490",
+    "scripts/quant_quality.py": "aee1915989d6a9b877b08c12a40eaf2be7b330c0d9fe6ba1e667135abed96bca",
+    "scripts/measure_context_sweep.py": "7c57b821937cc31e24b0963bfef1f4aa0d4246a032d768102c2ead27ad8d41f9",
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f"
+  },
+  "sources": {
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "ffn_test.go": "e894710e7b0cd2ab1a5859852bd8b3d95280a97e04a90759c52a75c3685b03d1",
+    "resident_test.go": "c9ee7ff788870454ea1402b3c1a543526d55a264f3c83499f5c8756a4e9a9f4f",
+    "kernel_test.go": "47abd275a06cc52171ddcb61ac2633f6a7bed0003fb7c935d4c8b19c813bd946",
+    "replay_test.go": "a45eec594844199492a508cdec84b57e7ddac90d50b5e173ad9ede871337674b"
+  },
+  "binary_sha256": "eae9eb2caef2549b2554bc0d0cfcb53f47078f56ece25fa29c0370ce2a540f50",
+  "memory": [
+    {
+      "free_percent": 80,
+      "swapouts": 0
+    },
+    {
+      "free_percent": 79,
+      "swapouts": 0
+    }
+  ],
+  "complete": true,
+  "journal_error": null,
+  "exit_error": null,
+  "journal_sha256": "ea30253857eb0095d028e4eaf020404c4557b2cd9cf150a10a41660ec2bfbc48",
+  "resources": {
+    "peak_rss_bytes": 2561441792,
+    "measurement": "wait4 rusage.ru_maxrss for this child lifetime; includes startup, loading and probing",
+    "elapsed_seconds": 314.43180824999945,
+    "user_cpu_seconds": 1141.865887,
+    "system_cpu_seconds": 6.047332,
+    "returncode": 0,
+    "timed_out": false
+  }
+}

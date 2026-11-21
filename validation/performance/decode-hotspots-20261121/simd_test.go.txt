@@ -1,0 +1,203 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build arm64 && goexperiment.simd
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"math/rand"
+	"os"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+)
+
+func sameSIMD(a, b []float32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if math.Float32bits(v) != math.Float32bits(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func simdExactBlock(t *testing.T, x0, x1 *[64]float32, w0, w1 *[32]byte) {
+	t.Helper()
+	a, b, c, d := dotQ4TwoRowOutputPair64(x0, x1, w0, w1)
+	e, f, g, h := simdQ4Block(x0, x1, w0, w1)
+	if !sameSIMD([]float32{a, b, c, d}, []float32{e, f, g, h}) {
+		t.Fatalf("4-lane reduction changed: got %v want %v", []float32{e, f, g, h}, []float32{a, b, c, d})
+	}
+}
+
+func TestSIMDQ4BlockExact(t *testing.T) {
+	var x0, x1 [64]float32
+	var w0, w1 [32]byte
+	for i := 0; i < 256; i++ {
+		for j := range w0 {
+			w0[j], w1[j] = byte(i+j*31), byte(255-i+17*j)
+		}
+		for j := range x0 {
+			x0[j], x1[j] = 0, 0
+		}
+		for j := range x0 {
+			x0[j], x1[j] = 1, -1
+			simdExactBlock(t, &x0, &x1, &w0, &w1)
+			x0[j], x1[j] = 0, 0
+		}
+	}
+	r := rand.New(rand.NewSource(23))
+	values := []float32{0, math.Float32frombits(1 << 31), math.SmallestNonzeroFloat32, -math.SmallestNonzeroFloat32, 1, -1, 1e29, -1e29}
+	for i := range 10000 {
+		for j := range x0 {
+			if i%3 == 0 {
+				x0[j], x1[j] = values[r.Intn(len(values))], values[r.Intn(len(values))]
+			} else {
+				x0[j], x1[j] = float32(r.NormFloat64()), float32(r.NormFloat64())
+			}
+		}
+		if _, err := r.Read(w0[:]); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := r.Read(w1[:]); err != nil {
+			t.Fatal(err)
+		}
+		simdExactBlock(t, &x0, &x1, &w0, &w1)
+	}
+}
+
+func simdQ4Fixture(in, out int) (*Param, []float32) {
+	w := newInferenceParamFormat("fixture", out, in, true, "q4")
+	for i := range w.Q4.Values {
+		w.Q4.Values[i] = byte(17*i + i/31)
+	}
+	for i := range w.Q4.Scales {
+		w.Q4.Scales[i] = float32(i%41+1) / 4096
+	}
+	x := make([]float32, 2*in)
+	for i := range x {
+		x[i] = float32((29*i+i/59)%251-125) / 128
+	}
+	return w, x
+}
+
+type simdCall struct {
+	e         *kernelExecutor
+	job       fp32Kernel
+	ref, simd func(int, int)
+}
+
+func prepareSIMDCall(in, out, workers int) *simdCall {
+	w, x := simdQ4Fixture(in, out)
+	d := &simdCall{e: newKernelExecutor(workers), job: fp32Kernel{x: x, y: make([]float32, 2*out), w: w, n: 2}}
+	d.ref = func(lo, hi int) { linearQ4TwoRowOutputPairRange(&d.job, lo, hi) }
+	d.simd = func(lo, hi int) { simdQ4Range(&d.job, lo, hi) }
+	return d
+}
+
+func (d *simdCall) run(candidate bool) {
+	work := 2 * d.job.w.Cols * d.job.w.Rows
+	tiles := (d.job.w.Rows + 31) / 32
+	fn := d.ref
+	if candidate {
+		fn = d.simd
+	}
+	d.e.parallel(tiles, work, fn)
+}
+
+func verifySIMDRange(t *testing.T, d *simdCall) {
+	t.Helper()
+	out := d.job.w.Rows
+	buffer := make([]float32, 2*out+2)
+	buffer[0], buffer[len(buffer)-1] = -1, -2
+	d.job.y = buffer[1 : len(buffer)-1]
+	d.run(false)
+	want := append([]float32(nil), d.job.y...)
+	for i := range d.job.y {
+		d.job.y[i] = float32(math.NaN())
+	}
+	d.run(true)
+	if buffer[0] != -1 || buffer[len(buffer)-1] != -2 || !sameSIMD(d.job.y, want) {
+		t.Fatal("output range, tail or parity changed")
+	}
+}
+
+func TestSIMDQ4RangeExact(t *testing.T) {
+	for _, workers := range []int{1, 4} {
+		for _, in := range []int{64, 320, 1024} {
+			for _, out := range []int{1, 31, 32, 33, 131, 257} {
+				d := prepareSIMDCall(in, out, workers)
+				verifySIMDRange(t, d)
+				d.e.close()
+			}
+		}
+	}
+}
+
+var simdOrders = [6][3]string{
+	{"plain", "control", "simd"}, {"plain", "simd", "control"},
+	{"control", "plain", "simd"}, {"control", "simd", "plain"},
+	{"simd", "plain", "control"}, {"simd", "control", "plain"},
+}
+
+type simdSample struct {
+	Block, Workers, Round, Calls int
+	Shape, Arm                   string
+	ElapsedNS                    int64
+}
+
+func TestSIMDQ4Timing(t *testing.T) {
+	path := os.Getenv("MONOLITH_SIMD_OUT")
+	if path == "" {
+		t.Skip("manual synthetic probe")
+	}
+	if runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("requires GOMAXPROCS=4")
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	block, err := strconv.Atoi(os.Getenv("MONOLITH_SIMD_BLOCK"))
+	if err != nil || block < 0 || block > 1 {
+		t.Fatal("expected block 0 or 1")
+	}
+	for _, workers := range [2]int{4 - 3*block, 1 + 3*block} {
+		shapes := [][3]int{{3072, 8192, 0}, {8192, 3072, 1}}
+		if (workers == 1) != (block == 1) {
+			shapes[0], shapes[1] = shapes[1], shapes[0]
+		}
+		for _, shape := range shapes {
+			d := prepareSIMDCall(shape[0], shape[1], workers)
+			verifySIMDRange(t, d)
+			for round := range simdOrders {
+				idx := round
+				if (workers == 1) != ((shape[2]+block)%2 == 1) {
+					idx = len(simdOrders) - 1 - round
+				}
+				for _, arm := range simdOrders[idx] {
+					const calls = 48
+					start := time.Now()
+					for range calls {
+						d.run(arm == "simd")
+					}
+					r := simdSample{block, workers, round, calls, fmt.Sprintf("%dx%d", shape[0], shape[1]), arm, time.Since(start).Nanoseconds()}
+					if err := enc.Encode(r); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			d.e.close()
+		}
+	}
+}

@@ -1,0 +1,20 @@
+{
+  "first_profile_build": {
+    "status": "compile_failed",
+    "timing_samples": 0,
+    "log_sha256": "735bd2c35c2733d4e876af5f57c8729788c00229e72a51723546bbf140c37633"
+  },
+  "synthetic": {
+    "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+    "cpu": "Apple M4",
+    "go": "go version go1.27.1 darwin/arm64",
+    "goexperiment": "simd",
+    "samples": {
+      "simd-0.jsonl": "e8e53474c091771ff30ebfcff56921e78728cb3bdb10deace2a594123badadb1",
+      "simd-1.jsonl": "76a7c9721c652eb9f31f05cd9d3e1c176243067519fe929cf2eb060e0ae6398d"
+    },
+    "exact_log_sha256": "be9b6ef2c9469698be79077f446138e1ae64a51037fcd43ee8c2c0a9e7052cb3",
+    "raw_disassembly_sha256": "8fb70ad4abab8739247606042b6b4a0613990144582a9590eeca3d0db3828197",
+    "archived_disassembly_sha256": "462931d553d0c4dee3f95b610928744bf4f92d5003e9cf192728c6bb8c8e6f7e"
+  }
+}

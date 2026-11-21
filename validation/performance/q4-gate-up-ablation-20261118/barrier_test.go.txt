@@ -1,0 +1,141 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"runtime"
+	"testing"
+	"time"
+)
+
+// The two paths enqueue exactly the same ranges. Parallel cases enqueue
+// at most twice the channel capacity before reading completions. A worker
+// must dequeue a job to send a completion, so a full completion channel
+// entails at least one channel-capacity's worth of dequeued jobs.
+type waveTrial struct {
+	fixture  *gateUpFixture
+	work     gateUpWork
+	gate, up func(int, int)
+}
+
+func newWaveTrial(f *gateUpFixture) *waveTrial {
+	w := &waveTrial{fixture: f}
+	w.gate = func(lo, hi int) { linearQ4Range(&w.work.gate, lo, hi) }
+	w.up = func(lo, hi int) { linearQ4Range(&w.work.up, lo, hi) }
+	return w
+}
+
+func (w *waveTrial) project(deferJoin bool) {
+	f := w.fixture
+	gate, up := f.gate, f.up
+	tiles := (gate.Rows + 31) / 32
+	w.work = gateUpWork{fp32Kernel{x: f.x, y: f.g, w: gate, n: 2}, fp32Kernel{x: f.x, y: f.u, w: up, n: 2}}
+	if f.workers == 1 {
+		// One worker is the negative control: both modes run identical calls.
+		w.gate(0, tiles)
+		w.up(0, tiles)
+	} else {
+		submit := func(callback func(int, int)) {
+			for i := range f.workers {
+				f.e.jobs <- kernelJob{lo: tiles * i / f.workers, hi: tiles * (i + 1) / f.workers, fn: callback}
+			}
+		}
+		drain := func(n int) {
+			for range n {
+				<-f.e.completed
+			}
+		}
+		submit(w.gate)
+		n := f.workers
+		if !deferJoin {
+			drain(n)
+		} else {
+			n += f.workers
+		}
+		submit(w.up)
+		drain(n)
+	}
+	w.work = gateUpWork{}
+	for i, v := range f.g {
+		f.g[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * f.u[i]
+	}
+}
+
+func verifyWave(t *testing.T, w *waveTrial, rounds int) {
+	t.Helper()
+	f := w.fixture
+	f.project("reference")
+	wantGate := append([]float32(nil), f.g...)
+	wantUp := append([]float32(nil), f.u...)
+	for i := range rounds {
+		fixturePoison(f.g)
+		fixturePoison(f.u)
+		w.project(i%2 != 0)
+		if !sameFloats(f.g, wantGate) || !sameFloats(f.u, wantUp) ||
+			w.work.gate.w != nil || w.work.up.w != nil {
+			t.Fatal("wave changed numerical output or retained job")
+		}
+	}
+}
+
+func TestGateUpWaveExact(t *testing.T) {
+	for _, workers := range []int{1, 4} {
+		// Enough output tiles for every worker, including a partial tile.
+		f := newGateUpFixture(320, 257, workers)
+		verifyWave(t, newWaveTrial(f), 64)
+		f.e.close()
+	}
+}
+
+var waveOrders = [6][3]string{
+	{"reference", "control", "one_join"}, {"reference", "one_join", "control"},
+	{"control", "reference", "one_join"}, {"control", "one_join", "reference"},
+	{"one_join", "reference", "control"}, {"one_join", "control", "reference"},
+}
+
+func TestGateUpWaveTiming(t *testing.T) {
+	path := os.Getenv("MONOLITH_WAVE_OUT")
+	if path == "" {
+		t.Skip("manual wave control")
+	}
+	if runtime.GOMAXPROCS(0) != 4 {
+		t.Fatal("requires four threads")
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	enc := json.NewEncoder(file)
+	for block := range 2 {
+		for _, workers := range []int{4 - 3*block, 1 + 3*block} {
+			f := newGateUpFixture(3072, 8192, workers)
+			w := newWaveTrial(f)
+			verifyWave(t, w, 4)
+			fmt.Fprintf(os.Stderr, "wave block %d, %d workers\n", block, workers)
+			for round := range waveOrders {
+				index := round
+				if (workers == 1) != (block == 1) {
+					index = len(waveOrders) - 1 - round
+				}
+				for _, mode := range waveOrders[index] {
+					const calls = 24
+					start := time.Now()
+					for range calls {
+						w.project(mode == "one_join")
+					}
+					ns := time.Since(start).Nanoseconds()
+					if err := enc.Encode(ablationShot{block, workers, round, calls, mode, "wave", ns}); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			f.e.close()
+		}
+	}
+}

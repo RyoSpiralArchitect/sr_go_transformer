@@ -1,0 +1,28 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "native_sources": {
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+    "gate_up_test.go": "544487623bcccaad75b0436c1e204fd9fc838239b7095116df39fe3705f61662"
+  },
+  "binary_sha256": "579cb12311f9d72aaaad4088b3a56b463fc054eb4b47a175e6cfc3ca9f0f7b98",
+  "record_inputs": {
+    "gate_up_test.go.txt": "544487623bcccaad75b0436c1e204fd9fc838239b7095116df39fe3705f61662",
+    "protocol.json": "e162044a4adb2f137ce09265fd7242d49f2ead8ed54e34ee372dd4a2a7e027bb",
+    "run.sh": "78634405da6cde4cb25d285164033029fbd7f537199a76d896a021ef5024ddfe",
+    "samples.jsonl": "009991102f3c6f46fbc08b92e591e62d79b4ceaf1495a3d3d9bf030f72db0e40",
+    "assessment.json": "71ff02e7b04ea6d8d33390f28d1e4b3a3daa4ad76e6e3792d63a77c8841b1033"
+  },
+  "exactness": {
+    "status": "PASS",
+    "test": "TestGateUpTileExact",
+    "race": true,
+    "same_intermediate_and_down_bits": true,
+    "file_sha256": "36f5ebcf37a670bdf393761b6d7ccdbb2f44013c21a67c4f57d475655e26ba23"
+  },
+  "model_loaded": false,
+  "decision": "hold"
+}

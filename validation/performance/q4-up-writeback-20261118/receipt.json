@@ -1,0 +1,76 @@
+{
+  "baseline": "68810f7a59d85944575d4a5fa3100e85d1ca8789",
+  "platform": "Darwin/arm64",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "gomaxprocs": 4,
+  "first_build": {
+    "timing_samples": 0,
+    "result": "compile failed due to an unused import in the generated probe",
+    "local_log_sha256": "9c963d87a9edf46aafa632148e0e2564ffff936e38ea06d9e8c37bc23c916d53"
+  },
+  "timing": {
+    "samples": 400,
+    "binary_rebuilt_exact": true,
+    "build_sha256": {
+      "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+      "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+      "monolith.go": "553feda2ba5630c2ba5c6683141d677c21045172cd9a59ae30f447893ab69342",
+      "generated_test.go": "e71884bb6bfe2d073e21c5c1ed929c431758f3ff9cfaf3c15b5b5f0c1f9ab1df",
+      "probe_test.go": "7b1913c6fb6cca62550d56a47aea1661a47ca9a4a0c29c46873f684721163bdb",
+      "runtime_probe_test.go": "f9e1b58efb5099e4f5ccfb152f66eff3af3329d051c8c56997ecba7e3f29bd13",
+      "writeback.test": "d2de055876fe55d72ef61cc2e26487945220ae5073ccfab9c21c73b25690841b"
+    },
+    "codegen": {
+      "stores_sha256": "25a9f21c77639635d6eaec934d8db37a0823eac1a1eba3be7c67cc191a1ff170",
+      "counts": {
+        "storeUpRange": {
+          "up_values": 6,
+          "gate_values": 6
+        },
+        "localUpRange": {
+          "up_values": 0,
+          "gate_values": 6
+        },
+        "note": "Static sites: four values in the two-output loop plus two in the odd tail."
+      }
+    },
+    "exact_log_sha256": "179d902b014067dccd6e8867d202f9ddea6b1725dd0e0e33d1a4982789a9dd4c"
+  },
+  "correctness": {
+    "status": "PASS",
+    "race": true,
+    "kv_formats": [
+      "f32",
+      "f16"
+    ],
+    "worker_counts": [
+      1,
+      4
+    ],
+    "up_required_by_four_lane_attention": true,
+    "workspace_capacity_equal": true,
+    "three_row_fallback_exact": true,
+    "local_log_sha256": "633817a78868a1c2d14f12fc32135bf29774a739e8a4c6c72b419403a05a3653"
+  },
+  "decision": {
+    "adopted": false,
+    "model_loaded": false,
+    "writeback_effect_pass": false,
+    "note": "The frozen timing gate failed. This experiment retained the entire Up reservation."
+  },
+  "files_sha256": {
+    "README.md": "ee14a30f04c22c5b0224dbea84997fb438b76312b560e013bfdbb565ec3ade9c",
+    "assess.py": "12b8bc156b7c7c4c09676843d1103a261e67847fdc3ecba0b6bb210677614b1c",
+    "assessment.json": "ce4b9510d2b3b248863f8c59e9b3e606467c067967814c6404773cc3be89aab7",
+    "block-0.jsonl": "3acb200bc45d3ee5ff362e9f83296551e0c702a0bb12ce980a4c383679faca22",
+    "block-1.jsonl": "d7409317cf541a2711cf26d167ee5a4f09cc6834ad21b8c36b72b9839a5d2853",
+    "generate.py": "b19ec1f2f20703619031d6b0a29370d9c43d96efeacd57674a5fbf252862db5d",
+    "long_test.go.txt": "a271338a93cbc16b0047fd5e22e64f416cb61b716d905104d1a8713f42b613a3",
+    "probe_test.go.txt": "7b1913c6fb6cca62550d56a47aea1661a47ca9a4a0c29c46873f684721163bdb",
+    "protocol.json": "e04facda8ca5a7436398969bd680e98891fb725958097eb2d6806845738493ed",
+    "run.sh": "aff79fc8c258f2367eb6fb10c67c2807100db222511a3ccd2e7de1f1eec73a81",
+    "runtime_probe_test.go.txt": "f9e1b58efb5099e4f5ccfb152f66eff3af3329d051c8c56997ecba7e3f29bd13",
+    "verify-long.sh": "107738c62a002521c4274f6807d93a1532a365f9b180e91a83d7d8ff8f24e6d6"
+  }
+}

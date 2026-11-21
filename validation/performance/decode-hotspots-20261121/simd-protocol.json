@@ -1,0 +1,17 @@
+{
+  "parent": "protocol.json",
+  "goexperiment": "simd",
+  "rows": 2,
+  "shapes": [[3072,8192],[8192,3072]],
+  "workers": [[4,1],[1,4]],
+  "orders": [
+    ["plain","control","simd"],["plain","simd","control"],
+    ["control","plain","simd"],["control","simd","plain"],
+    ["simd","plain","control"],["simd","control","plain"]
+  ],
+  "calls_per_sample": 48,
+  "controls": {"median_range": [0.95,1.05], "median_abs_from_one_max": 0.08},
+  "candidate": {"max_median_ratio": 0.95, "min_wins_out_of_6": 5},
+  "method": "Two independent processes alternate workers, shape order and round orders. Use a single binary, identical immutable weights and work partition, the scalar reference twice, and a SIMD Q4 block. Keep each scalar lane's FMA sequence and pairwise reduction. Retain the current odd-output tail. Test bit equality before timing.",
+  "advance": "Both shapes and both worker counts in both blocks need exact output, stable controls and at least a 5% median improvement. Passing advances to a separate resident real-model diagnostic; no default change or Go toolchain floor change."
+}

@@ -1,0 +1,5 @@
+# github.com/RyoSpiralArchitect/sr_go_tranformer [github.com/RyoSpiralArchitect/sr_go_tranformer.test]
+./replay_test.go:11:2: "encoding/json" imported and not used
+./replay_test.go:117:19: undefined: filepath
+FAIL	github.com/RyoSpiralArchitect/sr_go_tranformer [build failed]
+FAIL
