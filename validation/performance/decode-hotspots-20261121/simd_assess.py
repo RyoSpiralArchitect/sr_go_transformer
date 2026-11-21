@@ -27,7 +27,25 @@ def stable(summary, criteria):
             summary["median_abs_from_one"] <= criteria["median_abs_from_one_max"])
 
 
-def synthetic(directory, spec):
+def synthetic(directory, spec, fresh_run=False):
+    if not fresh_run:
+        identity = read_json(HERE / "identities.json")["synthetic"]
+        samples = identity["samples"]
+        need(set(samples) == {f"simd-{i}.jsonl" for i in range(len(spec["workers"]))},
+             "unexpected synthetic journal set")
+        checksums = {**samples, "exact.log": identity["exact_log_sha256"],
+                     "blocks.s": identity["archived_disassembly_sha256"]}
+        for name, expected in checksums.items():
+            need(sha(directory / name) == expected, f"synthetic checksum mismatch: {name}")
+
+    log = (directory / "exact.log").read_text()
+    lines = log.splitlines()
+    need(len(lines) >= 2 and lines[-2] == "PASS" and re.match(r"ok\s+\S+", lines[-1])
+         and not re.search(r"(?m)^[ \t]*(?:FAIL(?:[ \t]|$)|--- FAIL:)", log),
+         "exactness test did not finish successfully")
+    for test in ("TestSIMDQ4BlockExact", "TestSIMDQ4RangeExact"):
+        need(f"--- PASS: {test} " in log, f"missing exact gate for {test}")
+
     results = {}
     for block, workers_list in enumerate(spec["workers"]):
         rows = iter(journal(directory / f"simd-{block}.jsonl"))
@@ -61,17 +79,18 @@ def synthetic(directory, spec):
                     ratios=ratios, wins=wins, rounds=len(orders), timing_pass=accepted)
         need(next(rows, None) is None, f"trailing kernel samples for block {block}")
 
-    log = (directory / "exact.log").read_text()
-    for test in ("TestSIMDQ4BlockExact", "TestSIMDQ4RangeExact"):
-        need(f"--- PASS: {test} " in log, f"missing exact gate for {test}")
+    src = (directory / "blocks.s").read_text()
     instructions = {}
-    for func in (".simdQ4Block", ".dotQ4TwoRowOutputPair64"):
-        src = (directory / "blocks.s").read_text()
-        body = re.search(rf"^TEXT \S+{re.escape(func)}\(SB\).*?\n(.*?^.*?\bRET\b)",
+    expected = {
+        "simdQ4Block": {"FMADDS": 0, "VFMLA": 64, "VFADDP": 3},
+        "dotQ4TwoRowOutputPair64": {"FMADDS": 256, "VFMLA": 0, "VFADDP": 0},
+    }
+    for func, counts in expected.items():
+        body = re.search(rf"^TEXT \S+\.{func}\(SB\).*?\n(.*?^.*?\bRET\b)",
                          src, re.M | re.S)
         need(body is not None, f"missing disassembly for {func}")
-        instructions[func[1:]] = {op: len(re.findall(rf"\b{op}\b", body[1]))
-                                  for op in ("FMADDS", "VFMLA", "VFADDP")}
+        instructions[func] = {op: len(re.findall(rf"\b{op}\b", body[1])) for op in counts}
+        need(instructions[func] == counts, f"unexpected instruction counts for {func}: {instructions[func]}")
     return dict(cases=results, instructions=instructions, exact=True,
                 advance=all(case["timing_pass"] for case in results.values()))
 
@@ -165,13 +184,15 @@ def live(directory, profile_directory, parent, spec):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="kind", required=True)
-    sub.add_parser("synthetic").add_argument("directory", type=Path)
+    kernel = sub.add_parser("synthetic")
+    kernel.add_argument("directory", type=Path)
+    kernel.add_argument("--fresh-run", action="store_true", help="assess a newly generated synthetic run")
     resident = sub.add_parser("live")
     resident.add_argument("directory", type=Path)
     resident.add_argument("profile_directory", type=Path)
     args = parser.parse_args()
     if args.kind == "synthetic":
-        result = synthetic(args.directory, read_json(HERE / "simd-protocol.json"))
+        result = synthetic(args.directory, read_json(HERE / "simd-protocol.json"), args.fresh_run)
     else:
         spec = read_json(HERE / "live-protocol.json")
         result = live(args.directory, args.profile_directory, read_json(HERE / spec["parent"]), spec)

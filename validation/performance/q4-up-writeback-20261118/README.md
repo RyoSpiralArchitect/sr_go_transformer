@@ -83,7 +83,9 @@ checkpoint or network access is required once dependencies are cached.
 record=validation/performance/q4-up-writeback-20261118
 mkdir -p runs
 sh "$record/run.sh" runs/up-writeback-reproduce
-python3 -S "$record/assess.py" runs/up-writeback-reproduce
+(cd runs/up-writeback-reproduce &&
+  go tool objdump -s '[.](storeUpRange|localUpRange)$' writeback.test > stores.s)
+python3 -S "$record/assess.py" --codegen runs/up-writeback-reproduce
 sh "$record/verify-long.sh" runs/up-writeback-reproduce runs/up-long-reproduce
 ```
 

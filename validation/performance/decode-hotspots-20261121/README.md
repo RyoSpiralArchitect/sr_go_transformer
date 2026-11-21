@@ -112,10 +112,13 @@ mkdir -p runs
 export PYTHONDONTWRITEBYTECODE=1
 python3 -S "$record/run.py" --model "$MODEL_SNAPSHOT" --output runs/decode-stage-reproduce
 sh "$record/simd.sh" runs/decode-simd-reproduce
+python3 -S "$record/simd_assess.py" synthetic --fresh-run runs/decode-simd-reproduce
 python3 -S "$record/simd_live.py" --model "$MODEL_SNAPSHOT" --output runs/decode-simd-live-reproduce
 ```
 
 The recorded timing decisions can be rebuilt without running the model.
+The synthetic assessor checks the archived journals, test log, and
+disassembly against their recorded SHA-256 digests.
 
 ```sh
 python3 -S "$record/assess.py" "$record/profile"
