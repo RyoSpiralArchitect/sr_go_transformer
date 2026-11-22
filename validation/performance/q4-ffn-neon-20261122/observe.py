@@ -37,6 +37,8 @@ def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("model", type=Path)
     cli.add_argument("output", type=Path)
+    cli.add_argument("--existing-load", action="store_true",
+                     help="start with the existing host load and label it in the log")
     args = cli.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     start = time.monotonic()
@@ -46,12 +48,15 @@ def main():
             print(json.dumps(dict(seconds=round(time.monotonic()-start,2), phase=phase,
                                   total_pct=total, busiest_pct=busiest)), file=log)
             return total <= 150 and busiest <= 40
-        consecutive = 0
-        while consecutive < ENTRY_SAMPLES:
-            consecutive = consecutive + 1 if sample("entry") else 0
-            if time.monotonic()-start > 600:
-                raise TimeoutError("no quiet entry window within ten minutes")
-            time.sleep(INTERVAL)
+        if args.existing_load:
+            sample("existing_load_entry")
+        else:
+            consecutive = 0
+            while consecutive < ENTRY_SAMPLES:
+                consecutive = consecutive + 1 if sample("entry") else 0
+                if time.monotonic()-start > 600:
+                    raise TimeoutError("no quiet entry window within ten minutes")
+                time.sleep(INTERVAL)
         def monitor(stop):
             while not stop.is_set():
                 sample("run")
