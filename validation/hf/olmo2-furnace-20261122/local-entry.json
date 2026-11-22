@@ -1,0 +1,99 @@
+{
+  "revision": "a1847dff35000b4271fa70afc5db10fd29fedbdf",
+  "binary_sha256": "a408bbc868ea4bca33d40b2ef6c24e54646820a934aee6eab0e0f0a35ef7aa43",
+  "offline": true,
+  "arguments": [
+    "infer",
+    "local",
+    "-path",
+    "<snapshot>",
+    "-context",
+    "128",
+    "-weight-mib",
+    "8192",
+    "-weight-format",
+    "q4-mixed",
+    "generate",
+    "-prompt",
+    "The capital of France is",
+    "-max-tokens",
+    "8",
+    "-repeat-penalty",
+    "1",
+    "-temperature",
+    "0",
+    "-json"
+  ],
+  "check": {
+    "format": "monolith-hf-check-v1",
+    "weights": {
+      "format": "monolith-hf-plan-v1",
+      "model_type": "olmo2",
+      "tied_embeddings": false,
+      "eos_token_ids": [
+        100257
+      ],
+      "config": {
+        "vocab": 100352,
+        "dim": 2048,
+        "hidden": 8192,
+        "layers": 16,
+        "heads": 16,
+        "kv_heads": 16,
+        "context": 128,
+        "rope_theta": 500000,
+        "norm_eps": 1e-06
+      },
+      "parameters": 1484916736,
+      "weight_bytes": 1041244160,
+      "weight_format": "q4-mixed",
+      "fp32_weight_bytes": 5939666944,
+      "quantized_parameters": 1484783616,
+      "q8_parameters": 411041792,
+      "q4_parameters": 1073741824,
+      "scale_bytes": 92798976,
+      "quantization_block": 64,
+      "quantization_buffer_bytes": 256,
+      "rope_bytes": 65536,
+      "kv_bytes_per_token": 262144,
+      "full_context_kv_bytes": 33554432,
+      "conversion_buffer_bytes": 65536,
+      "source_bytes": 5939687552,
+      "shards": 2,
+      "tensor_dtypes": {
+        "F32": 179
+      }
+    },
+    "tokenizer_profile": "olmo2-bytelevel",
+    "chat_supported": false,
+    "model_context": 4096,
+    "weight_budget_bytes": 8589934592,
+    "kv_page_aligned_bytes_per_session": 33554432,
+    "kv_plan": {
+      "format": "f32",
+      "positions": 128,
+      "pages": 4,
+      "page_bytes": 8388608,
+      "required_bytes": 33554432,
+      "budget_bytes": 536870912,
+      "fits_budget": true
+    },
+    "weight_values_checked": false
+  },
+  "result": {
+    "text": " Paris, is the capital of France,",
+    "token_ids": [
+      12366,
+      11,
+      374,
+      279,
+      6864,
+      315,
+      9822,
+      11
+    ],
+    "prompt_tokens": 5,
+    "completion_tokens": 8,
+    "finish_reason": "length"
+  }
+}

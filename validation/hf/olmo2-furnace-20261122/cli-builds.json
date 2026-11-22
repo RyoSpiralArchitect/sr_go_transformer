@@ -1,0 +1,56 @@
+{
+  "monolith": {
+    "sha256": "89c17030e0fc49db1a449b1acf9b2004a49828d42f7020eb564244c09c08d6d6",
+    "go": "go1.27.1",
+    "build": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-trimpath": "true",
+      "DefaultGODEBUG": "containermaxprocs=0,cryptocustomrand=1,decoratemappings=0,gotestjsonbuildtext=1,httpcookiemaxnum=0,httpservecontentkeepheaders=1,multipathtcp=0,randseednop=0,rsa1024min=0,tlsmlkem=0,tlssecpmlkem=0,tlssha1=1,tracebacklabels=0,updatemaxprocs=0,urlmaxqueryparams=0,urlstrictcolons=0,winreadlinkvolume=0,winsymlink=0,x509negativeserial=1,x509rsacrt=0,x509sha256skid=0,x509sslcertoverrideplatform=0,x509usepolicies=0",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "linux",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "7c64c850eec96e38dcfeefd254f14fc64e2322b8",
+      "vcs.time": "2026-11-22T13:11:39Z",
+      "vcs.modified": "true"
+    }
+  },
+  "monolith-final": {
+    "sha256": "8dede9f8881a63f10b1570371c43d939d3e48ef270c18e638eae7ba1d6ecae5b",
+    "go": "go1.27.1",
+    "build": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-trimpath": "true",
+      "DefaultGODEBUG": "containermaxprocs=0,cryptocustomrand=1,decoratemappings=0,gotestjsonbuildtext=1,httpcookiemaxnum=0,httpservecontentkeepheaders=1,multipathtcp=0,randseednop=0,rsa1024min=0,tlsmlkem=0,tlssecpmlkem=0,tlssha1=1,tracebacklabels=0,updatemaxprocs=0,urlmaxqueryparams=0,urlstrictcolons=0,winreadlinkvolume=0,winsymlink=0,x509negativeserial=1,x509rsacrt=0,x509sha256skid=0,x509sslcertoverrideplatform=0,x509usepolicies=0",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "linux",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "651ba435917429f74731d25523544a722f2034b1",
+      "vcs.time": "2026-11-22T13:23:25Z",
+      "vcs.modified": "false"
+    }
+  },
+  "reviewed-monolith": {
+    "sha256": "a408bbc868ea4bca33d40b2ef6c24e54646820a934aee6eab0e0f0a35ef7aa43",
+    "go": "go1.27.1",
+    "build": {
+      "-buildmode": "exe",
+      "-compiler": "gc",
+      "-trimpath": "true",
+      "DefaultGODEBUG": "containermaxprocs=0,cryptocustomrand=1,decoratemappings=0,gotestjsonbuildtext=1,httpcookiemaxnum=0,httpservecontentkeepheaders=1,multipathtcp=0,randseednop=0,rsa1024min=0,tlsmlkem=0,tlssecpmlkem=0,tlssha1=1,tracebacklabels=0,updatemaxprocs=0,urlmaxqueryparams=0,urlstrictcolons=0,winreadlinkvolume=0,winsymlink=0,x509negativeserial=1,x509rsacrt=0,x509sha256skid=0,x509sslcertoverrideplatform=0,x509usepolicies=0",
+      "CGO_ENABLED": "0",
+      "GOARCH": "amd64",
+      "GOOS": "linux",
+      "GOAMD64": "v1",
+      "vcs": "git",
+      "vcs.revision": "e7829bbd8b7d9bf289c00645a5310fe73188e6bf",
+      "vcs.time": "2026-11-22T13:32:48Z",
+      "vcs.modified": "false"
+    }
+  }
+}
