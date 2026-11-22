@@ -7,8 +7,48 @@ import hashlib
 import json
 from pathlib import Path
 from statistics import median
+import subprocess
 
 PROTOCOL = Path(__file__).with_name("protocol.json")
+
+
+ROOT = PROTOCOL.parents[3]
+CANDIDATE = "5ff300789b6b33d54ac6e3c16366d1c72680f06b"
+TOOLING = "e4b8747e3873931a8f88378c34b62f99378d0982"
+FIXTURE = "validation/performance/q8-compact-head-20261118/resident_test.go.txt"
+HARNESS = "cmd/monolith/inference_perf_test.go"
+CATALOG = "validation/hf/model-profiles.json"
+
+
+def blob(ref, path):
+    return subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT)
+
+
+def digest(ref, path):
+    return hashlib.sha256(blob(ref, path)).hexdigest()
+
+
+def verify_start(start, spec):
+    catalog = json.loads(blob(CANDIDATE, CATALOG))
+    model = next(m for m in catalog["models"] if m["id"] == spec["model_id"])
+    if (start["repo"], start["revision"], start["assets"]) != (model["repo"], model["revision"], model["files"]):
+        raise ValueError("model assets differ from the pinned catalog")
+    fixtures = {HARNESS: digest(CANDIDATE, HARNESS), "cmd/monolith/resident_test.go": digest(CANDIDATE, FIXTURE)}
+    for arm, ref in [("A", spec["baseline"]), ("B", CANDIDATE)]:
+        files = subprocess.check_output(["git", "ls-tree", "--name-only", ref + ":cmd/monolith"],
+                                        cwd=ROOT, text=True).splitlines()
+        names = ["cmd/monolith/" + n for n in files if n.endswith((".go", ".s")) and not n.endswith("_test.go")]
+        sources = {p: digest(ref, p) for p in [*names, "go.mod", "go.sum"]} | fixtures
+        build = start["builds"][arm]
+        if build["sources"] != sources or build["native"] != (arm == "B"):
+            raise ValueError(f"unexpected source, fixture or backend in build {arm}")
+    driver = str(PROTOCOL.relative_to(ROOT).parent)
+    shared = [FIXTURE, str(Path(FIXTURE).with_name("run.py")), str(Path(FIXTURE).with_name("variants.py")),
+              "validation/quality/corpus.json", CATALOG, driver+"/protocol.json", driver+"/run.py"]
+    inputs = {p:digest(CANDIDATE, p) for p in shared}
+    helpers = ["scripts/compare_inference.py", "scripts/quant_quality.py"]
+    if not any(start["inputs"] == inputs | {p:digest(ref, p) for p in helpers} for ref in (CANDIDATE, TOOLING)):
+        raise ValueError("unexpected driver, corpus or helper inputs")
 
 
 def assess(path):
@@ -17,15 +57,18 @@ def assess(path):
     data = path.read_bytes()
     events = iter(map(json.loads, data.splitlines()))
 
+    memory = []
+
     def take(kind, **expected):
         event = next(events, {})
         if event.get("event") != kind or any(event.get(k) != v for k, v in expected.items()):
             raise ValueError(f"missing or unexpected {kind} event for {expected}")
+        if "memory" in event:
+            memory.append(event["memory"])
         return event
 
     start = take("start", baseline=spec["baseline"], revision=spec["revision"], cpu=spec["cpu"], go=spec["go"])
-    if (start["builds"]["A"]["native"], start["builds"]["B"]["native"]) != (False, True):
-        raise ValueError("wrong linked backends")
+    verify_start(start, spec)
     if start["inputs"][str(PROTOCOL.relative_to(PROTOCOL.parents[3]))] != hashlib.sha256(PROTOCOL.read_bytes()).hexdigest():
         raise ValueError("protocol digest differs")
     ready = [take("ready", arm=arm)["ready"] for arm in "AB"]
@@ -74,12 +117,15 @@ def assess(path):
                          median_ms_per_forward={k:median(v) for k,v in times.items()},
                          median_ratio=ratio, wins=wins, order_medians=orders, controls=controls,
                          controls_pass=stable, speed_pass=speed, rss_kib=end["rss_kib"]))
-    end = take("complete")
+    take("complete")
     if next(events, None) is not None:
         raise ValueError("unexpected trailing events")
+    low_free = min(m["free_percent"] for m in memory)
+    new_swapouts = max(m["swapouts"] for m in memory) - start["memory"]["swapouts"]
+    memory_ok = low_free >= limits["min_free_percent"] and new_swapouts <= limits["max_new_swapout_pages"]
     return dict(events_sha256=hashlib.sha256(data).hexdigest(), cases=rows,
-                new_swapout_pages=end["memory"]["swapouts"]-start["memory"]["swapouts"],
-                accepted=all(r["controls_pass"] and r["speed_pass"] for r in rows))
+                min_recorded_free_percent=low_free, new_swapout_pages=new_swapouts, memory_pass=memory_ok,
+                accepted=memory_ok and all(r["controls_pass"] and r["speed_pass"] for r in rows))
 
 
 if __name__ == "__main__":
