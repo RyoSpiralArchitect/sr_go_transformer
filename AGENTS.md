@@ -1,6 +1,6 @@
 # Project verification
 
-- Keep the portable production runtime in `cmd/monolith/monolith.go`. The Darwin arm64 Q4 FFN kernel and its Go declaration live beside it. Stage all production Go and assembly sources when comparing package builds.
+- Keep the portable production runtime in `cmd/monolith/monolith.go`. The Darwin arm64 and Linux amd64 Q4 FFN kernels and their Go declarations live beside it. Stage all production Go and assembly sources when comparing package builds.
 - Use `scripts/go.sh` or the pinned local `.tools/go/bin/go` when Go is not on PATH.
 - Clean-checkout CI runs formatting, `go test -race -count=1 ./...`, `go vet ./...`, `python3 -S -m unittest discover -s scripts -p '*_test.py'`, `python3 -S scripts/check_probe_builds.py`, a CGO-disabled build and `scripts/smoke.sh`.
 - Local ignored `runs/` can contain historical Go scratch sources. Verify `./cmd/... ./tools/...` explicitly in such a dirty development checkout; do not delete historical files to make `./...` pass. CI checks the clean tracked tree.
