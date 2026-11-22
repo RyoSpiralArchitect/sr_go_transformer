@@ -3801,10 +3801,14 @@ type Param struct {
 	Name             string
 	Rows, Cols       int
 	Decay            bool
+	q4FFNPair        bool // This FFN weight can use the native two-row Q4 projection.
 	Data, Grad, M, V []float32
 	Q8               *q8Weights // Inference-only; Data is nil when present.
 	Q4               *q4Weights // Packed inference-only weights; no FP32 copy.
 }
+
+// Installed at startup by package builds with a native two-row FFN kernel.
+var q4FFNPairDot func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32)
 
 const q8Block = 64
 
@@ -4650,6 +4654,10 @@ func linearQ4TwoRowOutputPairRange(job *fp32Kernel, lo, hi int) {
 		for ; o+1 < end; o += 2 {
 			w0, w1 := w.Q4.Values[o*stride:(o+1)*stride], w.Q4.Values[(o+1)*stride:(o+2)*stride]
 			s0, s1 := w.Q4.Scales[o*groups:(o+1)*groups], w.Q4.Scales[(o+1)*groups:(o+2)*groups]
+			if w.q4FFNPair {
+				y[o], y[o+1], y[out+o], y[out+o+1] = q4FFNPairDot(x0, x1, w0, w1, s0, s1)
+				continue
+			}
 			var a00, a01, a10, a11 float32
 			for g := 0; g < groups; g++ {
 				column, packed := g*64, g*32
@@ -6663,6 +6671,9 @@ func allocateModelStorageFormat(c Config, rng *RNG, format string) *Model {
 		b.Gate = makeParam(prefix+"gate", h, d, false, 1/math.Sqrt(float64(d)))
 		b.Up = makeParam(prefix+"up", h, d, false, 1/math.Sqrt(float64(d)))
 		b.Down = makeParam(prefix+"down", d, h, false, 1/math.Sqrt(float64(2*c.Layers*h)))
+		for _, p := range [...]*Param{b.Gate, b.Up, b.Down} {
+			p.q4FFNPair = p.Q4 != nil && q4FFNPairDot != nil
+		}
 		m.Blocks = append(m.Blocks, b)
 	}
 	m.Final = makeParam("final_norm", 1, d, true, 0)
