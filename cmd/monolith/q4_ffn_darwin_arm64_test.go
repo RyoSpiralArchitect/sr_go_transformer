@@ -7,6 +7,7 @@ package main
 
 import (
 	"math"
+	"os"
 	"sync/atomic"
 	"testing"
 )
@@ -29,14 +30,29 @@ func TestQ4FFNPairNEONCodes(t *testing.T) {
 	}
 }
 
+func TestQ4FFNPairNEONStartup(t *testing.T) {
+	want := os.Getenv("MONOLITH_Q4_FFN_NEON") == "1"
+	if (q4FFNPairDot != nil) != want {
+		t.Fatalf("native kernel registration = %t, want %t", q4FFNPairDot != nil, want)
+	}
+	c, err := preset("tiny")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := allocateModelStorageFormat(c, nil, "q4-mixed").Blocks[0]
+	if b.Gate.q4FFNPair != want || b.Up.q4FFNPair != want || b.Down.q4FFNPair != want || b.O.q4FFNPair {
+		t.Fatal("model projection selection does not match startup policy")
+	}
+}
+
 func TestQ4FFNPairNEONProjection(t *testing.T) {
-	native := q4FFNPairDot
+	previous := q4FFNPairDot
 	var calls atomic.Int64
 	q4FFNPairDot = func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32) {
 		calls.Add(1)
-		return native(x0, x1, w0, w1, s0, s1)
+		return dotQ4FFNPairNEON(x0, x1, w0, w1, s0, s1)
 	}
-	t.Cleanup(func() { q4FFNPairDot = native })
+	t.Cleanup(func() { q4FFNPairDot = previous })
 	c, err := preset("tiny")
 	if err != nil {
 		t.Fatal(err)

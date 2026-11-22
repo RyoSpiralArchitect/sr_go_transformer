@@ -8,7 +8,8 @@ functions, scheduling and KV storage use the production implementation.
 
 ## Workload
 
-The baseline is `74f4a7a`. The candidate production sources are at `5ff3007`.
+The baseline is `74f4a7a`. The automatically enabled timing candidate is at `5ff3007`. In the shipping binary,
+`MONOLITH_Q4_FFN_NEON=1` selects the same leaf at process startup.
 The two package builds use Go 1.27.1 with cgo disabled and empty Go flags and
 experiments. The resident test fixture calls the uninstrumented model method
 and loads the same pinned Llama 3.2 3B snapshot into both processes. Only one
@@ -50,9 +51,11 @@ order and timing acceptance limits are identical in both modes.
 
 ```sh
 record=validation/performance/q4-ffn-neon-20261122
-python3 -S "$record/observe.py" "$MODEL_SNAPSHOT" "$NEW_OUTPUT_DIR"
+# The measured candidate enables the leaf at startup in this checkout.
+git worktree add --detach "$MEASURED_CHECKOUT" 12835e3024092322626145fd60e3d11c415c5b81
+python3 -S "$MEASURED_CHECKOUT/$record/observe.py" --existing-load "$MODEL_SNAPSHOT" "$NEW_OUTPUT_DIR"
 python3 -S "$record/assess.py" "$NEW_OUTPUT_DIR/run/events.jsonl"
-go test -race -run '^TestQ4FFN' -count=1 ./cmd/monolith
+MONOLITH_Q4_FFN_NEON=1 go test -race -run '^TestQ4FFN' -count=1 ./cmd/monolith
 go test -tags=purego -run '^TestQ4' -count=1 ./cmd/monolith
 ```
 

@@ -2,7 +2,13 @@
 
 package main
 
-func init() { q4FFNPairDot = dotQ4FFNPairNEON }
+import "os"
+
+func init() {
+	if os.Getenv("MONOLITH_Q4_FFN_NEON") == "1" {
+		q4FFNPairDot = dotQ4FFNPairNEON
+	}
+}
 
 // Each scale covers 64 floats and 32 packed bytes per row. The caller has
 // checked the activation range and passes two complete input and output rows.

@@ -192,9 +192,11 @@ balanced comparison with the previous kernel. The same probe
 checked one-session decode and both two-row prefill shapes.
 [Model measurements and controls](../validation/performance/q4-projection-20261112/).
 
-For gated feed-forward layers, ordinary Darwin arm64 builds now use NEON in the
-Gate, Up and Down projections when there are exactly two input rows and the input
-width is a multiple of 64. Two decoding sessions and a two-token prefill can both
+For gated feed-forward layers, ordinary Darwin arm64 builds include a NEON
+kernel. Set `MONOLITH_Q4_FFN_NEON=1` before starting the CLI or server to
+enable it. The default uses the existing scalar Q4 projection. The switch applies to Gate,
+Up and Down when there are exactly two input rows and the input width is a
+multiple of 64. Two decoding sessions and a two-token prefill can both
 produce that shape. The kernel expands signed nibbles in registers and applies
 each block scale after the same four-lane reduction as the Go implementation.
 Odd output channels and inputs requiring wide accumulation use the existing Go
