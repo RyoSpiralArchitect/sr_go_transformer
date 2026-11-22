@@ -59,6 +59,11 @@ class ComparisonProtocolTests(unittest.TestCase):
 
 
 class BuildIsolationTests(unittest.TestCase):
+    def test_native_q4_requires_an_explicit_probe_option(self):
+        with patch.dict(os.environ, {'MONOLITH_Q4_FFN_NEON': '1'}):
+            self.assertNotIn('MONOLITH_Q4_FFN_NEON', isolated_go_environment())
+        self.assertEqual(isolated_go_environment(q4_ffn_neon=True)['MONOLITH_Q4_FFN_NEON'], '1')
+
     def test_saved_and_process_go_flags_are_disabled(self):
         go = shutil.which('go')
         if not go:

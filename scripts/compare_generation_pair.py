@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from compare_inference import isolated_go_environment
-from quant_quality import git_source, sha
+from quant_quality import git_source, runtime_names, sha, source_path
 
 
 PROBE = '''package PACKAGE
@@ -142,24 +142,26 @@ def main():
     module = re.search(r'^module\s+(\S+)', (out / 'go.mod').read_text(), re.MULTILINE).group(1)
     driver_hash = sha(Path(__file__))
     candidate = (root / 'cmd/monolith/monolith.go').read_bytes()
-    previous = git_source(root, baseline, 'monolith.go')
     shared = {'test_' + path.name.removesuffix('_test.go') + '.go': path.read_bytes()
               for path in sorted((root / 'cmd/monolith').glob('*_test.go'))
-              if path.name != 'executor_experiments_test.go'}
+              if path.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go')}
     for variant in ('before', 'after'):
         build = out / variant
         build.mkdir()
-        sources = {'monolith.go': previous if variant == 'before' else candidate, **shared}
-        for name, content in sources.items():
-            (build / name).write_bytes(namespace_source(content, variant))
+        ref = baseline if variant == 'before' else None
+        sources = {n: git_source(root, ref, n) if ref else source_path(root, n).read_bytes()
+                   for n in runtime_names(root, ref)}
+        for name, content in (sources | shared).items():
+            (build / name).write_bytes(namespace_source(content, variant) if name.endswith('.go') else content)
         (build / 'generation_probe.go').write_text(PROBE.replace('PACKAGE', variant))
     (out / 'main.go').write_text(DRIVER.replace('MODULE', module))
     if args.target == 'linux-amd64':
         env.update(GOOS='linux', GOARCH='amd64')
-    inputs = {str(p.relative_to(out)): sha(p) for p in [*sorted(out.rglob('*.go')), out / 'go.mod', out / 'go.sum']}
+    build_inputs = [*sorted(out.rglob('*.go')), *sorted(out.rglob('*.s')), out / 'go.mod', out / 'go.sum']
+    inputs = {str(p.relative_to(out)): sha(p) for p in build_inputs}
     subprocess.run([go, 'build', '-trimpath', '-o', out / 'generation-pair', '.'],
                    cwd=out, env=env, check=True, timeout=300)
-    observed = {str(p.relative_to(out)): sha(p) for p in [*sorted(out.rglob('*.go')), out / 'go.mod', out / 'go.sum']}
+    observed = {str(p.relative_to(out)): sha(p) for p in build_inputs}
     if inputs != observed or driver_hash != sha(Path(__file__)):
         raise ValueError('comparison sources changed during compilation')
     receipt = dict(format='monolith-dual-generation-build-v1', baseline=baseline,

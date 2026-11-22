@@ -37,7 +37,7 @@ def main():
         if sha(model/name) != expected:
             raise RuntimeError('Pinned source mismatch: '+name)
     output.mkdir(parents=True, exist_ok=False)
-    inputs = sorted((root/'cmd/monolith').glob('*.go')) + sorted((root/'tools/loadtest').glob('*.go')) + [root/'go.mod', root/'go.sum']
+    inputs = sorted((root/'cmd/monolith').glob('*.go')) + sorted((root/'cmd/monolith').glob('*.s')) + sorted((root/'tools/loadtest').glob('*.go')) + [root/'go.mod', root/'go.sum']
     build_hashes = {str(p.relative_to(root)): sha(p) for p in inputs}
     script_inputs = {p.name: sha(p) for p in (Path(__file__), root/'scripts/quant_quality.py', root/'scripts/q8_reference.py')}
     env = dict(os.environ, HF_HUB_OFFLINE='1', GOMAXPROCS='4', CGO_ENABLED='0')

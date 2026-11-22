@@ -24,6 +24,9 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 
+from quant_quality import runtime_names, source_path
+
+
 def sha(path):
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -186,6 +189,7 @@ def main():
     receipt = dict(format="monolith-low-bit-reference-v1", formats=formats, model=source["repo"], revision=source["revision"],
         files=source["files"], binary_sha256=sha(a.binary), loadtest_sha256=sha(a.loadtest),
         source_sha256=sha(root / "cmd/monolith/monolith.go"), script_sha256=sha(Path(__file__)),
+        runtime_sources_sha256={n:sha(source_path(root, n)) for n in runtime_names(root)},
         host=platform.system()+"/"+platform.machine(), hf_hub_offline=True, plans=plans,
         numerical_reference="same-binary FP32; identical input prefixes; no quality threshold",
         cases=cases, cli_http_concurrent_sse_match=True, warmup_requests=2,

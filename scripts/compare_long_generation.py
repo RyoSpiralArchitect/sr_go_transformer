@@ -14,7 +14,7 @@ import platform
 import subprocess
 
 from compare_inference import isolated_go_environment
-from quant_quality import git_source, run_measured, sha, source_path
+from quant_quality import run_measured, runtime_names, sha, source_path, stage_runtime
 
 
 def signature(report):
@@ -61,7 +61,7 @@ def main():
     for name,expected in source['files'].items():
         if sha(model/name)!=expected: raise RuntimeError('Pinned source mismatch: '+name)
     output.mkdir(parents=True,exist_ok=False)
-    inputs=['monolith.go','go.mod','go.sum','inference_perf_test.go','long_generation_perf_test.go',
+    inputs=[*runtime_names(root),'go.mod','go.sum','inference_perf_test.go','long_generation_perf_test.go',
             'scripts/compare_long_generation.py','scripts/compare_inference.py','scripts/quant_quality.py',
             'scripts/go.sh','validation/quality/corpus.json','validation/hf/model-profiles.json']
     hashes={name:sha(source_path(root, name)) for name in inputs}
@@ -76,15 +76,13 @@ def main():
     builds={}
     for variant in ('before','after'):
         build=output/variant;build.mkdir()
-        for name in ('monolith.go','go.mod','go.sum'):
-            data=git_source(root, baseline, name) if variant=='before' else source_path(root, name).read_bytes()
-            (build/name).write_bytes(data)
+        stage_runtime(root, build, baseline if variant == 'before' else None)
         for name in ('inference_perf_test.go','long_generation_perf_test.go'):
             (build/name).write_bytes(source_path(root, name).read_bytes())
         binary=build/'probe.test'
         with (build/'build.log').open('w') as log:
             subprocess.run([go,'test','-c','-trimpath','-o',str(binary),'.'],cwd=build,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=300)
-        builds[variant]=dict(binary_sha256=sha(binary),inputs_sha256={p.name:sha(p) for p in build.iterdir() if p.suffix=='.go' or p.name in ('go.mod','go.sum')})
+        builds[variant]=dict(binary_sha256=sha(binary),inputs_sha256={p.name:sha(p) for p in build.iterdir() if p.suffix in ('.go', '.s') or p.name in ('go.mod','go.sum')})
     reports=[];reference=None
     for index,variant in enumerate(('before','after','after','before')):
         order=['short','long'] if index<2 else ['long','short']

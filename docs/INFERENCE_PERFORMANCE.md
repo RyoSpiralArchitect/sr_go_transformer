@@ -192,13 +192,15 @@ profile, workspace, cancellation and shared-model lifecycle tests also apply.
 
 ### Bounded real-model comparison
 
-The offline driver builds the selected Git baseline and current `monolith.go`
+The offline driver builds the selected Git baseline and current runtime sources (including architecture-specific kernels)
 in separate directories using the identical `inference_perf_test.go` harness.
 It requires pinned original model files from the catalog and an already
 installed Go toolchain/dependency cache. It creates no model download or
 expanded FP32 weights. The driver disables the user Go environment file,
 ambient build flags/workspaces, automatic toolchain downloads and module
-downloads, and records the effective build settings.
+downloads, and records the effective build settings. Isolated comparisons
+start with the default Q4 backend. Pass `--q4-ffn-neon` to this driver to
+record an explicit opt-in on compatible Darwin arm64 runtimes.
 
 ```sh
 python3 -S scripts/compare_inference.py --model PATH_TO_QWEN_7B \

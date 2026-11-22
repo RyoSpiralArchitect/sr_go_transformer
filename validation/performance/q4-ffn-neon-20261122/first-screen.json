@@ -1,0 +1,14 @@
+{
+  "baseline": "74f4a7a3597e28065868540fa48771c68e93c1e0",
+  "candidate_runtime": "5ff300789b6b33d54ac6e3c16366d1c72680f06b",
+  "status": "completed, failed the frozen timing screen",
+  "evidence": "Rounded assessment values preserved in the operator log. The host reboot cleared the temporary raw samples. This summary cannot be replayed independently.",
+  "cases": [
+    {"prefix":128,"sessions":2,"median_ratio":0.8141,"wins":7,"controls_pass":false,"baseline_repeat_ratio":1.0440,"native_repeat_ratio":0.8322},
+    {"prefix":128,"sessions":1,"median_ratio":0.9946,"wins":6,"controls_pass":true},
+    {"prefix":512,"sessions":1,"median_ratio":1.0036,"wins":2,"controls_pass":true},
+    {"prefix":512,"sessions":2,"median_ratio":0.8521,"wins":6,"controls_pass":false}
+  ],
+  "parity": "All 128 measured replays passed the seven-forward signature comparison.",
+  "follow_up": "An observed repeat was launched before the reboot. Its final status and samples are unavailable. The observed run in this directory uses persistent storage after restart."
+}

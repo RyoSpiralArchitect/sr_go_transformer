@@ -14,17 +14,19 @@ from pathlib import Path
 import platform
 import subprocess
 
-from quant_quality import git_source, run_measured, sha, source_path
+from quant_quality import run_measured, runtime_names, sha, source_path, stage_runtime
 
 
-def isolated_go_environment():
+def isolated_go_environment(*, q4_ffn_neon=False):
     # An empty GOFLAGS still falls back to the user go.env file. Disable that
     # file as well as process flags, workspaces and automatic downloads.
     env = dict(os.environ, HF_HUB_OFFLINE='1', GOMAXPROCS='4', CGO_ENABLED='0',
                GOENV='off', GOWORK='off', GOFLAGS='', GOEXPERIMENT='',
                GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off')
-    for key in ('HF_TOKEN', 'GOGC', 'GOMEMLIMIT', 'GODEBUG'):
+    for key in ('HF_TOKEN', 'GOGC', 'GOMEMLIMIT', 'GODEBUG', 'MONOLITH_Q4_FFN_NEON'):
         env.pop(key, None)
+    if q4_ffn_neon:
+        env['MONOLITH_Q4_FFN_NEON'] = '1'
     return env
 
 
@@ -68,6 +70,8 @@ def main():
     parser.add_argument('--id', required=True, help='Pinned model catalog ID')
     parser.add_argument('--baseline-ref', required=True, help='Local Git commit to compare')
     parser.add_argument('--weight-format', choices=('q8', 'q4-mixed'), default='q4-mixed')
+    parser.add_argument('--q4-ffn-neon', action='store_true',
+                        help='opt in to the Darwin arm64 Q4 FFN kernel in runtimes that support it')
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--case-order', choices=('fixed', 'balanced'), default='fixed',
                         help='fixed preserves 1,2; balanced reverses cases in the second process pair')
@@ -82,11 +86,11 @@ def main():
         if sha(model/name) != expected:
             raise RuntimeError('Pinned source mismatch: '+name)
     output.mkdir(parents=True, exist_ok=False)
-    inputs = [source_path(root, 'monolith.go'), root/'go.mod', root/'go.sum', source_path(root, 'inference_perf_test.go'),
+    inputs = [*(source_path(root, n) for n in runtime_names(root)), root/'go.mod', root/'go.sum', source_path(root, 'inference_perf_test.go'),
               root/'validation/quality/corpus.json', catalog_path,
               Path(__file__), root/'scripts/quant_quality.py', root/'scripts/go.sh']
     source_hashes = {str(p.relative_to(root)): sha(p) for p in inputs}
-    env = isolated_go_environment()
+    env = isolated_go_environment(q4_ffn_neon=args.q4_ffn_neon)
     env.update(MONOLITH_PERF_MODEL=str(model), MONOLITH_PERF_CORPUS=str(root/'validation/quality/corpus.json'),
                MONOLITH_PERF_FORMAT=args.weight_format)
     # scripts/go.sh intentionally changes to the repository root. Resolve its
@@ -105,10 +109,7 @@ def main():
     for variant in ('before', 'after'):
         build = output/variant
         build.mkdir()
-        for name in ('monolith.go', 'go.mod', 'go.sum'):
-            contents = (git_source(root, baseline, name)
-                        if variant == 'before' else source_path(root, name).read_bytes())
-            (build/name).write_bytes(contents)
+        names = stage_runtime(root, build, baseline if variant == 'before' else None)
         # The harness is identical for both runtimes and compiles by itself.
         (build/'inference_perf_test.go').write_bytes(source_path(root, 'inference_perf_test.go').read_bytes())
         binary = build/'probe.test'
@@ -116,7 +117,7 @@ def main():
             subprocess.run([go, 'test', '-c', '-trimpath', '-o', str(binary), '.'],
                            cwd=build, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=300, check=True)
         builds[variant] = dict(binary_sha256=sha(binary),
-                               inputs_sha256={n: sha(build/n) for n in ('monolith.go', 'go.mod', 'go.sum', 'inference_perf_test.go')})
+                               inputs_sha256={n: sha(build/n) for n in [*names, 'inference_perf_test.go']})
     # Two process pairs reverse run order. Each process warms both cases, then
     # measures three trials per case. Loading is outside the forward intervals.
     signature, reports, matched = None, [], True
@@ -159,7 +160,7 @@ def main():
                    hf_hub_offline=True, builds=builds, source_inputs_sha256=source_hashes,
                    numerical_identity=matched, reports=reports, effective_go_env=effective,
                    environment={k: env.get(k) for k in ('GOMAXPROCS', 'CGO_ENABLED', 'GOENV', 'GOWORK',
-                       'GOFLAGS', 'GOEXPERIMENT', 'GOTOOLCHAIN', 'GOPROXY', 'GOSUMDB', 'GOGC', 'GOMEMLIMIT', 'GODEBUG')},
+                       'GOFLAGS', 'GOEXPERIMENT', 'GOTOOLCHAIN', 'GOPROXY', 'GOSUMDB', 'GOGC', 'GOMEMLIMIT', 'GODEBUG', 'MONOLITH_Q4_FFN_NEON')},
                    note='One resident model per process; fixed 8-token prefixes, 7 decode calls, 1/2 sessions. Core forward timing only; peak RSS spans each full process. Not HTTP throughput or a language-quality benchmark.')
     write_parity_receipt(output/'receipt.json', receipt, matched)
 

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from quant_quality import git_source, source_path
+from quant_quality import git_source, runtime_names, source_path, stage_runtime
 
 
 def documentation_files(root):
@@ -19,7 +19,7 @@ def documentation_files(root):
 class RepositoryLayoutTests(unittest.TestCase):
     def test_current_sources_resolve(self):
         root = Path(__file__).resolve().parents[1]
-        sources = sorted((root / 'cmd/monolith').glob('*.go'))
+        sources = [root / 'cmd/monolith' / n for n in runtime_names(root)]
         self.assertTrue(sources)
         for source in sources:
             with self.subTest(source=source.name):
@@ -33,6 +33,38 @@ class RepositoryLayoutTests(unittest.TestCase):
             source = root / 'monolith.go'
             source.touch()
             self.assertEqual(source_path(root, source.name), source)
+
+    def test_stage_runtime_uses_each_revisions_backend(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.org',
+                                                '-c', 'commit.gpgsign=false', *args], cwd=root)
+            git('init', '-q')
+            for name in ('monolith.go', 'go.mod', 'go.sum'):
+                (root / name).write_text(name)
+            git('add', '.')
+            git('commit', '-qm', 'portable')
+            old = git('rev-parse', 'HEAD').decode().strip()
+            package = root / 'cmd/monolith'
+            package.mkdir(parents=True)
+            git('mv', 'monolith.go', 'cmd/monolith/')
+            for name in ('leaf_arm64.go', 'leaf_arm64.s', 'leaf_arm64_test.go'):
+                (package / name).write_text(name)
+            git('add', 'cmd')
+            git('commit', '-qm', 'native')
+            (package / 'leaf_arm64.s').write_text('working assembly')
+            for label, ref in [('old', old), ('native', 'HEAD'), ('working', None)]:
+                build = root / label
+                build.mkdir()
+                names = stage_runtime(root, build, ref)
+                self.assertEqual(set(names), {p.name for p in build.iterdir()})
+                self.assertIn('monolith.go', names)
+                self.assertNotIn('leaf_arm64_test.go', names)
+                self.assertEqual('leaf_arm64.s' in names, label != 'old')
+                if label != 'old':
+                    expected = 'leaf_arm64.s' if ref else 'working assembly'
+                    self.assertEqual((build / 'leaf_arm64.s').read_text(), expected)
 
     def test_git_source_supports_both_layouts(self):
         root = Path(__file__).resolve().parents[1]

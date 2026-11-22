@@ -13,7 +13,7 @@ import subprocess
 
 from compare_inference import isolated_go_environment
 from context_sweep_timing import STAGE_PROBE_FILES, instrument_context_sweep, summarize_stages
-from quant_quality import run_measured, sha, source_path
+from quant_quality import runtime_names, run_measured, sha, source_path
 
 
 def read_journal(path):
@@ -105,7 +105,7 @@ def main():
                 raise ValueError('pinned model differs: '+name)
     verify_model()
     output.mkdir(parents=True, exist_ok=False)
-    names = ('monolith.go', 'go.mod', 'go.sum', 'inference_perf_test.go', 'context_sweep_perf_test.go')
+    names = (*runtime_names(root), 'go.mod', 'go.sum', 'inference_perf_test.go', 'context_sweep_perf_test.go')
     stage_timing = args.stage_timing or args.compare_shared_kv
     if stage_timing:
         names += STAGE_PROBE_FILES

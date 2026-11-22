@@ -19,19 +19,44 @@ import time
 
 def source_path(root, name):
     path = root / name
-    if path.suffix == '.go' and path.parent == root and not path.exists():
+    if path.suffix in ('.go', '.s') and path.parent == root and not path.exists():
         return root / 'cmd/monolith' / name
     return path
 
 
 def git_source(root, ref, name):
-    paths = [name, 'cmd/monolith/' + name] if name.endswith('.go') and '/' not in name else [name]
+    paths = [name, 'cmd/monolith/' + name] if name.endswith(('.go', '.s')) and '/' not in name else [name]
     for path in paths:
         result = subprocess.run(['git', 'show', ref + ':' + path], cwd=root,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode == 0:
             return result.stdout
     raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+
+
+def runtime_names(root, ref=None):
+    """Production sources for one revision, including platform-specific Go and assembly."""
+    if ref is None:
+        directory = source_path(root, 'monolith.go').parent
+        names = [p.name for p in directory.iterdir() if p.is_file()]
+    else:
+        paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', ref, '--', 'cmd/monolith'],
+                                        cwd=root, text=True).splitlines()
+        names = [Path(p).name for p in paths if Path(p).parent == Path('cmd/monolith')]
+        if 'monolith.go' not in names:  # Before the command moved to cmd/monolith.
+            names = subprocess.check_output(['git', 'ls-tree', '--name-only', ref], cwd=root, text=True).splitlines()
+    if 'monolith.go' not in names:
+        raise ValueError('missing monolith.go in the selected runtime')
+    return sorted(n for n in names if n.endswith(('.go', '.s')) and
+                  not n.endswith('_test.go') and not n.startswith(('.', '_')))
+
+
+def stage_runtime(root, build, ref=None):
+    names = runtime_names(root, ref) + ['go.mod', 'go.sum']
+    for name in names:
+        data = source_path(root, name).read_bytes() if ref is None else git_source(root, ref, name)
+        (build / name).write_bytes(data)
+    return names
 
 
 def sha(path):
@@ -128,7 +153,8 @@ def main():
     reference = output / 'reference.f32'
     if reference.exists():
         raise RuntimeError('Use a fresh output directory; reference already exists')
-    inputs = sorted((root/'cmd/monolith').glob('*.go')) + [root/'go.mod', root/'go.sum']
+    inputs = ([source_path(root, n) for n in runtime_names(root)] +
+              sorted((root/'cmd/monolith').glob('*_test.go')) + [root/'go.mod', root/'go.sum'])
     build_inputs = {path.name: sha(path) for path in inputs}
     probe = output / 'probe.test'
     build_env = dict(os.environ, CGO_ENABLED='0')

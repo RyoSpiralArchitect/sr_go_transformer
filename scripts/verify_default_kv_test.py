@@ -10,14 +10,25 @@ class PredecessorBindingTests(unittest.TestCase):
         return dict(numerical_identity=True,builds={'after':{'inputs_sha256':{'monolith.go':'runtime','inference_perf_test.go':'harness'}}},reports=[dict(variant='after',report=report)])
 
     def test_wrong_source_cannot_supply_parity(self):
-        with self.assertRaises(ValueError):reference_signature(self.fixture(),'different','harness')
-        with self.assertRaises(ValueError):reference_signature(self.fixture(),'runtime','different')
+        with self.assertRaises(ValueError):reference_signature(self.fixture(),{'monolith.go':'different'},'harness')
+        with self.assertRaises(ValueError):reference_signature(self.fixture(),{'monolith.go':'runtime'},'different')
+
+    def test_native_files_are_part_of_predecessor_identity(self):
+        receipt = self.fixture()
+        runtime = {'monolith.go': 'runtime', 'leaf_arm64.s': 'native'}
+        with self.assertRaises(ValueError):
+            reference_signature(receipt, runtime, 'harness')
+        receipt['builds']['after']['inputs_sha256']['leaf_arm64.s'] = 'different'
+        with self.assertRaises(ValueError):
+            reference_signature(receipt, runtime, 'harness')
+        receipt['builds']['after']['inputs_sha256']['leaf_arm64.s'] = 'native'
+        self.assertEqual(reference_signature(receipt, runtime, 'harness')['threads'], 4)
 
     def test_disagreement_and_failed_reference_rejected(self):
         receipt=self.fixture();receipt['numerical_identity']=False
-        with self.assertRaises(ValueError):reference_signature(receipt,'runtime','harness')
+        with self.assertRaises(ValueError):reference_signature(receipt,{'monolith.go':'runtime'},'harness')
         receipt=self.fixture();other=copy.deepcopy(receipt['reports'][0]);other['report']['cases'][0]['trials'][0]['kv_sha256']='different';receipt['reports'].append(other)
-        with self.assertRaises(ValueError):reference_signature(receipt,'runtime','harness')
+        with self.assertRaises(ValueError):reference_signature(receipt,{'monolith.go':'runtime'},'harness')
 
     def test_bound_reference_returns_signature(self):
-        self.assertEqual(reference_signature(self.fixture(),'runtime','harness')['threads'],4)
+        self.assertEqual(reference_signature(self.fixture(),{'monolith.go':'runtime'},'harness')['threads'],4)

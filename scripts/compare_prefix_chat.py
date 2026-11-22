@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 
 from compare_inference import isolated_go_environment
-from quant_quality import git_source, run_measured, sha, source_path
+from quant_quality import git_source, run_measured, runtime_names, sha, source_path
 
 # Compare policies within the same production revision: only the fixed binary
 # gets the historical borrower guard. Refuse to modify a changed guard.
@@ -219,11 +219,9 @@ def main():
         for m in json.loads((root / "validation/hf/model-profiles.json").read_text())["models"]
         if m["id"] == "mistral-7b-v03"
     )
+    build_inputs = [*runtime_names(root), "go.mod", "go.sum", "prefix_chat_perf_test.go"]
     inputs = [
-        "monolith.go",
-        "go.mod",
-        "go.sum",
-        "prefix_chat_perf_test.go",
+        *build_inputs,
         "scripts/compare_prefix_chat.py",
         "scripts/compare_inference.py",
         "scripts/quant_quality.py",
@@ -277,7 +275,7 @@ def main():
     for name, contents in variants:
         build = out / name
         build.mkdir()
-        for item in inputs[:4]:
+        for item in build_inputs:
             (build / item).write_bytes(
                 contents if item == "monolith.go" else source_path(root, item).read_bytes()
             )
@@ -294,7 +292,7 @@ def main():
             env=dict(env, MONOLITH_EXPECT_CHAT_POLICY=expected),
             check=True,
         )
-        builds[name] = {n: sha(build / n) for n in inputs[:4] + ["probe.test"]}
+        builds[name] = {n: sha(build / n) for n in build_inputs + ["probe.test"]}
     reports = []
     for i, mode in enumerate(schedule):
         variant = "fixed" if mode == "fixed" else "current"

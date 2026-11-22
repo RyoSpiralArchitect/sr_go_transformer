@@ -24,7 +24,7 @@ def main():
     protocol = json.loads(args.protocol.read_text())
 
     def hashes():
-        return {p.name: sha(p) for p in sorted((root / "cmd/monolith").glob("*.go"))}
+        return {p.name: sha(p) for p in (root / "cmd/monolith").iterdir() if p.suffix in (".go", ".s")}
 
     sources = hashes()
     inputs = {n: sha(root / n) for n in ("go.mod", "go.sum")}

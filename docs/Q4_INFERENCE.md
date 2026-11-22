@@ -47,7 +47,7 @@ and no model-sized temporary integer buffer. Quantization runs at every load;
 cached source files and download sizes do not shrink. Keep source files
 immutable while loading.
 
-The kernel shares a read-only `[256][2]float32` decode table across engines.
+The portable kernel shares a read-only `[256][2]float32` decode table across engines.
 It consumes two packed bytes at a time and reuses four decoded values across
 up to four prompt/session rows. Two/three-row remainders also share each decode
 across a pair; only an odd final row runs alone. That odd row uses fixed
@@ -58,9 +58,8 @@ records the exact-output tests and measurements. The
 records exact-output checks and a bounded 7B timing comparison.
 Independent output tiles go to the existing
 fixed Go workers, which join before the next layer reuses the workspace.
-The table is allocated once; no per-request lookup table, decompressed matrix,
-cgo, unsafe pointers, assembly or architecture-specific backend is required.
-The existing callback dispatch still allocates once per kernel invocation.
+The read-only table is allocated once. A warmed fixed-worker projection reuses
+its dispatch state and writes directly to the output.
 
 Reduction order is fixed across worker counts and batch shapes. The conservative
 Q8 activation threshold also selects a per-row FP64 accumulation fallback for
@@ -192,6 +191,17 @@ run on Apple M4 recorded 27–28% shorter two-session decode in a
 balanced comparison with the previous kernel. The same probe
 checked one-session decode and both two-row prefill shapes.
 [Model measurements and controls](../validation/performance/q4-projection-20261112/).
+
+For gated feed-forward layers, ordinary Darwin arm64 builds include a NEON
+kernel. Set `MONOLITH_Q4_FFN_NEON=1` before starting the CLI or server to
+enable it. The default uses the existing scalar Q4 projection. The switch applies to Gate,
+Up and Down when there are exactly two input rows and the input width is a
+multiple of 64. Two decoding sessions and a two-token prefill can both
+produce that shape. The kernel expands signed nibbles in registers and applies
+each block scale after the same four-lane reduction as the Go implementation.
+Odd output channels and inputs requiring wide accumulation use the existing Go
+paths. Build with `go build -tags=purego ./cmd/monolith` for a portable control.
+See the [ordinary-build comparison](../validation/performance/q4-ffn-neon-20261122/).
 
 ## Experiment boundary
 

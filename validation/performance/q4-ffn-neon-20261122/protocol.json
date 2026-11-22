@@ -1,0 +1,15 @@
+{
+  "baseline": "74f4a7a3597e28065868540fa48771c68e93c1e0",
+  "model_id": "llama32-3b",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "go": "go version go1.27.1 darwin/arm64",
+  "cpu": "Apple M4",
+  "weights": "q4-mixed",
+  "kv": "f16",
+  "workers": 4,
+  "forwards": 7,
+  "cases": [[128,2],[128,1],[512,1],[512,2]],
+  "orders": ["AabB","aBAb","BbaA","bAaB","BbaA","bAaB","aBAb","AabB"],
+  "labels": "A and B are the primary scalar baseline and default native candidate. Lowercase labels repeat the corresponding binary. Reverse each order on alternate cases. Compare the sum of seven measured forward durations per replay.",
+  "limits": {"control_median_range":[0.97,1.03],"control_median_abs_error_max":0.05,"single_median_max":1.05,"two_median_max":0.95,"two_min_wins":7,"min_free_percent":40,"max_new_swapout_pages":0}
+}

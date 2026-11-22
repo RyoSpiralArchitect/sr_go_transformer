@@ -1,6 +1,6 @@
 # sr_go_tranformer
 
-A self-contained decoder-only Transformer written in Go, with training, text generation, and an HTTP inference server. The implementation lives in a single source file, [`monolith.go`](cmd/monolith/monolith.go). Model kernels use the Go standard library; the only runtime module dependency is `golang.org/x/text/unicode/norm` for Qwen NFC tokenization.
+A self-contained decoder-only Transformer written in Go, with training, text generation, and an HTTP inference server. The portable runtime lives in [`monolith.go`](cmd/monolith/monolith.go). On Apple Silicon, set `MONOLITH_Q4_FFN_NEON=1` to use the standard binary’s NEON kernel for two-row Q4 feed-forward projections. The only runtime module dependency is `golang.org/x/text/unicode/norm` for Qwen NFC tokenization.
 
 ## Features
 
@@ -252,7 +252,7 @@ Create `runs/` first if needed. See the [load client documentation](tools/loadte
 ## Repository layout
 
 ```text
-cmd/monolith/   Single-file runtime (monolith.go) and same-package Go tests
+cmd/monolith/   Portable runtime, Darwin arm64 Q4 kernel, and same-package Go tests
 configs/        Model configuration examples
 scripts/        Development, fixture generation and measurement scripts
 tools/          Independent loadtest and trainbench commands

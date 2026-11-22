@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse,json,subprocess,sys,statistics,platform
 from pathlib import Path
-from quant_quality import git_source, source_path
+from quant_quality import runtime_names, source_path, stage_runtime
 p=argparse.ArgumentParser();p.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);p.add_argument('--model',type=Path,required=True);p.add_argument('--harness',type=Path);p.add_argument('--output',type=Path,required=True);p.add_argument('--baseline',default='68ee4d8406b907c6bf6c77fdd364146da4aac7cf');p.add_argument('--long-ratio-max',type=float,default=.95);a=p.parse_args()
 if not 0 < a.long_ratio_max <= 2:p.error('--long-ratio-max must be in (0, 2]')
 root=a.root.resolve();a.harness=a.harness or source_path(root, 'prompt_prefill_perf_test.go');out=a.output.resolve();out.mkdir(exist_ok=False,parents=True)
@@ -20,13 +20,13 @@ source=next(x for x in json.loads((root/'validation/hf/model-profiles.json').rea
 def verify_model():
  for n,h in source['files'].items():
   if sha(a.model/n)!=h:raise RuntimeError('model mismatch '+n)
-verify_model();builds={};inputs={n:sha(source_path(root, n)) for n in ['monolith.go','go.mod','go.sum']}
+verify_model();builds={};inputs={n:sha(source_path(root, n)) for n in [*runtime_names(root),'go.mod','go.sum']}
 for variant in ('before','after'):
  d=out/variant;d.mkdir()
- for n in inputs:(d/n).write_bytes(git_source(root, baseline, n) if variant=='before' else source_path(root, n).read_bytes())
+ names = stage_runtime(root, d, baseline if variant == 'before' else None)
  (d/'prompt_real_test.go').write_bytes(a.harness.read_bytes());binary=d/'probe.test'
  with (d/'build.log').open('w') as log:subprocess.run([go,'test','-c','-trimpath','-o',str(binary),'.'],cwd=d,env=env,stdout=log,stderr=log,check=True)
- builds[variant]={'binary_sha256':sha(binary),'inputs_sha256':{n:sha(d/n) for n in list(inputs)+['prompt_real_test.go']}}
+ builds[variant]={'binary_sha256':sha(binary),'inputs_sha256':{n:sha(d/n) for n in names+['prompt_real_test.go']}}
 reports=[];reference=None;matched=True
 for i,variant in enumerate(protocol['order']):
  result=out/f'{i}-{variant}.json';env.update(MONOLITH_STACK_MODEL=str(a.model),MONOLITH_STACK_OUTPUT=str(result),MONOLITH_STACK_ORDER=protocol['case_orders'][i])
