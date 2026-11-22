@@ -2793,13 +2793,14 @@ func (t *hfTokenizer) encodeText(ctx context.Context, s string, limit int, speci
 					if err := ctx.Err(); err != nil {
 						return nil, err
 					}
-					b := hfWordEnd(segment, a)
-					if t.qwen || t.llama3 || t.olmo2 {
-						digits := 1
-						if t.llama3 || t.olmo2 {
-							digits = 3
-						}
-						b = hfSplitWordEnd(segment, a, digits)
+					var b int
+					switch {
+					case t.llama3 || t.olmo2:
+						b = hfSplitWordEnd(segment, a, 3)
+					case t.qwen:
+						b = hfSplitWordEnd(segment, a, 1)
+					default:
+						b = hfWordEnd(segment, a)
 					}
 					ids, err := t.bpe(ctx, segment[a:b])
 					if err != nil {

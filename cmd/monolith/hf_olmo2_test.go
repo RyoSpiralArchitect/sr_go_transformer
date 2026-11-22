@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +41,20 @@ func TestHFOlmo2TokenizerPipeline(t *testing.T) {
 	ids, err := tok.encodePrompt(context.Background(), "a"+special.Content+"b", 64)
 	if err != nil || len(ids) != 3 || ids[0] == special.ID || ids[1] != special.ID || tok.Decode(ids) != "ab" || tok.chat {
 		t.Fatalf("unexpected base-tokenizer framing %v: %v", ids, err)
+	}
+	// Each three-digit regex match is a separate BPE unit, including on a long numeric input.
+	group, err := tok.encodePrompt(context.Background(), "123", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digits, err := tok.encodePrompt(context.Background(), strings.Repeat("123", 1024), 3*1024)
+	if err != nil || len(digits) != 1024*len(group) {
+		t.Fatalf("unexpected long numeric tokenization length %d: %v", len(digits), err)
+	}
+	for i := 0; i < len(digits); i += len(group) {
+		if !slices.Equal(digits[i:i+len(group)], group) {
+			t.Fatal("numeric BPE crossed a three-digit boundary")
+		}
 	}
 	split["invert"] = false
 	write()

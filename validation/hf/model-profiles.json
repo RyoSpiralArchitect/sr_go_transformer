@@ -145,6 +145,7 @@
     },
     {
       "id": "olmo2-1b",
+      "dtype": "source F32 -> CPU FP32",
       "repo": "allenai/OLMo-2-0425-1B",
       "revision": "a1847dff35000b4271fa70afc5db10fd29fedbdf",
       "files": {

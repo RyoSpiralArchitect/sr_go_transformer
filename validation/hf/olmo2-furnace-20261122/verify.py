@@ -25,6 +25,21 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+def valid_completion(result, prompt_len, vocab_size, eos, tok):
+    tokens = result["token_ids"]
+    if not isinstance(tokens, list) or not 1 <= len(tokens) <= 8:
+        return False
+    if any(type(i) is not int or not 0 <= i < vocab_size for i in tokens) or eos in tokens[:-1]:
+        return False
+    if tokens[-1] == eos:
+        if result["finish_reason"] != "eos":
+            return False
+    elif result["finish_reason"] != "length" or len(tokens) != 8:
+        return False
+    return (result["completion_tokens"] == len(tokens) and result["prompt_tokens"] == prompt_len
+            and result["text"] == tok.decode(tokens, skip_special_tokens=True))
+
+
 def verify(args, log):
     def record(kind, **fields):
         print(json.dumps(dict(event=kind, **fields), ensure_ascii=False, allow_nan=False), file=log, flush=True)
@@ -63,8 +78,17 @@ def verify(args, log):
         record("tokenizer", prompt=prompt, ids=expected, match=match, go=got)
         if not match:
             raise ValueError("tokenizer disagreement")
+    digits = "123"*1536
+    expected = tok.encode(digits, add_special_tokens=True)
+    got, _ = call("tokenize-hf", "-hf-model", str(args.model), "-prompt", digits)
+    match = got["token_ids"] == expected and got["text"] == digits
+    record("numeric_tokenizer", digits=len(digits), token_count=len(expected), match=match)
+    if not match:
+        raise ValueError("long numeric tokenizer disagreement")
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.float32, attn_implementation="eager",
                                                local_files_only=True, trust_remote_code=False).cpu().eval()
+    vocab_size = model.config.vocab_size
+    eos = model.config.eos_token_id
     cases = []
     for prompt in PROMPTS:
         ids = tok.encode(prompt, add_special_tokens=True)
@@ -98,10 +122,12 @@ def verify(args, log):
         for fmt in ("f32", "q4-mixed"):
             go, resources = call("generate", *flags, "-weight-format", fmt, "-kv-format", "f32", "-threads", "4",
                                  "-max-tokens", "8", "-temperature", "0", "-repeat-penalty", "1", "-prompt", prompt, "-json")
-            match = go["token_ids"] == expected and go["text"] == tok.decode(expected, skip_special_tokens=True)
-            record("completion", format=fmt, prompt=prompt, reference_ids=expected, equals_fp32=match, go=go, **resources)
-            if go["prompt_tokens"] != len(ids) or fmt == "f32" and not match:
-                raise ValueError("text generation disagreement")
+            tokens = go["token_ids"]
+            complete = valid_completion(go, len(ids), vocab_size, eos, tok)
+            match = complete and tokens == expected
+            record("completion", format=fmt, prompt=prompt, reference_ids=expected, equals_fp32=match, complete=complete, go=go, **resources)
+            if not complete or fmt == "f32" and not match:
+                raise ValueError("incomplete or inconsistent text generation")
     record("complete")
 
 
