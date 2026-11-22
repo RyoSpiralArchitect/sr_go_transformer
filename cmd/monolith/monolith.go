@@ -4519,7 +4519,7 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 		}
 		return
 	}
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && n == 2 && in%64 == 0 {
+	if n == 2 && in%64 == 0 && (w.q4FFNPair || runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
 		linearQ4TwoRowOutputPairRange(job, lo, hi)
 		return
 	}

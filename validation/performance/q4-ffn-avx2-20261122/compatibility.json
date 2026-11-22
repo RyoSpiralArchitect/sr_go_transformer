@@ -1,0 +1,47 @@
+[
+  {
+    "label": "initial-v3",
+    "go": "1.27.1",
+    "goamd64": "v3",
+    "avx2": "1",
+    "binary_sha256": "38cb957bb5642765ad12ed4523015e8a7ca8f65ecb0a004c32c36587a257457e",
+    "exit": 1,
+    "output": "=== RUN   TestQ4FFNPairNativeCodes\n--- PASS: TestQ4FFNPairNativeCodes (0.00s)\n=== RUN   TestQ4FFNPairNativeStartup\n--- PASS: TestQ4FFNPairNativeStartup (0.00s)\n=== RUN   TestQ4FFNPairNativeProjection\n    q4_ffn_native_test.go:105: float bits differ at 0: bf730bba != bf730bbb\n--- FAIL: TestQ4FFNPairNativeProjection (0.00s)\nFAIL\n"
+  },
+  {
+    "label": "revised-v3",
+    "go": "1.27.1",
+    "goamd64": "v3",
+    "avx2": "1",
+    "binary_sha256": "c1701f225a0f4c286e647fa46fe7555b773ea7c4114c5c6bda345587be048546",
+    "exit": 0,
+    "output": "=== RUN   TestQ4FFNPairNativeCodes\n--- PASS: TestQ4FFNPairNativeCodes (0.00s)\n=== RUN   TestQ4FFNPairNativeStartup\n--- PASS: TestQ4FFNPairNativeStartup (0.00s)\n=== RUN   TestQ4FFNPairNativeProjection\n--- PASS: TestQ4FFNPairNativeProjection (0.00s)\nPASS\n"
+  },
+  {
+    "label": "revised-go122-v3",
+    "go": "1.22.12",
+    "goamd64": "v3",
+    "avx2": "1",
+    "binary_sha256": "75d8dc77555454659d22a2a41579cb7b97ae7b0e5774769bba6093c62ebdb978",
+    "exit": 0,
+    "output": "=== RUN   TestQ4FFNPairNativeCodes\n--- PASS: TestQ4FFNPairNativeCodes (0.00s)\n=== RUN   TestQ4FFNPairNativeStartup\n--- PASS: TestQ4FFNPairNativeStartup (0.00s)\n=== RUN   TestQ4FFNPairNativeProjection\n--- PASS: TestQ4FFNPairNativeProjection (0.00s)\nPASS\n"
+  },
+  {
+    "label": "ordinary-v1-on",
+    "go": "1.27.1",
+    "goamd64": "v1",
+    "avx2": "1",
+    "binary_sha256": "2c2d46bd5228699910c696a35116f3973a1dc1012e1461d887355325d8545877",
+    "exit": 0,
+    "output": "=== RUN   TestQ4FFNPairNativeCodes\n--- PASS: TestQ4FFNPairNativeCodes (0.00s)\n=== RUN   TestQ4FFNPairNativeStartup\n--- PASS: TestQ4FFNPairNativeStartup (0.00s)\n=== RUN   TestQ4FFNPairNativeProjection\n--- PASS: TestQ4FFNPairNativeProjection (0.00s)\nPASS\n"
+  },
+  {
+    "label": "ordinary-v1-off",
+    "go": "1.27.1",
+    "goamd64": "v1",
+    "avx2": "0",
+    "binary_sha256": "2c2d46bd5228699910c696a35116f3973a1dc1012e1461d887355325d8545877",
+    "exit": 0,
+    "output": "=== RUN   TestQ4FFNPairNativeCodes\n--- PASS: TestQ4FFNPairNativeCodes (0.00s)\n=== RUN   TestQ4FFNPairNativeStartup\n--- PASS: TestQ4FFNPairNativeStartup (0.00s)\n=== RUN   TestQ4FFNPairNativeProjection\n--- PASS: TestQ4FFNPairNativeProjection (0.00s)\nPASS\n"
+  }
+]

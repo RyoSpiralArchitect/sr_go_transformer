@@ -52,7 +52,8 @@ def main():
                                      cwd=root, env=env, text=True).strip()
     go = str(Path(goroot) / 'bin/go')
     shared = [p for p in sorted((root / 'cmd/monolith').glob('*_test.go'))
-              if p.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go')]
+              if p.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go',
+                                    'q4_ffn_linux_amd64_test.go', 'q4_ffn_native_test.go')]
     sources = [root / 'go.mod', root / 'go.sum', *[source_path(root, n) for n in runtime_names(root)], *shared]
     hashes = {str(path.relative_to(root)): sha(path) for path in sources}
     builds = {}

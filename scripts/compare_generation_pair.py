@@ -144,7 +144,8 @@ def main():
     candidate = (root / 'cmd/monolith/monolith.go').read_bytes()
     shared = {'test_' + path.name.removesuffix('_test.go') + '.go': path.read_bytes()
               for path in sorted((root / 'cmd/monolith').glob('*_test.go'))
-              if path.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go')}
+              if path.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go',
+                                    'q4_ffn_linux_amd64_test.go', 'q4_ffn_native_test.go')}
     for variant in ('before', 'after'):
         build = out / variant
         build.mkdir()
