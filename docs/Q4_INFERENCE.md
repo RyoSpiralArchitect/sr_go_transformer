@@ -203,6 +203,14 @@ Odd output channels and inputs requiring wide accumulation use the existing Go
 paths. Build with `go build -tags=purego ./cmd/monolith` for a portable control.
 See the [ordinary-build comparison](../validation/performance/q4-ffn-neon-20261122/).
 
+On Linux amd64, start the CLI or server with `MONOLITH_Q4_FFN_AVX2=1` to
+enable the two-row Gate, Up and Down kernel. Startup checks AVX2 and operating
+system support for saving YMM registers. The normal build targets GOAMD64=v1.
+On v3/v4 builds the kernel follows the Go compiler's multiply-add rounding.
+The one-row path, odd tails and wide accumulation use the existing kernels.
+The [Furnace comparison](../validation/performance/q4-ffn-avx2-20261122/)
+records the four-core topology, exact outputs and resident decode timings.
+
 ## Experiment boundary
 
 We explored activation-dependent bit-plane lookup tables, motivated by the
