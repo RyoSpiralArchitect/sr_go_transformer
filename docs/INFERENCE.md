@@ -222,6 +222,7 @@ Interactive history commits a reply only after successful completion. Use
 | Qwen2 / Qwen2.5 | Restricted Qwen2 profile; Qwen2.5 0.5B/1.5B tested, optional Q8 | Chat provider or dedicated endpoint |
 | gpt-oss | No native MoE kernel | Chat provider or dedicated endpoint |
 | Mistral | [Full-attention v0.3 text/chat](MISTRAL_INFERENCE.md); real 7B weights not yet validated | Chat provider or dedicated endpoint |
+| OLMo 2 | OLMo-2-0425-1B base text and token IDs | Dedicated text endpoint |
 | Gemma | Not implemented locally | Chat provider or dedicated endpoint |
 
 [Llama 3.2 text inference](LLAMA3_INFERENCE.md) supports plain prompts,

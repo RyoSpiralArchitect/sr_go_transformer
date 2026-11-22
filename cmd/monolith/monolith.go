@@ -358,9 +358,9 @@ func readHFConfig(dir string, contextLimit int) (hfConfig, Config, error) {
 			return h, Config{}, errors.New("unsupported or invalid Llama 3 RoPE scaling")
 		}
 	}
-	arch := map[string]string{"llama": "LlamaForCausalLM", "qwen2": "Qwen2ForCausalLM", "mistral": "MistralForCausalLM"}[h.ModelType]
+	arch := map[string]string{"llama": "LlamaForCausalLM", "qwen2": "Qwen2ForCausalLM", "mistral": "MistralForCausalLM", "olmo2": "Olmo2ForCausalLM"}[h.ModelType]
 	if arch == "" || len(h.Architectures) != 1 || h.Architectures[0] != arch || h.Act != "silu" || h.AttentionBias || h.MLPBias || h.Interleaved || h.Dropout != 0 || (h.TP != 0 && h.TP != 1) || h.Sliding {
-		return h, Config{}, errors.New("unsupported HF profile: require Llama, Qwen2 or full-attention Mistral, SiLU, supported half-split RoPE and full causal attention")
+		return h, Config{}, errors.New("unsupported HF profile: require Llama, Qwen2, OLMo 2 or full-attention Mistral, SiLU, supported half-split RoPE and full causal attention")
 	}
 	if len(h.LayerTypes) != 0 && len(h.LayerTypes) != h.Layers {
 		return h, Config{}, errors.New("HF layer_types count mismatch")
@@ -370,7 +370,13 @@ func readHFConfig(dir string, contextLimit int) (hfConfig, Config, error) {
 			return h, Config{}, errors.New("unsupported HF attention layer type")
 		}
 	}
-	if raw["bos_token_id"] == nil || raw["eos_token_id"] == nil || string(raw["bos_token_id"]) == "null" || string(raw["eos_token_id"]) == "null" || h.BOS < 0 || h.BOS >= h.Vocab || h.EOS < 0 || h.EOS >= h.Vocab {
+	missingBOS := raw["bos_token_id"] == nil || string(raw["bos_token_id"]) == "null"
+	if missingBOS && h.ModelType == "olmo2" {
+		// The base tokenizer names the same special token for BOS and EOS.
+		// Its prompt pipeline has no post-processor and never prepends it.
+		h.BOS = h.EOS
+	}
+	if missingBOS && h.ModelType != "olmo2" || raw["eos_token_id"] == nil || string(raw["eos_token_id"]) == "null" || h.BOS < 0 || h.BOS >= h.Vocab || h.EOS < 0 || h.EOS >= h.Vocab {
 		return h, Config{}, errors.New("HF profile requires scalar BOS/EOS IDs within vocabulary")
 	}
 	c := Config{Vocab: h.Vocab, Dim: h.Dim, Hidden: h.Hidden, Layers: h.Layers, Heads: h.Heads, KVHeads: h.KVHeads, Context: h.Context, RopeTheta: h.Theta, NormEps: h.Eps}
@@ -397,6 +403,9 @@ func hfParameterCount(c Config, h hfConfig) int64 {
 		return (int64(c.Vocab)+int64(h.Context))*d + layers*(4*d*d+2*d*hidden+9*d+hidden) + 2*d
 	}
 	n := c.ParameterCount()
+	if h.ModelType == "olmo2" {
+		n += int64(c.Layers) * int64(c.Dim+c.KVDim())
+	}
 	if h.ModelType == "qwen2" {
 		n += int64(c.Layers) * int64(c.Dim+2*c.KVDim())
 	}
@@ -412,16 +421,20 @@ type hfTensorSpec struct {
 }
 
 func hfTensorSpecs(c Config) []hfTensorSpec {
+	return hfRotaryTensorSpecs(c, "input_layernorm.weight", "post_attention_layernorm.weight")
+}
+
+func hfRotaryTensorSpecs(c Config, attentionNorm, ffnNorm string) []hfTensorSpec {
 	out := []hfTensorSpec{{"model.embed_tokens.weight", []int{c.Vocab, c.Dim}}}
 	for i := 0; i < c.Layers; i++ {
 		p := fmt.Sprintf("model.layers.%d.", i)
 		out = append(out,
-			hfTensorSpec{p + "input_layernorm.weight", []int{c.Dim}},
+			hfTensorSpec{p + attentionNorm, []int{c.Dim}},
 			hfTensorSpec{p + "self_attn.q_proj.weight", []int{c.Dim, c.Dim}},
 			hfTensorSpec{p + "self_attn.k_proj.weight", []int{c.KVDim(), c.Dim}},
 			hfTensorSpec{p + "self_attn.v_proj.weight", []int{c.KVDim(), c.Dim}},
 			hfTensorSpec{p + "self_attn.o_proj.weight", []int{c.Dim, c.Dim}},
-			hfTensorSpec{p + "post_attention_layernorm.weight", []int{c.Dim}},
+			hfTensorSpec{p + ffnNorm, []int{c.Dim}},
 			hfTensorSpec{p + "mlp.gate_proj.weight", []int{c.Hidden, c.Dim}},
 			hfTensorSpec{p + "mlp.up_proj.weight", []int{c.Hidden, c.Dim}},
 			hfTensorSpec{p + "mlp.down_proj.weight", []int{c.Dim, c.Hidden}})
@@ -434,7 +447,17 @@ func hfProfileSpecs(c Config, h hfConfig) []hfTensorSpec {
 	if h.ModelType == "gpt2" {
 		return gpt2Specs(c, h)
 	}
-	out := hfTensorSpecs(c)
+	var out []hfTensorSpec
+	if h.ModelType == "olmo2" {
+		out = hfRotaryTensorSpecs(c, "post_attention_layernorm.weight", "post_feedforward_layernorm.weight")
+		for i := 0; i < c.Layers; i++ {
+			p := fmt.Sprintf("model.layers.%d.self_attn.", i)
+			out = append(out, hfTensorSpec{p + "q_norm.weight", []int{c.Dim}},
+				hfTensorSpec{p + "k_norm.weight", []int{c.KVDim()}})
+		}
+	} else {
+		out = hfTensorSpecs(c)
+	}
 	if h.ModelType == "qwen2" {
 		for i := 0; i < c.Layers; i++ {
 			p := fmt.Sprintf("model.layers.%d.self_attn.", i)
@@ -1004,6 +1027,9 @@ func checkHFFormat(dir string, limit int, budget int64, requireChat bool, format
 	if tok.gpt2 {
 		profile = "gpt2-bytelevel"
 	}
+	if tok.olmo2 {
+		profile = "olmo2-bytelevel"
+	}
 	if tok.llama3 {
 		profile = "llama3-bytelevel"
 	}
@@ -1511,6 +1537,7 @@ type hfTokenizer struct {
 	qwen     bool
 	gpt2     bool
 	llama3   bool
+	olmo2    bool
 	mistral  bool
 	symbols  map[rune]int // Metaspace BPE starts from Unicode scalar values.
 	fallback []bool       // Token-ID boundaries matter for ByteFallback decoding.
@@ -1751,15 +1778,23 @@ func loadHFTokenizer(dir string, h hfConfig) (*hfTokenizer, error) {
 	}
 	gpt2 := h.ModelType == "gpt2" && null(raw.Normalizer) &&
 		byteLevel(raw.PreTokenizer, false, true) && byteLevel(raw.PostProcessor, true, false) && byteLevel(raw.Decoder, true, true)
-	llamaPre, _ := json.Marshal(map[string]any{"type": "Sequence", "pretokenizers": []any{
-		map[string]any{"type": "Split", "pattern": map[string]string{"Regex": llama3SplitPattern}, "behavior": "Isolated", "invert": false},
+	// OLMo 2 keeps the matches of the same exhaustive regex. Both versions
+	// produce one piece per match, including the final whitespace branch.
+	splitBehavior, invert := "Isolated", false
+	if h.ModelType == "olmo2" {
+		splitBehavior, invert = "Removed", true
+	}
+	threeDigitPre, _ := json.Marshal(map[string]any{"type": "Sequence", "pretokenizers": []any{
+		map[string]any{"type": "Split", "pattern": map[string]string{"Regex": llama3SplitPattern}, "behavior": splitBehavior, "invert": invert},
 		json.RawMessage(`{"type":"ByteLevel","add_prefix_space":false,"trim_offsets":true,"use_regex":false}`),
 	}})
 	llamaPost := fmt.Sprintf(`{"type":"Sequence","processors":[{"type":"ByteLevel","add_prefix_space":true,"trim_offsets":false,"use_regex":true},{"type":"TemplateProcessing","single":[{"SpecialToken":{"id":"<|begin_of_text|>","type_id":0}},{"Sequence":{"id":"A","type_id":0}}],"pair":[{"SpecialToken":{"id":"<|begin_of_text|>","type_id":0}},{"Sequence":{"id":"A","type_id":0}},{"SpecialToken":{"id":"<|begin_of_text|>","type_id":1}},{"Sequence":{"id":"B","type_id":1}}],"special_tokens":{"<|begin_of_text|>":{"id":"<|begin_of_text|>","ids":[%d],"tokens":["<|begin_of_text|>"]}}}]}`, h.BOS)
 	llama3 := h.ModelType == "llama" && raw.Model.Ignore && null(raw.Normalizer) &&
-		canonical(raw.PreTokenizer) == canonical(llamaPre) && canonical(raw.PostProcessor) == canonical([]byte(llamaPost)) &&
+		canonical(raw.PreTokenizer) == canonical(threeDigitPre) && canonical(raw.PostProcessor) == canonical([]byte(llamaPost)) &&
 		canonical(raw.Decoder) == canonical([]byte(dec))
-	if !qwen && !smol && !gpt2 && !llama3 || raw.Model.Ignore && !llama3 {
+	olmo2 := h.ModelType == "olmo2" && !raw.Model.Ignore && null(raw.Normalizer) && null(raw.PostProcessor) &&
+		canonical(raw.PreTokenizer) == canonical(threeDigitPre) && canonical(raw.Decoder) == canonical([]byte(dec))
+	if (!qwen && !smol && !gpt2 && !llama3 && !olmo2) || raw.Model.Ignore && !llama3 || h.ModelType == "olmo2" && !olmo2 {
 		return nil, errors.New("unsupported HF tokenizer pipeline")
 	}
 	var cfg struct {
@@ -1772,7 +1807,7 @@ func loadHFTokenizer(dir string, h hfConfig) (*hfTokenizer, error) {
 		Unk        string                     `json:"unk_token"`
 		Chat       string                     `json:"chat_template"`
 		Cleanup    bool                       `json:"clean_up_tokenization_spaces"`
-		MaxLength  int                        `json:"model_max_length"`
+		MaxLength  json.RawMessage            `json:"model_max_length"`
 		Class      string                     `json:"tokenizer_class"`
 		Vocab      int                        `json:"vocab_size"`
 		AddBOS     bool                       `json:"add_bos_token"`
@@ -1803,21 +1838,29 @@ func loadHFTokenizer(dir string, h hfConfig) (*hfTokenizer, error) {
 			cfg.Added = map[string]hfAddedToken{strconv.Itoa(raw.Added[0].ID): raw.Added[0]}
 		}
 	}
+	var maxLength int
+	if olmo2 && string(cfg.MaxLength) == "1000000000000000019884624838656" {
+		// Transformers' unbounded tokenizer sentinel; model context still applies.
+		maxLength = h.Context
+	} else if len(cfg.MaxLength) > 0 && json.Unmarshal(cfg.MaxLength, &maxLength) != nil {
+		return nil, errors.New("invalid HF tokenizer model_max_length")
+	}
 	mergeLimit := maxHFVocab
 	if llama3 {
 		mergeLimit = 2 * maxHFVocab // The pinned 128K vocabulary has 280,147 merge pairs.
 	}
 	if cfg.AddPrefix || cfg.Cleanup && !llama3 || cfg.AddBOS || cfg.Split || (cfg.Errors != "" && cfg.Errors != "replace") || len(cfg.Extra) != 0 ||
 		(!llama3 && len(cfg.Inputs) != 0) ||
-		(llama3 && (cfg.Class != "PreTrainedTokenizerFast" || cfg.MaxLength < h.Context || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || cfg.BOS != "<|begin_of_text|>" || cfg.EOS != "<|end_of_text|>" && cfg.EOS != "<|eot_id|>" || len(cfg.Inputs) != 2 || cfg.Inputs[0] != "input_ids" || cfg.Inputs[1] != "attention_mask")) ||
-		(smol && (cfg.Class != "GPT2Tokenizer" || cfg.Vocab != h.Vocab || cfg.MaxLength != h.Context)) ||
-		(qwen && (cfg.Class != "Qwen2Tokenizer" || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || cfg.MaxLength < h.Context)) ||
-		(gpt2 && (cfg.Class != "GPT2Tokenizer" || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || cfg.MaxLength < h.Context || cfg.Chat != "")) ||
+		(llama3 && (cfg.Class != "PreTrainedTokenizerFast" || maxLength < h.Context || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || cfg.BOS != "<|begin_of_text|>" || cfg.EOS != "<|end_of_text|>" && cfg.EOS != "<|eot_id|>" || len(cfg.Inputs) != 2 || cfg.Inputs[0] != "input_ids" || cfg.Inputs[1] != "attention_mask")) ||
+		(olmo2 && (cfg.Class != "GPT2Tokenizer" || cfg.BOS != "<|endoftext|>" || cfg.EOS != cfg.BOS || cfg.Unk != cfg.BOS || cfg.Chat != "" || maxLength < h.Context || cfg.Vocab != 0 && cfg.Vocab != h.Vocab)) ||
+		(smol && (cfg.Class != "GPT2Tokenizer" || cfg.Vocab != h.Vocab || maxLength != h.Context)) ||
+		(qwen && (cfg.Class != "Qwen2Tokenizer" || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || maxLength < h.Context)) ||
+		(gpt2 && (cfg.Class != "GPT2Tokenizer" || cfg.Vocab != 0 && cfg.Vocab != h.Vocab || maxLength < h.Context || cfg.Chat != "")) ||
 		h.Vocab > maxHFVocab || h.Vocab < 258 || h.BOS < 0 || h.BOS >= h.Vocab || h.EOS < 0 || h.EOS >= h.Vocab ||
 		len(raw.Model.Vocab) > h.Vocab || len(raw.Added) > 256 || len(raw.Model.Merges) > mergeLimit {
 		return nil, errors.New("HF tokenizer config/model mismatch or unsupported options")
 	}
-	t := &hfTokenizer{pieces: make([][]byte, h.Vocab), merges: map[Pair]hfMerge{}, bos: h.BOS, eos: h.EOS, qwen: qwen, gpt2: gpt2, llama3: llama3, cleanup: cfg.Cleanup}
+	t := &hfTokenizer{pieces: make([][]byte, h.Vocab), merges: map[Pair]hfMerge{}, bos: h.BOS, eos: h.EOS, qwen: qwen, gpt2: gpt2, llama3: llama3, olmo2: olmo2, cleanup: cfg.Cleanup}
 	t.extraEOS = append([]int(nil), h.ExtraEOS...)
 	if llama3 {
 		t.whole = make(map[string]int, len(raw.Model.Vocab))
@@ -1844,7 +1887,7 @@ func loadHFTokenizer(dir string, h hfConfig) (*hfTokenizer, error) {
 		t.specials = append(t.specials, s)
 	}
 	for _, s := range append(append([]string{}, cfg.Additional...), cfg.BOS, cfg.EOS, cfg.Pad, cfg.Unk) {
-		if (qwen || gpt2 || llama3) && s == "" {
+		if (qwen || gpt2 || llama3 || olmo2) && s == "" {
 			continue
 		}
 		if !specialNames[s] {
@@ -2734,7 +2777,7 @@ func (t *hfTokenizer) encodeText(ctx context.Context, s string, limit int, speci
 			for lo := 0; lo < len(plain); {
 				r, n := utf8.DecodeRuneInString(plain[lo:])
 				hi := lo + n
-				if t.qwen || t.gpt2 || t.llama3 {
+				if t.qwen || t.gpt2 || t.llama3 || t.olmo2 {
 					hi = len(plain)
 				} else if !unicode.IsNumber(r) {
 					for hi < len(plain) {
@@ -2750,13 +2793,14 @@ func (t *hfTokenizer) encodeText(ctx context.Context, s string, limit int, speci
 					if err := ctx.Err(); err != nil {
 						return nil, err
 					}
-					b := hfWordEnd(segment, a)
-					if t.qwen || t.llama3 {
-						digits := 1
-						if t.llama3 {
-							digits = 3
-						}
-						b = hfSplitWordEnd(segment, a, digits)
+					var b int
+					switch {
+					case t.llama3 || t.olmo2:
+						b = hfSplitWordEnd(segment, a, 3)
+					case t.qwen:
+						b = hfSplitWordEnd(segment, a, 1)
+					default:
+						b = hfWordEnd(segment, a)
 					}
 					ids, err := t.bpe(ctx, segment[a:b])
 					if err != nil {
@@ -6361,7 +6405,7 @@ func swigluBackwardInto(dg, du, g, u, dy []float32) {
 
 // Model owns parameters; each Forward owns its tape and each decoder its cache.
 // Immutable models are safe to share between inference requests.
-type Block struct{ N1, Q, K, V, O, N2, Gate, Up, Down, QB, KB, VB, N1B, N2B, OB, GateB, DownB *Param }
+type Block struct{ N1, Q, K, V, O, N2, Gate, Up, Down, QB, KB, VB, N1B, N2B, OB, GateB, DownB, QNorm, KNorm *Param }
 type Model struct {
 	output              *Param // Optional untied HF output head; native models use Emb.
 	Config              Config
@@ -6454,6 +6498,13 @@ func loadHFModelKVFormat(ctx context.Context, dir string, limit int, mib int64, 
 		p := newInferenceParamFormat(name, rows, cols, name == "output", format)
 		m.Params = append(m.Params, p)
 		return p
+	}
+	if a.Config.ModelType == "olmo2" {
+		for i := range m.Blocks {
+			b := &m.Blocks[i]
+			b.QNorm = makeExtra("q_norm", 1, m.Config.Dim)
+			b.KNorm = makeExtra("k_norm", 1, m.Config.KVDim())
+		}
 	}
 	if a.Config.ModelType == "qwen2" {
 		for i := range m.Blocks {
@@ -8455,10 +8506,19 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 			return nil, err
 		}
 		region := trace.StartRegion(ctx, "monolith.prefill_layer")
-		inferenceNorm(w.N, w.X, b.N1, b.N1B, n, c.NormEps)
-		linearIntoWithExecutor(executor, w.Q, w.N, b.Q, n)
-		linearIntoWithExecutor(executor, w.K, w.N, b.K, n)
-		linearIntoWithExecutor(executor, w.V, w.N, b.V, n)
+		input := w.X
+		if b.QNorm == nil {
+			inferenceNorm(w.N, w.X, b.N1, b.N1B, n, c.NormEps)
+			input = w.N
+		}
+		linearIntoWithExecutor(executor, w.Q, input, b.Q, n)
+		linearIntoWithExecutor(executor, w.K, input, b.K, n)
+		linearIntoWithExecutor(executor, w.V, input, b.V, n)
+		if b.QNorm != nil {
+			// OLMo 2 normalizes whole projection rows before splitting heads for RoPE.
+			rmsInto(w.Q, w.Q, b.QNorm, n, c.NormEps)
+			rmsInto(w.K, w.K, b.KNorm, n, c.NormEps)
+		}
 		addBias(w.Q, b.QB)
 		addBias(w.K, b.KB)
 		addBias(w.V, b.VB)
@@ -8477,9 +8537,14 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 		// projections; their inputs (A and G) remain separate.
 		linearIntoWithExecutor(executor, w.Q, w.A, b.O, n)
 		addBias(w.Q, b.OB)
+		if b.QNorm != nil {
+			rmsInto(w.Q, w.Q, b.N1, n, c.NormEps)
+		}
 		addInPlace(w.X, w.Q)
-		inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
-		linearIntoWithExecutor(executor, w.G, w.N, b.Gate, n)
+		if b.QNorm == nil {
+			inferenceNorm(w.N, w.X, b.N2, b.N2B, n, c.NormEps)
+		}
+		linearIntoWithExecutor(executor, w.G, input, b.Gate, n)
 		// Gate values are dead after activation. Overwrite them only after
 		// the projections join, preserving each element's arithmetic order.
 		if m.Position != nil {
@@ -8489,13 +8554,16 @@ func (m *Model) prefillSelected(ctx context.Context, caches []*KVCache, chunks [
 				w.G[i] = float32(0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*x*x*x))))
 			}
 		} else {
-			linearIntoWithExecutor(executor, w.U, w.N, b.Up, n)
+			linearIntoWithExecutor(executor, w.U, input, b.Up, n)
 			for i, v := range w.G {
 				w.G[i] = float32(float64(v)/(1+math.Exp(-float64(v)))) * w.U[i]
 			}
 		}
 		linearIntoWithExecutor(executor, w.Q, w.G, b.Down, n)
 		addBias(w.Q, b.DownB)
+		if b.QNorm != nil {
+			rmsInto(w.Q, w.Q, b.N2, n, c.NormEps)
+		}
 		addInPlace(w.X, w.Q)
 		region.End()
 	}
