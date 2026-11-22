@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Small seeded, offline numerical oracles for additional inference profiles."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -8,10 +9,13 @@ import safetensors
 from safetensors.torch import save_file
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, LlamaConfig, LlamaForCausalLM, Qwen2Config, Qwen2ForCausalLM
+from transformers import AutoModelForCausalLM, LlamaConfig, LlamaForCausalLM, Olmo2Config, Olmo2ForCausalLM, Qwen2Config, Qwen2ForCausalLM
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--family", choices=("qwen2", "llama", "olmo2"))
+    args = parser.parse_args()
     versions = dict(torch=torch.__version__, transformers=transformers.__version__, safetensors=safetensors.__version__)
     assert versions == dict(torch="2.8.0", transformers="4.57.1", safetensors="0.6.2")
     torch.set_num_threads(1)
@@ -19,9 +23,14 @@ def main():
     profiles = [("qwen2", "f32", True, torch.float32),
                 ("qwen2", "f16", True, torch.float16),
                 ("qwen2", "untied-bf16", False, torch.bfloat16),
-                ("llama", "untied-f32", False, torch.float32)]
+                ("llama", "untied-f32", False, torch.float32),
+                ("olmo2", "f32", False, torch.float32)]
     for family, label, tied, dtype in profiles:
-        cfg = dict(architectures=["Qwen2ForCausalLM" if family == "qwen2" else "LlamaForCausalLM"],
+        if args.family and args.family != family:
+            continue
+        config_cls, model_cls = {"llama": (LlamaConfig, LlamaForCausalLM), "qwen2": (Qwen2Config, Qwen2ForCausalLM),
+                                 "olmo2": (Olmo2Config, Olmo2ForCausalLM)}[family]
+        cfg = dict(architectures=[model_cls.__name__],
                    model_type=family, vocab_size=258, hidden_size=24, intermediate_size=40,
                    num_hidden_layers=2, num_attention_heads=6, num_key_value_heads=2,
                    max_position_embeddings=128, rope_theta=100000.0, rms_norm_eps=1e-5,
@@ -29,14 +38,17 @@ def main():
                    bos_token_id=1, eos_token_id=2, pad_token_id=2, rope_scaling=None)
         if family == "qwen2":
             cfg.update(use_sliding_window=False, sliding_window=None, max_window_layers=2)
+        if family == "olmo2":
+            del cfg["bos_token_id"]
         torch.manual_seed(216)
-        model = (Qwen2ForCausalLM(Qwen2Config(**cfg)) if family == "qwen2"
-                 else LlamaForCausalLM(LlamaConfig(**cfg))).eval()
+        model = model_cls(config_cls(**cfg)).eval()
         # Default Qwen initialization zeros biases, which would hide a missing add.
         with torch.no_grad():
             for name, p in model.named_parameters():
                 if name.endswith(".bias"):
                     p.uniform_(-0.15, 0.15)
+                if family == "olmo2" and "norm.weight" in name:
+                    p.uniform_(0.6, 1.4)
         folder = root / ("hf-" + family) / label
         folder.mkdir(parents=True, exist_ok=True)
         state = {k: v.detach().to(dtype).clone().contiguous() for k, v in model.state_dict().items()

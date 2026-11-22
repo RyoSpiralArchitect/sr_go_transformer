@@ -27,7 +27,21 @@ are rejected.
 | SmolLM2-360M-Instruct | `a10cc1512eabd3dde888204e902eca88bddb4951` | 1600 MiB | 512 |
 | Qwen2.5-0.5B-Instruct | `7ae557604adf67be50417f59c2c2f167def9a775` | 2048 MiB | 512 |
 | Qwen2.5-1.5B-Instruct | `989aa7980e4cf806f80c7fef2b1adb7bc71aa306` | 6144 MiB | 512 |
+| allenai/OLMo-2-0425-1B | `a1847dff35000b4271fa70afc5db10fd29fedbdf` | 8192 MiB | 128 |
 | openai-community/gpt2 | `607a30d783dfa663caf39e06633721c8d4cfcd7e` | 600 MiB | 512 |
+
+The OLMo 2 base profile applies learned RMSNorm across each Q and K projection
+before RoPE, and to the attention and feed-forward outputs before each residual
+addition. Its tokenizer uses byte-level BPE with one-to-three-digit groups and
+adds no BOS to text prompts. Use plain text or token IDs with this checkpoint.
+
+```sh
+./monolith infer local -path "$OLMO_SNAPSHOT" -context 128 -weight-mib 8192 \
+  generate -prompt 'The capital of France is' -temperature 0 -repeat-penalty 1 -max-tokens 8
+```
+
+The [Furnace validation](../validation/hf/olmo2-furnace-20261122/) records
+independent FP32 logits, tokenizer parity and Q4-mixed text generation.
 
 For Llama 3.2 base text and Instruct chat, see [the Llama guide](LLAMA3_INFERENCE.md).
 The [Qwen2.5-7B trial](QUALITY_INFERENCE.md#measured-7b-results) uses Q8/Q4/mixed
