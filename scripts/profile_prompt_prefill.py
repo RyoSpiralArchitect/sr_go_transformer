@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from compare_inference import isolated_go_environment
-from quant_quality import run_measured, sha, source_path
+from quant_quality import runtime_names, run_measured, sha, source_path
 
 
 def render_q4_listing(go, build, capture, destination, env):
@@ -37,7 +37,7 @@ def main():
     env = isolated_go_environment()
     source = next(m for m in json.loads((root / 'validation/hf/model-profiles.json').read_text())['models']
                   if m['id'] == 'mistral-7b-v03')
-    inputs = ['monolith.go', 'go.mod', 'go.sum', 'prompt_prefill_perf_test.go']
+    inputs = [*runtime_names(root), 'go.mod', 'go.sum', 'prompt_prefill_perf_test.go']
     hashes = {name: sha(source_path(root, name)) for name in inputs}
     protocol = dict(format='monolith-postload-prefill-v1', model=source['repo'], revision=source['revision'],
                     files=source['files'], source_sha256=hashes, modes=['cpu', 'trace', 'plain'],

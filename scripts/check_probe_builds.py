@@ -4,7 +4,7 @@ from pathlib import Path
 
 from compare_inference import isolated_go_environment
 from context_sweep_timing import STAGE_PROBE_FILES, instrument_context_sweep
-from quant_quality import source_path
+from quant_quality import runtime_names, source_path
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
         for name, harnesses in probes.items():
             build = Path(directory) / name
             build.mkdir()
-            for source in ['monolith.go', 'go.mod', 'go.sum', *harnesses]:
+            for source in [*runtime_names(root), 'go.mod', 'go.sum', *harnesses]:
                 path = source_path(root, source)
                 (build / path.name).write_bytes(path.read_bytes())
             test = '^$'

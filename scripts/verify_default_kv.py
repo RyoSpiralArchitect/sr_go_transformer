@@ -13,14 +13,15 @@ from pathlib import Path
 import subprocess
 
 from compare_inference import isolated_go_environment, numerical_signature, validate_case_order
-from quant_quality import git_source, run_measured, sha, source_path
+from quant_quality import git_source, run_measured, runtime_names, sha, source_path
 
 
-def reference_signature(receipt, runtime_hash, harness_hash):
+def reference_signature(receipt, runtime_hashes, harness_hash):
     if receipt.get('numerical_identity') is not True:
         raise ValueError('Reference did not pass numerical identity')
     inputs = receipt['builds']['after']['inputs_sha256']
-    if inputs['monolith.go'] != runtime_hash or inputs['inference_perf_test.go'] != harness_hash:
+    runtime = {n: h for n, h in inputs.items() if n.endswith(('.go', '.s')) and not n.endswith('_test.go')}
+    if runtime != runtime_hashes or inputs['inference_perf_test.go'] != harness_hash:
         raise ValueError('Reference runtime or harness differs from selected predecessor')
     candidates = [x['report'] for x in receipt['reports'] if x['variant'] == 'after']
     if not candidates:
@@ -44,9 +45,9 @@ def main():
     baseline = subprocess.check_output(['git','rev-parse','--verify','--end-of-options',a.baseline_ref+'^{commit}'],cwd=root,text=True).strip()
     reference_hash = sha(ref_path)
     previous = json.loads(ref_path.read_text())
-    runtime_hash = hashlib.sha256(git_source(root,baseline,'monolith.go')).hexdigest()
+    runtime_hashes = {n: hashlib.sha256(git_source(root, baseline, n)).hexdigest() for n in runtime_names(root, baseline)}
     harness = source_path(root,'inference_perf_test.go')
-    expected = reference_signature(previous,runtime_hash,sha(harness))
+    expected = reference_signature(previous,runtime_hashes,sha(harness))
     catalog = root/'validation/hf/model-profiles.json'
     source = next(x for x in json.loads(catalog.read_text())['models'] if x['id']=='mistral-7b-v03')
     if previous['files'] != source['files'] or previous['revision'] != source['revision']:
@@ -58,7 +59,7 @@ def main():
     if sha(corpus) != previous['source_inputs_sha256']['validation/quality/corpus.json']:
         raise ValueError('Corpus differs from reference')
     output.mkdir(parents=True,exist_ok=False)
-    names=['monolith.go','go.mod','go.sum','inference_perf_test.go']
+    names=[*runtime_names(root),'go.mod','go.sum','inference_perf_test.go']
     paths=[source_path(root,n) for n in names]+[Path(__file__),root/'scripts/quant_quality.py',root/'scripts/compare_inference.py',catalog,corpus]
     hashes={str(p.relative_to(root)):sha(p) for p in paths}
     build=output/'build';build.mkdir()
@@ -76,7 +77,7 @@ def main():
     same=numerical_signature(report)==expected
     unchanged=hashes=={str(p.relative_to(root)):sha(p) for p in paths} and sha(binary)==binary_hash and sha(ref_path)==reference_hash
     unchanged=unchanged and all(sha(model/n)==v for n,v in source['files'].items())
-    receipt=dict(format='monolith-default-kv-parity-v1',baseline_commit=baseline,baseline_runtime_sha256=runtime_hash,reference_receipt_sha256=reference_hash,
+    receipt=dict(format='monolith-default-kv-parity-v1',baseline_commit=baseline,baseline_runtime_sha256=runtime_hashes['monolith.go'],baseline_runtime_sources_sha256=runtime_hashes,reference_receipt_sha256=reference_hash,
         source_inputs_sha256=hashes,reference_model=source['repo'],revision=source['revision'],files=source['files'],binary_sha256=binary_hash,
         identities_unchanged=unchanged,numerical_identity=same,report=report,resources=resources,
         go_version=subprocess.check_output([go,'version'],env=env,text=True).strip(),host=platform.system()+'/'+platform.machine(),

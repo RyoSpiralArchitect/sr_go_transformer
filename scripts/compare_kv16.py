@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 
 from compare_inference import isolated_go_environment
-from quant_quality import sha, run_measured, source_path
+from quant_quality import runtime_names, sha, run_measured, source_path
 
 
 def read_quality_report(path):
@@ -40,7 +40,7 @@ def main():
         if sha(root/name) != expected:
             raise RuntimeError('Frozen input mismatch: '+name)
     output.mkdir(parents=True, exist_ok=False)
-    names = ['monolith.go', 'kv16_quality_test.go', 'go.mod', 'go.sum']
+    names = [*runtime_names(root), 'kv16_quality_test.go', 'go.mod', 'go.sum']
     paths = [source_path(root,n) for n in names] + [protocol, catalog, Path(__file__),
         root/'scripts/quant_quality.py', root/'scripts/compare_inference.py',
         root/'validation/quality/corpus.json', root/'validation/quality/kv16-long-prompts.json']

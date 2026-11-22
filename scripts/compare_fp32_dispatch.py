@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from compare_inference import isolated_go_environment
-from quant_quality import git_source, run_measured, sha
+from quant_quality import run_measured, runtime_names, sha, source_path, stage_runtime
 
 
 def summarize(reports):
@@ -51,24 +51,23 @@ def main():
     goroot = subprocess.check_output([root / 'scripts/go.sh', 'env', 'GOROOT'],
                                      cwd=root, env=env, text=True).strip()
     go = str(Path(goroot) / 'bin/go')
-    sources = [root / 'go.mod', root / 'go.sum', *sorted((root / 'cmd/monolith').glob('*.go'))]
+    shared = [p for p in sorted((root / 'cmd/monolith').glob('*_test.go'))
+              if p.name not in ('executor_experiments_test.go', 'q4_ffn_darwin_arm64_test.go')]
+    sources = [root / 'go.mod', root / 'go.sum', *[source_path(root, n) for n in runtime_names(root)], *shared]
     hashes = {str(path.relative_to(root)): sha(path) for path in sources}
-    shared = [path for path in sources if path.name not in ('monolith.go', 'executor_experiments_test.go')]
     builds = {}
     for variant in ('before', 'after'):
         build = out / variant
         build.mkdir()
         for path in shared:
             (build / path.name).write_bytes(path.read_bytes())
-        source = git_source(root, baseline, 'monolith.go') if variant == 'before' else (
-            root / 'cmd/monolith/monolith.go').read_bytes()
-        (build / 'monolith.go').write_bytes(source)
+        names = stage_runtime(root, build, baseline if variant == 'before' else None)
         binary = build / 'probe.test'
         with (build / 'build.log').open('x') as log:
             subprocess.run([go, 'test', '-c', '-trimpath', '-o', binary, '.'], cwd=build,
                            env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
         builds[variant] = dict(binary_sha256=sha(binary),
-                               inputs_sha256={p.name: sha(p) for p in build.glob('*.go')})
+                               inputs_sha256={n: sha(build / n) for n in names + [p.name for p in shared]})
     patterns = {
         'linear': '^BenchmarkInferenceLinearWorkers$/^rows(1|4|64)$/^reuse$',
         'prefill': '^BenchmarkPromptPrefillGenerate$/^prefix(3|129|257)$/^reversefalse$/^after$',

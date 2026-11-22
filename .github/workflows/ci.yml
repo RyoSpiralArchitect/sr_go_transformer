@@ -51,5 +51,11 @@ jobs:
         run: python3 -S scripts/check_probe_builds.py
       - name: Build without cgo
         run: CGO_ENABLED=0 go build -trimpath -o monolith ./cmd/monolith
+      - name: Cross-build the Darwin arm64 kernel with Go 1.22
+        if: matrix.go == '1.22.x'
+        run: GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/monolith-arm64" ./cmd/monolith
+      - name: Exercise the pure Go Q4 fallback on macOS
+        if: runner.os == 'macOS'
+        run: go test -tags=purego -run '^TestQ4' ./cmd/monolith
       - name: Exercise CLI and deterministic resume
         run: ./scripts/smoke.sh

@@ -49,11 +49,14 @@ def main():
         ('before', args.before_build, args.before_binary),
         ('after', args.after_build, args.after_binary),
     ):
-        files = [*directory.glob('*.go'), directory / 'go.mod', directory / 'go.sum']
+        files = [*directory.glob('*.go'), *directory.glob('*.s'), directory / 'go.mod', directory / 'go.sum']
         builds[variant] = dict(binary_sha256=sha(binary), inputs_sha256={p.name: sha(p) for p in files})
-    before = {n: h for n, h in builds['before']['inputs_sha256'].items() if n != 'monolith.go'}
-    after = {n: h for n, h in builds['after']['inputs_sha256'].items() if n != 'monolith.go'}
-    if before != after or not before:
+    def shared_inputs(variant):
+        return {n: h for n, h in builds[variant]['inputs_sha256'].items()
+                if n.endswith('_test.go') or n in ('go.mod', 'go.sum')}
+
+    before = shared_inputs('before')
+    if shared_inputs('after') != before or not any(n.endswith('_test.go') for n in before):
         raise ValueError('comparison did not use identical shared sources')
     reports = []
     expected_cases = None

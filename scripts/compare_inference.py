@@ -14,7 +14,7 @@ from pathlib import Path
 import platform
 import subprocess
 
-from quant_quality import git_source, run_measured, sha, source_path
+from quant_quality import run_measured, runtime_names, sha, source_path, stage_runtime
 
 
 def isolated_go_environment():
@@ -82,7 +82,7 @@ def main():
         if sha(model/name) != expected:
             raise RuntimeError('Pinned source mismatch: '+name)
     output.mkdir(parents=True, exist_ok=False)
-    inputs = [source_path(root, 'monolith.go'), root/'go.mod', root/'go.sum', source_path(root, 'inference_perf_test.go'),
+    inputs = [*(source_path(root, n) for n in runtime_names(root)), root/'go.mod', root/'go.sum', source_path(root, 'inference_perf_test.go'),
               root/'validation/quality/corpus.json', catalog_path,
               Path(__file__), root/'scripts/quant_quality.py', root/'scripts/go.sh']
     source_hashes = {str(p.relative_to(root)): sha(p) for p in inputs}
@@ -105,10 +105,7 @@ def main():
     for variant in ('before', 'after'):
         build = output/variant
         build.mkdir()
-        for name in ('monolith.go', 'go.mod', 'go.sum'):
-            contents = (git_source(root, baseline, name)
-                        if variant == 'before' else source_path(root, name).read_bytes())
-            (build/name).write_bytes(contents)
+        names = stage_runtime(root, build, baseline if variant == 'before' else None)
         # The harness is identical for both runtimes and compiles by itself.
         (build/'inference_perf_test.go').write_bytes(source_path(root, 'inference_perf_test.go').read_bytes())
         binary = build/'probe.test'
@@ -116,7 +113,7 @@ def main():
             subprocess.run([go, 'test', '-c', '-trimpath', '-o', str(binary), '.'],
                            cwd=build, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=300, check=True)
         builds[variant] = dict(binary_sha256=sha(binary),
-                               inputs_sha256={n: sha(build/n) for n in ('monolith.go', 'go.mod', 'go.sum', 'inference_perf_test.go')})
+                               inputs_sha256={n: sha(build/n) for n in [*names, 'inference_perf_test.go']})
     # Two process pairs reverse run order. Each process warms both cases, then
     # measures three trials per case. Loading is outside the forward intervals.
     signature, reports, matched = None, [], True

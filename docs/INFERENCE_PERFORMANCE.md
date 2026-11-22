@@ -192,7 +192,7 @@ profile, workspace, cancellation and shared-model lifecycle tests also apply.
 
 ### Bounded real-model comparison
 
-The offline driver builds the selected Git baseline and current `monolith.go`
+The offline driver builds the selected Git baseline and current runtime sources (including architecture-specific kernels)
 in separate directories using the identical `inference_perf_test.go` harness.
 It requires pinned original model files from the catalog and an already
 installed Go toolchain/dependency cache. It creates no model download or

@@ -7,6 +7,7 @@ package main
 
 import (
 	"math"
+	"sync/atomic"
 	"testing"
 )
 
@@ -29,6 +30,13 @@ func TestQ4FFNPairNEONCodes(t *testing.T) {
 }
 
 func TestQ4FFNPairNEONProjection(t *testing.T) {
+	native := q4FFNPairDot
+	var calls atomic.Int64
+	q4FFNPairDot = func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32) {
+		calls.Add(1)
+		return native(x0, x1, w0, w1, s0, s1)
+	}
+	t.Cleanup(func() { q4FFNPairDot = native })
 	c, err := preset("tiny")
 	if err != nil {
 		t.Fatal(err)
@@ -64,11 +72,22 @@ func TestQ4FFNPairNEONProjection(t *testing.T) {
 		for _, workers := range []int{1, 4} {
 			e := newKernelExecutor(workers)
 			got, want := make([]float32, tc.rows*tc.out), make([]float32, tc.rows*tc.out)
+			calls.Store(0)
 			w.q4FFNPair = false
 			linearQ4Into(e, want, x, w, tc.rows)
+			if calls.Load() != 0 {
+				t.Fatal("unmarked weight dispatched to NEON")
+			}
 			w.q4FFNPair = true
 			linearQ4Into(e, got, x, w, tc.rows)
 			exactWorkerFloats(t, got, want)
+			wantCalls := 0
+			if tc.rows == 2 && tc.cols%64 == 0 && !tc.wide {
+				wantCalls = tc.out / 2
+			}
+			if gotCalls := calls.Load(); gotCalls != int64(wantCalls) {
+				t.Fatalf("%+v workers=%d: native output pairs = %d, want %d", tc, workers, gotCalls, wantCalls)
+			}
 			if !tc.wide && tc.rows == 2 && tc.cols%64 == 0 {
 				if allocs := testing.AllocsPerRun(10, func() { linearQ4Into(e, got, x, w, tc.rows) }); allocs != 0 {
 					t.Fatalf("%d workers allocated %.1f times per projection", workers, allocs)
