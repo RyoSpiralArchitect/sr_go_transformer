@@ -44,7 +44,7 @@ eight-token limit and decoded correctly; each diverged from FP32.
 The resident test enabled and disabled the AVX2 flag in the **same binary**.
 It used four P cores, a 128-token prefix, Q4-mixed weights and F16 KV.
 Times cover seven decode forwards per replay, with eight counterbalanced rounds.
-Both models' load and quantization costs are outside this timer.
+Both processes load and quantize the checkpoint before timing starts.
 
 | Sessions | Portable aggregate tok/s | AVX2 aggregate tok/s | Median paired time ratio |
 | --- | ---: | ---: | ---: |
