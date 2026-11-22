@@ -17,14 +17,16 @@ import subprocess
 from quant_quality import run_measured, runtime_names, sha, source_path, stage_runtime
 
 
-def isolated_go_environment():
+def isolated_go_environment(*, q4_ffn_neon=False):
     # An empty GOFLAGS still falls back to the user go.env file. Disable that
     # file as well as process flags, workspaces and automatic downloads.
     env = dict(os.environ, HF_HUB_OFFLINE='1', GOMAXPROCS='4', CGO_ENABLED='0',
                GOENV='off', GOWORK='off', GOFLAGS='', GOEXPERIMENT='',
                GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off')
-    for key in ('HF_TOKEN', 'GOGC', 'GOMEMLIMIT', 'GODEBUG'):
+    for key in ('HF_TOKEN', 'GOGC', 'GOMEMLIMIT', 'GODEBUG', 'MONOLITH_Q4_FFN_NEON'):
         env.pop(key, None)
+    if q4_ffn_neon:
+        env['MONOLITH_Q4_FFN_NEON'] = '1'
     return env
 
 
@@ -68,6 +70,8 @@ def main():
     parser.add_argument('--id', required=True, help='Pinned model catalog ID')
     parser.add_argument('--baseline-ref', required=True, help='Local Git commit to compare')
     parser.add_argument('--weight-format', choices=('q8', 'q4-mixed'), default='q4-mixed')
+    parser.add_argument('--q4-ffn-neon', action='store_true',
+                        help='opt in to the Darwin arm64 Q4 FFN kernel in runtimes that support it')
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--case-order', choices=('fixed', 'balanced'), default='fixed',
                         help='fixed preserves 1,2; balanced reverses cases in the second process pair')
@@ -86,7 +90,7 @@ def main():
               root/'validation/quality/corpus.json', catalog_path,
               Path(__file__), root/'scripts/quant_quality.py', root/'scripts/go.sh']
     source_hashes = {str(p.relative_to(root)): sha(p) for p in inputs}
-    env = isolated_go_environment()
+    env = isolated_go_environment(q4_ffn_neon=args.q4_ffn_neon)
     env.update(MONOLITH_PERF_MODEL=str(model), MONOLITH_PERF_CORPUS=str(root/'validation/quality/corpus.json'),
                MONOLITH_PERF_FORMAT=args.weight_format)
     # scripts/go.sh intentionally changes to the repository root. Resolve its
@@ -156,7 +160,7 @@ def main():
                    hf_hub_offline=True, builds=builds, source_inputs_sha256=source_hashes,
                    numerical_identity=matched, reports=reports, effective_go_env=effective,
                    environment={k: env.get(k) for k in ('GOMAXPROCS', 'CGO_ENABLED', 'GOENV', 'GOWORK',
-                       'GOFLAGS', 'GOEXPERIMENT', 'GOTOOLCHAIN', 'GOPROXY', 'GOSUMDB', 'GOGC', 'GOMEMLIMIT', 'GODEBUG')},
+                       'GOFLAGS', 'GOEXPERIMENT', 'GOTOOLCHAIN', 'GOPROXY', 'GOSUMDB', 'GOGC', 'GOMEMLIMIT', 'GODEBUG', 'MONOLITH_Q4_FFN_NEON')},
                    note='One resident model per process; fixed 8-token prefixes, 7 decode calls, 1/2 sessions. Core forward timing only; peak RSS spans each full process. Not HTTP throughput or a language-quality benchmark.')
     write_parity_receipt(output/'receipt.json', receipt, matched)
 
