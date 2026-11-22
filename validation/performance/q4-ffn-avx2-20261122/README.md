@@ -12,13 +12,28 @@ prespecified timing limits are a two-session median elapsed ratio at most
 0.95 with at least seven wins, a one-session ratio at most 1.05, and control
 medians within 3% with median absolute control deviations at most 5%.
 Every replay checks full logits, KV, greedy IDs, workspace and positions.
-The first comparison is preserved in [llama-first.jsonl](llama-first.jsonl).
+The [first comparison](llama-first.jsonl) measured the sources and runner at
+`7c64c85`. The [final comparison](llama-final.jsonl) used runtime revision
+`fec0afd`, baseline `c665cb3` and the runner at `11eb230`. The receipt
+includes the toolchain, selected source hashes, both binary hashes and the model hashes.
+
+| Run and sessions | Portable aggregate tok/s | AVX2 aggregate tok/s | Median paired time ratio |
+| --- | ---: | ---: | ---: |
+| First, one | 3.877 | 3.875 | 1.005 |
+| First, two | 6.080 | 10.417 | 0.582 |
+| Final, one | 3.865 | 3.869 | 1.000 |
+| Final, two | 6.016 | 10.543 | 0.572 |
+
+Both two-session runs won all eight rounds. All four cases passed the
+same-binary stability bounds. Per-process peak RSS stayed within 2 MiB
+between the two arms in each case. Each reported ratio is the median of
+paired elapsed times; the throughput columns are separate medians.
 
 The first GOAMD64=v3 numerical screen found a one-ULP discrepancy at output
 zero (`bf730bba` vs `bf730bbb`). The newer Go compiler can fuse a scalar
 multiply-add at this target. The revised kernel matches the compiler's rounding
 at both the inner dot and scale accumulation. Go 1.22.12 and 1.27.1 v3
-projection checks passed on Furnace after the change.
+projection checks passed on Furnace after the change. The [compatibility replay](compatibility.json) includes the original failure and both compiler results.
 
 ## Reproduce on Furnace
 
