@@ -10,7 +10,6 @@ import statistics
 import subprocess
 
 ORDERS = ("AabB", "aBAb", "BbaA", "bAaB", "BbaA", "bAaB", "aBAb", "AabB")
-REV = "60a99aaf43164077157d64bf909b7b61143c6a6d"
 
 
 def sha(path):
@@ -34,7 +33,8 @@ def reply(proc, request=None):
 def run(args):
     if platform.machine() != "x86_64" or sorted(os.sched_getaffinity(0)) != [4, 5, 6, 7]:
         raise ValueError("run on Furnace with taskset -c 4-7")
-    if args.model.name != REV:
+    source = next(m for m in json.loads(args.catalog.read_text())["models"] if m["id"] == args.model_id)
+    if args.model.name != source["revision"]:
         raise ValueError("unexpected snapshot revision")
     env = dict(os.environ, GOMAXPROCS="4", HF_HUB_OFFLINE="1", MONOLITH_RESIDENT_MODEL=str(args.model),
                MONOLITH_RESIDENT_CORPUS=str(args.corpus.resolve()))
@@ -42,14 +42,17 @@ def run(args):
         env.pop(key, None)
     with args.output.open("x", buffering=1) as log, ExitStack() as stack:
         binaries = {"A": args.scalar.resolve(), "B": args.native.resolve()}
-        source = next(m for m in json.loads(args.catalog.read_text())["models"] if m["revision"] == REV)
+        builds = json.loads(args.builds.read_text())
+        for arm, target in (("A", "scalar"), ("B", "native")):
+            if sha(binaries[arm]) != builds[target]["binary_sha256"]:
+                raise ValueError(f"unexpected {target} binary")
         for name, expected in source["files"].items():
             if sha(args.model/name) != expected:
                 raise ValueError("unexpected snapshot asset: " + name)
         record(log, "start", cpu=next(l.split(":")[1].strip() for l in Path("/proc/cpuinfo").read_text().splitlines()
                if l.startswith("model name")), kernel=platform.release(), affinity=sorted(os.sched_getaffinity(0)),
-               model=source["repo"], revision=REV, assets=source["files"], corpus_sha256=sha(args.corpus),
-               binaries={k: sha(v) for k, v in binaries.items()}, sources=json.loads(args.builds.read_text()),
+               model=source["repo"], revision=source["revision"], assets=source["files"], corpus_sha256=sha(args.corpus),
+               binaries={k: sha(v) for k, v in binaries.items()}, sources=builds,
                runner_sha256=sha(Path(__file__)), load=os.getloadavg())
         workers, ready = {}, {}
         for arm, binary in binaries.items():
@@ -100,4 +103,5 @@ if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     for arg in ("scalar", "native", "model", "corpus", "catalog", "builds", "output"):
         cli.add_argument(arg, type=Path)
+    cli.add_argument("--model-id", default="llama32-3b")
     run(cli.parse_args())

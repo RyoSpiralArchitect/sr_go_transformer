@@ -21,9 +21,9 @@ def build(args):
     args.output.mkdir(parents=True, exist_ok=False)
     env = dict(os.environ, GOOS="linux", GOARCH="amd64", GOAMD64="v1", GOENV="off", GOWORK="off",
                CGO_ENABLED="0", GOTOOLCHAIN="local", GOFLAGS="", GOEXPERIMENT="", GOPROXY="off", GOSUMDB="off")
-    manifest = dict(baseline=BASE, go=subprocess.check_output([args.go, "version"], text=True, env=env).strip(),
+    manifest = dict(baseline=args.baseline, go=subprocess.check_output([args.go, "version"], text=True, env=env).strip(),
                     target="linux/amd64 GOAMD64=v1 CGO_ENABLED=0")
-    for arm, rev in (("scalar", BASE), ("native", args.candidate)):
+    for arm, rev in (("scalar", args.baseline), ("native", args.candidate)):
         ref = subprocess.check_output(["git", "rev-parse", "--verify", rev+"^{commit}"], cwd=ROOT, text=True).strip()
         stage = args.output/arm
         package = stage/"cmd/monolith"
@@ -46,4 +46,5 @@ if __name__ == "__main__":
     cli.add_argument("candidate")
     cli.add_argument("output", type=lambda path: Path(path).resolve())
     cli.add_argument("--go", default="go")
+    cli.add_argument("--baseline", default=BASE, help="use the candidate commit to compare opt-in versus opt-out")
     build(cli.parse_args())
