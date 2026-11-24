@@ -1,5 +1,5 @@
 {
-  "runtime": "79932ed17937b76f30b14ac965accb2a0a1dee78",
+  "runtime": "caf7df9be8e48f63e29b70a3af4ad817c5a872d0",
   "host": "Intel(R) Core(TM) Ultra 9 285K",
   "cores": [
     4,
@@ -7,8 +7,6 @@
     6,
     7
   ],
-  "native_test_regex": "^TestQ4(Attention|FFN)",
-  "purego_test_regex": "^TestQ4",
   "compilers": {
     "test122": "go1.22.12",
     "test127": "go1.27.1",
@@ -22,60 +20,148 @@
       "    q4_ffn_native_test.go:219: float bits differ at 0: c02532c3 != c02532c2",
       "FAIL"
     ],
-    "cause": "The four-output kernel fused the block scale and addition. The Go 1.27.1 v3 paired single-row path multiplies and then adds separately."
+    "cause": "The four-output kernel fused the block scale and addition. The Go 1.27.1 v3 paired single-row path multiplies and then adds separately.",
+    "runtime_after_fix": "79932ed17937b76f30b14ac965accb2a0a1dee78"
   },
   "corrected_screens": [
     {
       "binary": "test122-v1",
-      "sha256": "c30ff39b8c03c478cae278e2d19024f28112bcd4993ded47d45afd2aabbb4465",
-      "modes": [
-        "0",
-        "1",
-        "all",
-        "all+attention"
-      ],
-      "result": "PASS"
+      "sha256": "94fc401bd67ef7df78055c8694093faf690d66a3351d02954d020154ee8dd2a4",
+      "passing_tests": {
+        "^TestQ4(FFN|Attention)": [
+          "0",
+          "1",
+          "all",
+          "all+attention"
+        ],
+        "^TestQ4": [
+          "all+attention"
+        ]
+      }
     },
     {
       "binary": "test122-v3",
-      "sha256": "64d4359a6a8c59d01d4dbb962b2737583eee3fb1ea6e3baa0e5d73d848489449",
-      "modes": [
-        "0",
-        "1",
-        "all",
-        "all+attention"
-      ],
-      "result": "PASS"
+      "sha256": "b42eeeadc28d34f3863b0355bce62e492f3937e4c77eecc08e275079f4ae68b5",
+      "passing_tests": {
+        "^TestQ4(FFN|Attention)": [
+          "0",
+          "1",
+          "all",
+          "all+attention"
+        ],
+        "^TestQ4": [
+          "all+attention"
+        ]
+      }
     },
     {
       "binary": "test127-v1",
-      "sha256": "ac1bc2e27714e3d27cb6f7ef13042d5736becd791ba3f0f5648f602350ef6944",
-      "modes": [
-        "0",
-        "1",
-        "all",
-        "all+attention"
-      ],
-      "result": "PASS"
+      "sha256": "bb1fe2990c705c14073d03ef8f793fd5d03cf9c424c8526aafae812808a91f1f",
+      "passing_tests": {
+        "^TestQ4(FFN|Attention)": [
+          "0",
+          "1",
+          "all",
+          "all+attention"
+        ],
+        "^TestQ4": [
+          "all+attention"
+        ]
+      }
     },
     {
       "binary": "test127-v3",
-      "sha256": "5f4656d4cf6131d7a9066b9c233f94e38dda5c02deddf48c2eb49151921b0f9b",
-      "modes": [
-        "0",
-        "1",
-        "all",
-        "all+attention"
-      ],
-      "result": "PASS"
+      "sha256": "2416ea35c08fb943526c5a908d18dcb46fb38be6d02ca403f1a7a18be56000bf",
+      "passing_tests": {
+        "^TestQ4(FFN|Attention)": [
+          "0",
+          "1",
+          "all",
+          "all+attention"
+        ],
+        "^TestQ4": [
+          "all+attention"
+        ]
+      }
     },
     {
       "binary": "portable.test",
-      "sha256": "0ba3d9886223beca9de63aa4466a3333c961375bb7497389ca59e95621bca44a",
-      "modes": [
-        "all+attention"
-      ],
-      "result": "PASS"
+      "sha256": "8058524d1d787fdc884864d74b00a69dd03252019c1efedfd0cf76ccf9bd7d7c",
+      "passing_tests": {
+        "^TestQ4": [
+          "all+attention"
+        ]
+      }
     }
-  ]
+  ],
+  "test_revision": "7fb82937b60e25b4b9f57814232bb72865d81b9f",
+  "legacy_v3_full_suite": {
+    "historic-legacy-v3": {
+      "binary_sha256": "d706c65cb521d24ef0710e6b4a253e8810576ca2eef97cfa7d5058fc9ee4dd4a",
+      "mode": "1",
+      "regex": "^TestQ4",
+      "exit_code": 1,
+      "failures": [
+        "TestQ4FullBlockAndEveryTailMatchLegacy",
+        "TestQ4InvocationExact",
+        "TestQ4OutputPairExact",
+        "TestQ4OutputPairParallelOddTile",
+        "TestQ4LinearReferenceAndBatchDeterminism",
+        "TestQ4PairMatchesLegacy",
+        "TestQ4PairExtremeInputsMatchLegacy"
+      ]
+    },
+    "legacy-v3": {
+      "binary_sha256": "2416ea35c08fb943526c5a908d18dcb46fb38be6d02ca403f1a7a18be56000bf",
+      "mode": "1",
+      "regex": "^TestQ4",
+      "exit_code": 1,
+      "failures": [
+        "TestQ4FullBlockAndEveryTailMatchLegacy",
+        "TestQ4InvocationExact",
+        "TestQ4OutputPairExact",
+        "TestQ4OutputPairParallelOddTile",
+        "TestQ4LinearReferenceAndBatchDeterminism",
+        "TestQ4PairMatchesLegacy",
+        "TestQ4PairExtremeInputsMatchLegacy"
+      ]
+    }
+  },
+  "v3_batch_witness": {
+    "go": "go1.27.1",
+    "target": "linux/amd64/v3",
+    "test_fixture_sha256": "1e00adae43d349f921025b16cc7093290562d04219b254d2467da2e1d08436f2",
+    "runs": {
+      "base": {
+        "revision": "89c5fc1839b47b3278fd0e4880102b62a1775e10",
+        "binary_sha256": "d706c65cb521d24ef0710e6b4a253e8810576ca2eef97cfa7d5058fc9ee4dd4a",
+        "modes": {
+          "0": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "1": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "all": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "all+attention": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000"
+        }
+      },
+      "pre": {
+        "revision": "79932ed17937b76f30b14ac965accb2a0a1dee78",
+        "binary_sha256": "e17220f0a88631d3d61b78fd12db8250c5ec89d7fc8b34c76cb83877bcca769d",
+        "modes": {
+          "0": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "1": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "all": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "all+attention": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000"
+        }
+      },
+      "reviewed": {
+        "revision": "caf7df9be8e48f63e29b70a3af4ad817c5a872d0",
+        "binary_sha256": "a42f4b2f7a00fd640a20bdc7b5eac8aa87ba8f8361fdb7d1a19c320eb5ca6659",
+        "modes": {
+          "0": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "1": "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000",
+          "all": "scales=3f800000,3f7ffffe single=00000000 batched=00000000,00000000",
+          "all+attention": "scales=3f800000,3f7ffffe single=00000000 batched=00000000,00000000"
+        }
+      }
+    }
+  }
 }

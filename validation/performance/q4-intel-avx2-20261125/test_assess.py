@@ -31,6 +31,9 @@ class IntelReceiptTests(unittest.TestCase):
         for model, vocab in (("olmo2-1b", 100352), ("llama32-3b", 128256)):
             rows = [json.loads(s) for s in (HERE/f"v3-{model}.jsonl").read_text().splitlines()]
             verify(rows)
+            for expanded in rows[3:]:
+                self.assertEqual(expanded["logits_sha256"], rows[0]["logits_sha256"])
+            self.assertGreater(rows[1]["vs_previous"]["1"]["different_floats"], 0)
             self.assertEqual(rows[0]["builds"]["previous"]["revision"], PREVIOUS)
             self.assertEqual(rows[0]["builds"]["current"]["revision"], json.loads((HERE/"protocol.json").read_text())["runtime"])
             for row in rows:
@@ -49,6 +52,20 @@ class IntelReceiptTests(unittest.TestCase):
                     self.assertGreaterEqual(delta["max_abs"], 0)
                     if delta["different_floats"] == 0:
                         self.assertEqual(delta["max_abs"], 0)
+
+    def test_review_batch_witness(self):
+        evidence = json.loads((HERE/"compatibility.json").read_text())
+        witness = evidence["v3_batch_witness"]
+        self.assertEqual(witness["test_fixture_sha256"], probe.sha(HERE/"batch-witness_test.go.txt"))
+        runs = witness["runs"]
+        self.assertEqual(runs["base"]["revision"], PREVIOUS)
+        self.assertEqual(runs["reviewed"]["revision"], json.loads((HERE/"protocol.json").read_text())["runtime"])
+        old = "scales=3f800000,3f7ffffe single=00000000 batched=a8800000,a8800000"
+        matched = "scales=3f800000,3f7ffffe single=00000000 batched=00000000,00000000"
+        for mode in ("0", "1", "all", "all+attention"):
+            self.assertEqual(runs["base"]["modes"][mode], old)
+            self.assertEqual(runs["pre"]["modes"][mode], old)
+            self.assertEqual(runs["reviewed"]["modes"][mode], matched if mode.startswith("all") else old)
 
     def reject(self, rows, reason):
         with TemporaryDirectory() as directory:

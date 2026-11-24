@@ -10,7 +10,7 @@ from statistics import median
 
 from measure import HERE, SPEC, probe, references
 
-BUILD_SHA256 = "5d71b9ba67995a8e1533a7b604c9af410c0abf9b73f2e8941e948e587b598561"
+BUILD_SHA256 = "ec5302211582d6d83a6d1f5e7a89ccb39932e94dce129a457fc4e65d6150f613"
 
 
 def case_result(rounds, sessions, steps, limits):

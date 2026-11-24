@@ -225,11 +225,17 @@ exceeded the repeatability limit.
 
 Linux amd64 accepts three values for `MONOLITH_Q4_FFN_AVX2` at CLI or server startup.
 
-| Setting | Q4 feed-forward projections | Q4 attention projections |
+| Setting | Q4 Gate, Up and Down in gated models | Q4 attention projections |
 | --- | --- | --- |
 | `1` | Two input rows | Portable Go |
 | `all` | One or two input rows | Portable Go |
 | `all+attention` | One or two input rows | One or two input rows |
+
+GPT-2 uses its Go MLP in all modes. Its split Q/K/V and transposed O become
+eligible with `all+attention`. In a custom Linux build whose Go compiler fuses
+FP32 multiply-adds (tested with Go 1.27.1 and `GOAMD64=v3`), the two expanded
+modes use each Q4 input row's single-row rounding in any batch. The preceding
+release and `1` can round a multi-row block scale differently on those builds.
 
 The ordinary binary targets GOAMD64=v1 and checks AVX2 and operating-system
 support for saving YMM registers. The single-input kernel reads each group of
