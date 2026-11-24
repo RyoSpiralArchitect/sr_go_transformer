@@ -1,0 +1,112 @@
+{
+  "events_sha256": "ff488e3e1614cb0a4e607b64fa6e68d1059fac1646babb7e3c23701a4e044df9",
+  "sessions": {
+    "1": {
+      "exact_replays": 32,
+      "controls": {
+        "median_ratio": 1.006647676000033,
+        "median_abs_from_one": 0.017348637328533978,
+        "passed": true
+      },
+      "effects": {
+        "ffn": {
+          "median_ratio": 0.5434599740424246,
+          "wave_medians": [
+            0.5434599740424246,
+            0.540953041148265
+          ],
+          "wins": 8,
+          "passed": true
+        },
+        "attention": {
+          "median_ratio": 0.7197876510645624,
+          "wave_medians": [
+            0.7340846790012854,
+            0.7081676120142917
+          ],
+          "wins": 7,
+          "passed": true
+        },
+        "combined": {
+          "median_ratio": 0.39203858098516187,
+          "wave_medians": [
+            0.39721918017527647,
+            0.38683801707218635
+          ],
+          "wins": 8,
+          "passed": true
+        }
+      },
+      "aggregate_tok_s": {
+        "A": 3.752794356507403,
+        "F": 6.899190013607481,
+        "B": 9.642262835157236
+      },
+      "passed": true
+    },
+    "2": {
+      "exact_replays": 32,
+      "controls": {
+        "median_ratio": 0.9928419103489396,
+        "median_abs_from_one": 0.019969066178120998,
+        "passed": true
+      },
+      "effects": {
+        "ffn": {
+          "median_ratio": 1.032253058891138,
+          "wave_medians": [
+            1.0379596263171078,
+            1.0235446881684578
+          ],
+          "wins": 1,
+          "passed": true
+        },
+        "attention": {
+          "median_ratio": 0.6757897850245872,
+          "wave_medians": [
+            0.6752751537320267,
+            0.6770639659856592
+          ],
+          "wins": 8,
+          "passed": true
+        },
+        "combined": {
+          "median_ratio": 0.7009348708634136,
+          "wave_medians": [
+            0.6929544675011396,
+            0.7067721070338715
+          ],
+          "wins": 8,
+          "passed": true
+        }
+      },
+      "aggregate_tok_s": {
+        "A": 9.970346514262847,
+        "F": 9.736148220643802,
+        "B": 14.363428936537648
+      },
+      "passed": true
+    }
+  },
+  "peak_rss_kib": [
+    {
+      "A": 2212992,
+      "F": 2226432,
+      "B": 2225856
+    },
+    {
+      "B": 2220864,
+      "F": 2221248,
+      "A": 2221248
+    }
+  ],
+  "profile_sha256": {
+    "A-2": "2690e96097cf7f6348a6defddf60659df2ad1717cb2a0cafcd757fda71c7c601",
+    "B-2": "0796415c40827df4df50365a10809b4910eec09438141230fe72c2b30c647147",
+    "A-1": "952863b4d77cecc63077f7e3dfb3c0961805858907bb73f895bfdb3043057227",
+    "B-1": "cc0915990693ffa663d7ccf8d6878064c43c631d11e0e137f4e01b846e795291"
+  },
+  "min_available_kib": 115312188,
+  "new_swapouts": 0,
+  "passed": true
+}

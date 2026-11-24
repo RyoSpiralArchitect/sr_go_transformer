@@ -1,0 +1,28 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"math"
+	"testing"
+)
+
+// Copy into cmd/monolith in each revision and run the same Linux test binary
+// under each startup mode with -test.v -test.run=^TestIntelBatchWitness$.
+func TestIntelBatchWitness(t *testing.T) {
+	dense := &Param{Rows: 4, Cols: 128, Data: make([]float32, 4*128)}
+	for o := 0; o < dense.Rows; o++ {
+		row := dense.Data[o*128 : (o+1)*128]
+		row[0], row[1], row[64], row[65] = 1, 7, 1, math.Nextafter32(7, 0)
+	}
+	w := quantizeQ4TestParam(t, dense)
+	w.q4Native = q4NativePairDot != nil
+	x := make([]float32, 256)
+	x[0], x[64], x[128], x[192] = -1, 1+0x1p-23, -1, 1+0x1p-23
+	one, two := make([]float32, 4), make([]float32, 8)
+	linearQ4Into(nil, one, x[:128], w, 1)
+	linearQ4Into(nil, two, x, w, 2)
+	t.Logf("scales=%08x,%08x single=%08x batched=%08x,%08x", math.Float32bits(w.Q4.Scales[0]),
+		math.Float32bits(w.Q4.Scales[1]), math.Float32bits(one[0]), math.Float32bits(two[0]), math.Float32bits(two[4]))
+}

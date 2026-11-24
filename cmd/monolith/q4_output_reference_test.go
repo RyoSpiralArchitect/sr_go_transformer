@@ -3,6 +3,32 @@
 
 package main
 
+// Expanded FMA builds use the released single-input Go projection as their
+// bitwise reference. Keep the historical batch oracles for other modes and
+// benchmarks. The wide-row reference still accumulates independently in FP64.
+func q4ExpectedInto(e *kernelExecutor, y, x []float32, w *Param, n int, historical func(*kernelExecutor, []float32, []float32, *Param, int)) {
+	if !q4MatchSingleRows {
+		historical(e, y, x, w, n)
+		return
+	}
+	portable := *w
+	portable.q4Native = false
+	tiles := (w.Rows + 31) / 32
+	for r := 0; r < n; r++ {
+		xr, yr := x[r*w.Cols:(r+1)*w.Cols], y[r*w.Rows:(r+1)*w.Rows]
+		if legacyQ8NeedsWideSum(xr) {
+			legacyLinearQ4WideInto(e, yr, xr, &portable, 1)
+			continue
+		}
+		job := fp32Kernel{x: xr, y: yr, w: &portable, n: 1}
+		if w.Cols%64 == 0 {
+			linearQ4OutputPairRange(&job, 0, tiles)
+		} else {
+			baselineQ4OutputRange(&job, 0, tiles)
+		}
+	}
+}
+
 // Frozen pre-candidate output loop from aeb74a5.
 func baselineQ4OutputRange(job *fp32Kernel, lo, hi int) {
 	y, x, w, n := job.y, job.x, job.w, job.n

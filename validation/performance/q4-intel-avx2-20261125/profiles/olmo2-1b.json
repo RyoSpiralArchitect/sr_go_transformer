@@ -1,0 +1,101 @@
+{
+  "A-2": {
+    "original_sha256": "9efff086c836ba2a1d7838af4451f54b8926d1894ce4911a59029bfa83a0c65c",
+    "published_sha256": "013216e12a76da04c6132898217ceca04cf2c8061872d6431338dfa81467307b",
+    "total_cpu_ms": 7680,
+    "flat_cpu_ms": {
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ4FFNPairAVX2": 2420,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ4PairBlock64": 2080,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ8PairBlock64": 1910,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ4PackedRange": 360,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.halfFloat": 240,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attendF16": 200,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ8Into.func1": 170,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*Model).prefillSelected": 60,
+      "crypto/internal/fips140/sha256.blockSHANI": 40,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ4TwoRowOutputPairRange": 30,
+      "math.archExp": 30,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*KVCache).rowF16": 20,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.residentFinish": 20,
+      "runtime.futex": 20,
+      "encoding/binary.littleEndian.AppendUint16": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.Config.KVDim": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.rmsInto": 10,
+      "math.Float32frombits": 10,
+      "runtime.chansend": 10,
+      "runtime.pMask.set": 10,
+      "runtime.runqget": 10,
+      "runtime.schedule": 10
+    }
+  },
+  "B-2": {
+    "original_sha256": "7f934a7aac06b901336e5d8e3335f963d2afa7c3093449e25056e4541f043e22",
+    "published_sha256": "9732360549b21c6309638b8d9e4a3aa84201f95bb233dd055e2bffa4a1471019",
+    "total_cpu_ms": 5910,
+    "flat_cpu_ms": {
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ4FFNPairAVX2": 3050,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ8PairBlock64": 2000,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attendF16": 310,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.halfFloat": 200,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ8Into.func1": 140,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*Model).prefillSelected": 40,
+      "crypto/internal/fips140/sha256.blockSHANI": 30,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*KVCache).rowF16": 20,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.residentFinish": 20,
+      "runtime.stealWork": 20,
+      "encoding/binary.littleEndian.AppendUint16": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attentionRange.func3": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.rmsInto": 10,
+      "math.IsInf": 10,
+      "math.archExp": 10,
+      "runtime.futex": 10,
+      "runtime.pMask.read": 10,
+      "runtime.unlock2": 10
+    }
+  },
+  "A-1": {
+    "original_sha256": "9cdcd0736c1d3db302ac4f506238736feec55c54ff642725401689dba1a76648",
+    "published_sha256": "2c8ee6529e0075d389d9b8237b24ebb20818e72b9de9579650ef381b233db8f2",
+    "total_cpu_ms": 10270,
+    "flat_cpu_ms": {
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ4OutputPair64": 7810,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ8Into.func1": 1750,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ4OutputPairRange": 350,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.halfFloat": 100,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attendF16": 80,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*Model).prefillSelected": 40,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.residentFinish": 30,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.rmsInto": 20,
+      "crypto/internal/fips140/sha256.blockSHANI": 10,
+      "encoding/binary.littleEndian.AppendUint16": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*KVCache).rowF16": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*Model).rope": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.Config.KVDim": 10,
+      "runtime.chanrecv": 10,
+      "runtime.futex": 10,
+      "runtime.mcall": 10,
+      "runtime.mget": 10
+    }
+  },
+  "B-1": {
+    "original_sha256": "ebfd91fc3ffb81616920cfd6507f65fd6085870a714fde2824f7d6186f80e165",
+    "published_sha256": "9792e4735cd34b6f7f626c2979427f0aa8f24b05a90219f44e6c9bc4f9edcfab",
+    "total_cpu_ms": 4650,
+    "flat_cpu_ms": {
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.dotQ4QuadAVX2": 2530,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.linearQ8Into.func1": 1850,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attendF16": 60,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.halfFloat": 60,
+      "crypto/internal/fips140/sha256.blockSHANI": 30,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.(*Model).prefillSelected": 20,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.residentFinish": 20,
+      "runtime.futex": 20,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.Config.KVDim": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.attentionRange.func3": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.fromF16": 10,
+      "github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith.rmsInto": 10,
+      "math.archExp": 10,
+      "runtime.chanrecv": 10
+    }
+  }
+}

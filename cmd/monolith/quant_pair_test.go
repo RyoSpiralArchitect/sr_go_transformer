@@ -14,7 +14,7 @@ func TestQ4PairMatchesLegacy(t *testing.T) {
 		for _, rows := range []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15} {
 			for _, out := range []int{1, 31, 32, 33, 65} {
 				x, dense, _ := linearFixture(rows, in, out)
-				q, legacy := quantizeQ4TestParam(t, dense), legacyLinearQ4Into
+				q := quantizeQ4TestParam(t, dense)
 				for _, workers := range []int{0, 1, 4} {
 					var e *kernelExecutor
 					if workers != 0 {
@@ -24,7 +24,7 @@ func TestQ4PairMatchesLegacy(t *testing.T) {
 					for i := range got {
 						got[i], want[i] = -123, -123
 					}
-					legacy(e, want[1:len(want)-1], x, q, rows)
+					q4ExpectedInto(e, want[1:len(want)-1], x, q, rows, legacyLinearQ4Into)
 					linearIntoWithExecutor(e, got[1:len(got)-1], x, q, rows)
 					for i := range got {
 						if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
@@ -47,14 +47,14 @@ func TestQ4PairExtremeInputsMatchLegacy(t *testing.T) {
 			for i := range dense.Data {
 				dense.Data[i] *= .0001
 			}
-			q, legacy := quantizeQ4TestParam(t, dense), legacyLinearQ4Into
+			q := quantizeQ4TestParam(t, dense)
 			for _, extreme := range []float32{0, math.SmallestNonzeroFloat32, -math.SmallestNonzeroFloat32, math.MaxFloat32 / 4, -1e37} {
 				x[(rows-1)*in] = extreme
 				x[in-1] = float32(math.Copysign(0, -1))
 				for _, workers := range []int{1, 4} {
 					e := newKernelExecutor(workers)
 					got, want := make([]float32, rows*q.Rows), make([]float32, rows*q.Rows)
-					legacy(e, want, x, q, rows)
+					q4ExpectedInto(e, want, x, q, rows, legacyLinearQ4Into)
 					linearIntoWithExecutor(e, got, x, q, rows)
 					for i := range got {
 						if math.Float32bits(got[i]) != math.Float32bits(want[i]) {

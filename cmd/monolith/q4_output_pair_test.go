@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+func outputPairBaselineInto(_ *kernelExecutor, y, x []float32, w *Param, n int) {
+	tasks := ((n + 3) / 4) * ((w.Rows + 31) / 32)
+	baselineQ4OutputRange(&fp32Kernel{x: x, y: y, w: w, n: n}, 0, tasks)
+}
+
 func TestQ4OutputPairExact(t *testing.T) {
 	for _, n := range []int{2, 4, 1} {
 		for _, in := range []int{63, 64, 65, 128, 192} {
@@ -14,8 +19,7 @@ func TestQ4OutputPairExact(t *testing.T) {
 				x, p, _ := linearFixture(n, in, out)
 				q := quantizeQ4TestParam(t, p)
 				got, want := make([]float32, n*out), make([]float32, n*out)
-				tasks := ((n + 3) / 4) * ((out + 31) / 32)
-				baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: n}, 0, tasks)
+				q4ExpectedInto(nil, want, x, q, n, outputPairBaselineInto)
 				for _, workers := range []int{1, 4} {
 					e := newKernelExecutor(workers)
 					linearQ4Into(e, got, x, q, n)
@@ -81,7 +85,7 @@ func TestQ4OutputPairParallelOddTile(t *testing.T) {
 	want := make([]float32, 65)
 	guarded := make([]float32, 67)
 	guarded[0], guarded[66] = 123, 456
-	baselineQ4OutputRange(&fp32Kernel{x: x, y: want, w: q, n: 1}, 0, 3)
+	q4ExpectedInto(nil, want, x, q, 1, outputPairBaselineInto)
 	linearQ4Into(e, guarded[1:66], x, q, 1)
 	if e.q4Fn == nil {
 		t.Fatal("fixture did not dispatch parallel Q4")
@@ -110,6 +114,7 @@ func TestQ4TwoRowOutputPairParallelTail(t *testing.T) {
 	for i := range got {
 		got[i] = 123
 	}
+	q4ExpectedInto(nil, want, x, q, rows, outputPairBaselineInto)
 	linearQ4Into(e, got, x, q, rows)
 	if e.q4Fn == nil {
 		t.Fatal("fixture did not dispatch parallel Q4")
