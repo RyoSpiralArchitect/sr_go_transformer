@@ -5,12 +5,15 @@ package main
 import "os"
 
 func init() {
-	mode := os.Getenv("MONOLITH_Q4_FFN_NEON")
-	if mode == "1" || mode == "all" {
-		q4FFNPairDot = dotQ4FFNPairNEON
-	}
-	if mode == "all" {
-		q4FFNQuadDot = dotQ4FFNQuadNEON
+	switch os.Getenv("MONOLITH_Q4_FFN_NEON") {
+	case "all+attention":
+		q4NativeAttention = true
+		fallthrough
+	case "all":
+		q4NativeQuadDot = dotQ4FFNQuadNEON
+		fallthrough
+	case "1":
+		q4NativePairDot = dotQ4FFNPairNEON
 	}
 }
 

@@ -6,7 +6,7 @@ import "os"
 
 func init() {
 	if os.Getenv("MONOLITH_Q4_FFN_AVX2") == "1" && q4HasAVX2() {
-		q4FFNPairDot = dotQ4FFNPairAVX2
+		q4NativePairDot = dotQ4FFNPairAVX2
 	}
 }
 
