@@ -223,13 +223,23 @@ uses `all` as its FFN-only control. The median paired decode time was 14.6%
 shorter for one session and 7.5% shorter for two. The single-session control
 exceeded the repeatability limit.
 
-On Linux amd64, start the CLI or server with `MONOLITH_Q4_FFN_AVX2=1` to
-enable the two-row Gate, Up and Down kernel. Startup checks AVX2 and operating
-system support for saving YMM registers. The normal build targets GOAMD64=v1.
-On v3/v4 builds the kernel follows the Go compiler's multiply-add rounding.
-The one-row path, odd tails and wide accumulation use the existing kernels.
-The [Furnace comparison](../validation/performance/q4-ffn-avx2-20261122/)
-records the four-core topology, exact outputs and resident decode timings.
+Linux amd64 accepts three values for `MONOLITH_Q4_FFN_AVX2` at CLI or server startup.
+
+| Setting | Q4 feed-forward projections | Q4 attention projections |
+| --- | --- | --- |
+| `1` | Two input rows | Portable Go |
+| `all` | One or two input rows | Portable Go |
+| `all+attention` | One or two input rows | One or two input rows |
+
+The ordinary binary targets GOAMD64=v1 and checks AVX2 and operating-system
+support for saving YMM registers. The single-input kernel reads each group of
+four activations once for four output channels. It retains the paired Go
+kernel's block-scale rounding. Unset switches, CPUs without AVX2 and
+`-tags=purego` use Go. Partial input blocks, remaining output channels and
+wide accumulation use their usual fallback. With Q4-mixed, the vocabulary
+head uses Q8. The [two-row FFN baseline](../validation/performance/q4-ffn-avx2-20261122/)
+and the [three-mode Intel comparison](../validation/performance/q4-intel-avx2-20261125/)
+include the model revisions, core affinity and numerical checks.
 
 ## Experiment boundary
 

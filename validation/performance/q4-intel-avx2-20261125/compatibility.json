@@ -1,0 +1,81 @@
+{
+  "runtime": "79932ed17937b76f30b14ac965accb2a0a1dee78",
+  "host": "Intel(R) Core(TM) Ultra 9 285K",
+  "cores": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "native_test_regex": "^TestQ4(Attention|FFN)",
+  "purego_test_regex": "^TestQ4",
+  "compilers": {
+    "test122": "go1.22.12",
+    "test127": "go1.27.1",
+    "portable.test": "go1.27.1"
+  },
+  "first_v3_screen": {
+    "binary_sha256": "d34f13c862f8b373d5f79751fbc8c4f2a0a603089204b0886ee01275bf461c8e",
+    "output": [
+      "test127-v3 0",
+      "--- FAIL: TestQ4FFNQuadNativeProjection (0.00s)",
+      "    q4_ffn_native_test.go:219: float bits differ at 0: c02532c3 != c02532c2",
+      "FAIL"
+    ],
+    "cause": "The four-output kernel fused the block scale and addition. The Go 1.27.1 v3 paired single-row path multiplies and then adds separately."
+  },
+  "corrected_screens": [
+    {
+      "binary": "test122-v1",
+      "sha256": "c30ff39b8c03c478cae278e2d19024f28112bcd4993ded47d45afd2aabbb4465",
+      "modes": [
+        "0",
+        "1",
+        "all",
+        "all+attention"
+      ],
+      "result": "PASS"
+    },
+    {
+      "binary": "test122-v3",
+      "sha256": "64d4359a6a8c59d01d4dbb962b2737583eee3fb1ea6e3baa0e5d73d848489449",
+      "modes": [
+        "0",
+        "1",
+        "all",
+        "all+attention"
+      ],
+      "result": "PASS"
+    },
+    {
+      "binary": "test127-v1",
+      "sha256": "ac1bc2e27714e3d27cb6f7ef13042d5736becd791ba3f0f5648f602350ef6944",
+      "modes": [
+        "0",
+        "1",
+        "all",
+        "all+attention"
+      ],
+      "result": "PASS"
+    },
+    {
+      "binary": "test127-v3",
+      "sha256": "5f4656d4cf6131d7a9066b9c233f94e38dda5c02deddf48c2eb49151921b0f9b",
+      "modes": [
+        "0",
+        "1",
+        "all",
+        "all+attention"
+      ],
+      "result": "PASS"
+    },
+    {
+      "binary": "portable.test",
+      "sha256": "0ba3d9886223beca9de63aa4466a3333c961375bb7497389ca59e95621bca44a",
+      "modes": [
+        "all+attention"
+      ],
+      "result": "PASS"
+    }
+  ]
+}

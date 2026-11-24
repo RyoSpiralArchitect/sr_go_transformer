@@ -1,0 +1,32 @@
+{
+  "runtime": "79932ed17937b76f30b14ac965accb2a0a1dee78",
+  "toolchain": "go version go1.27.1 darwin/arm64",
+  "target": "linux/amd64/v1",
+  "binary": "d91c42fa3c0e8ab242b5255c2bd44d079a947dd3b649d2acb7a67696c56b5880",
+  "sources": {
+    "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+    "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+    "cmd/monolith/inference_perf_test.go": "64fdabaf8000c0417cefdf1cab3dc10f26f3bf436b5ee8815d3fa4423b1635a9",
+    "cmd/monolith/monolith.go": "b8bca6adf9a8692c5c883225299620c0b3ffb68bde8b020d9649cd7783ef3cef",
+    "cmd/monolith/q4_ffn_darwin_arm64.go": "f71cf9bc6e008d88ec823777615d1c4831b47e6f8779db49713fac9920f73c42",
+    "cmd/monolith/q4_ffn_darwin_arm64.s": "def454570dc689762b6619b94877d02054c1bf170fe1a8b1f50d2c904940e3cd",
+    "cmd/monolith/q4_ffn_linux_amd64.go": "9b1ad3662f2d31208b17893b62a81bc8a45c98b3f7e1999ba94a3231c23e6b4d",
+    "cmd/monolith/q4_ffn_linux_amd64.s": "58a32f0701bb499f3ccc48208c098805cd0d438abb28964330d58616c669f426",
+    "cmd/monolith/resident_test.go": "67d041a903290c602a1504f1f7a2107cf5fb3b3c7bb0615e489aa08788d06fe7",
+    "cmd/monolith/attention_probe_test.go": "ffb904e71629100e258afd93832ca0bc6b8e20e5e65ac2c778ad22dbb17a407c",
+    "cmd/monolith/profile_test.go": "d2c16a382283004cb8dac885ee8ce51dd4c56040e01a8821b61c71fc7634ec2d"
+  },
+  "inputs": {
+    "validation/performance/q4-intel-avx2-20261125/protocol.json": "793c68399af45129d5517834cb8dda91afded0ef938835d47a23fc12109af299",
+    "validation/performance/q4-intel-avx2-20261125/prepare.py": "76e8cd8406d56304f37092b0a57fdf1a3715b791c050194a860c2a9ef030612d",
+    "validation/performance/q4-intel-avx2-20261125/profile_test.go.txt": "d2c16a382283004cb8dac885ee8ce51dd4c56040e01a8821b61c71fc7634ec2d",
+    "validation/performance/q4-intel-avx2-20261125/measure.py": "a6ad4988d0c86b99072f35bab7905dd915edac9b6bd3eee9b540f933b8b32c21",
+    "validation/hf/olmo2-furnace-20261122/resident-reviewed.jsonl": "25efc0717583af7cc60b12f5ea88c64338f18390f436edfaf9dfa415721b9b7a",
+    "validation/performance/q4-ffn-avx2-20261122/llama-final.jsonl": "39632da6b72024da47907d399e70c58342f1743725ab8ae0ce5fa0ef9b45ec01",
+    "validation/hf/model-profiles.json": "7362b51dc483d5cab15eb961b64889e7bae2926c71a262a88eaed229f5497c6e",
+    "validation/quality/corpus.json": "af7b705a420ffe50fd0c97622d0339d988f0656de4b0c104c4f09a095c9354bb",
+    "validation/performance/q8-compact-head-20261118/run.py": "03d74616434ff8b35958c2edbf3bb1fd9570db6e6dd501105ca2580bb27cfeec",
+    "validation/performance/q4-attention-neon-20261124/probe_test.go.txt": "ffb904e71629100e258afd93832ca0bc6b8e20e5e65ac2c778ad22dbb17a407c",
+    "validation/performance/q4-attention-neon-20261124/probe.py": "d52c6d1c5b478c9446074ef9cf24fac98d02b938d5a2a2afffa50cc7b394760b"
+  }
+}
