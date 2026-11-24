@@ -34,7 +34,8 @@ func TestQ4FFNPairNativeCodes(t *testing.T) {
 }
 
 func TestQ4FFNPairNativeStartup(t *testing.T) {
-	want := os.Getenv(testQ4NativeEnv) == "1" && testQ4NativeAvailable()
+	mode := os.Getenv(testQ4NativeEnv)
+	want := (mode == "1" || testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all") && testQ4NativeAvailable()
 	if (q4FFNPairDot != nil) != want {
 		t.Fatalf("native kernel registration = %t, want %t", q4FFNPairDot != nil, want)
 	}

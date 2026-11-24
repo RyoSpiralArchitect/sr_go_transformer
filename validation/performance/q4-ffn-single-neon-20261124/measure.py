@@ -56,7 +56,7 @@ def build(out, go, env):
     return binary, sources
 
 
-def run(model, out):
+def run(model, out, observe_swap):
     spec = json.loads(PROTOCOL.read_text())
     env = isolated_go_environment(q4_ffn_neon=True)
     go = shutil.which("go", path=env["PATH"])
@@ -79,14 +79,15 @@ def run(model, out):
 
         def observe():
             m = memory()
-            if m["free_percent"] < limits["min_free_percent"] or m["swapouts"] - start["swapouts"] > limits["max_new_swapout_pages"]:
+            crossed_swap_limit = m["swapouts"] - start["swapouts"] > limits["max_new_swapout_pages"]
+            if m["free_percent"] < limits["min_free_percent"] or (crossed_swap_limit and not observe_swap):
                 emit("memory_stop", memory=m)
                 raise ValueError(f"host memory limit crossed: {m}")
             return m
 
         inputs = [Path(__file__).resolve(), PROTOCOL, FIXTURE, ARCHIVE / "run.py", CORPUS, CATALOG,
                   ROOT / "scripts/compare_inference.py", ROOT / "scripts/quant_quality.py"]
-        emit("start", cpu=spec["cpu"], go=spec["go"], revision=entry["revision"], assets=entry["files"],
+        emit("start", cpu=spec["cpu"], go=spec["go"], revision=entry["revision"], assets=entry["files"], observe_swap=observe_swap,
              inputs={str(p.relative_to(ROOT)):sha(p) for p in inputs}, sources=sources, binary=sha(binary), memory=start)
         observe()
         worker = Worker(binary, env, stack.enter_context((out / "worker.log").open("xb")))
@@ -130,5 +131,6 @@ if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("model", type=Path)
     cli.add_argument("output", type=Path)
+    cli.add_argument("--observe-swap", action="store_true", help="keep sampling after swapouts; the original acceptance limits still apply")
     args = cli.parse_args()
-    run(args.model.resolve(), args.output.resolve())
+    run(args.model.resolve(), args.output.resolve(), args.observe_swap)

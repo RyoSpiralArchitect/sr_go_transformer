@@ -5,8 +5,11 @@ package main
 import "os"
 
 func init() {
-	if os.Getenv("MONOLITH_Q4_FFN_NEON") == "1" {
+	mode := os.Getenv("MONOLITH_Q4_FFN_NEON")
+	if mode == "1" || mode == "all" {
 		q4FFNPairDot = dotQ4FFNPairNEON
+	}
+	if mode == "all" {
 		q4FFNQuadDot = dotQ4FFNQuadNEON
 	}
 }

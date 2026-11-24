@@ -63,9 +63,11 @@ jobs:
           go test -tags=purego -run '^TestQ4' ./cmd/monolith
       - name: Exercise native Q4 opt-in on macOS
         if: runner.os == 'macOS'
-        run: MONOLITH_Q4_FFN_NEON=1 go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
+        run: |
+          MONOLITH_Q4_FFN_NEON=1 go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
+          MONOLITH_Q4_FFN_NEON=all go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
       - name: Exercise the pure Go Q4 fallback on macOS
         if: runner.os == 'macOS'
-        run: MONOLITH_Q4_FFN_NEON=1 go test -tags=purego -run '^TestQ4' ./cmd/monolith
+        run: MONOLITH_Q4_FFN_NEON=all go test -tags=purego -run '^TestQ4' ./cmd/monolith
       - name: Exercise CLI and deterministic resume
         run: ./scripts/smoke.sh

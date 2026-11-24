@@ -203,6 +203,16 @@ Odd output channels and inputs requiring wide accumulation use the existing Go
 paths. Build with `go build -tags=purego ./cmd/monolith` for a portable control.
 See the [ordinary-build comparison](../validation/performance/q4-ffn-neon-20261122/).
 
+On the same Darwin arm64 builds, `MONOLITH_Q4_FFN_NEON=all` enables both the
+two-row kernel and an experimental single-row kernel for Q4 Gate, Up and
+Down. The single-row kernel reuses 16 input values across four output
+channels and applies the original scale to each 64-value block. Widths that
+need a partial input block, up to three trailing output channels, and wide
+accumulations take the existing Go paths. A local M4 comparison on Llama
+3.2 3B measured a 26.3% shorter paired median one-session decode time.
+Repeated settings exceeded the timing noise budget, and the host recorded
+swapouts during loading and warmup. See the [experiment and raw samples](../validation/performance/q4-ffn-single-neon-20261124/).
+
 On Linux amd64, start the CLI or server with `MONOLITH_Q4_FFN_AVX2=1` to
 enable the two-row Gate, Up and Down kernel. Startup checks AVX2 and operating
 system support for saving YMM registers. The normal build targets GOAMD64=v1.

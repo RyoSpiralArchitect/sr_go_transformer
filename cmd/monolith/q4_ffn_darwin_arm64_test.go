@@ -36,7 +36,7 @@ func TestQ4FFNQuadNEONCodes(t *testing.T) {
 }
 
 func TestQ4FFNQuadNEONProjection(t *testing.T) {
-	if (q4FFNQuadDot != nil) != (os.Getenv(testQ4NativeEnv) == "1") {
+	if (q4FFNQuadDot != nil) != (os.Getenv(testQ4NativeEnv) == "all") {
 		t.Fatal("unexpected single-row NEON registration")
 	}
 	previous := q4FFNQuadDot

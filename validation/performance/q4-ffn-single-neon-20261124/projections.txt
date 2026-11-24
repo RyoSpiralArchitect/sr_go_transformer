@@ -1,0 +1,121 @@
+binary SHA256 aaac6ea3bc0b5d2656acd9cddca2cff18ae994c3813ae298ae0e2b208576687e
+round=0 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   2938271 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    825547 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2932880 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	   1214912 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=0 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1473943 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    496641 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1570198 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    454854 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=1 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1468401 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    438193 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1573948 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    446042 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=1 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   2923979 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    859328 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2958542 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	    799010 ns/op	       2 B/op	       0 allocs/op
+PASS
+round=2 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   2941859 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    806104 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2990312 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	    854693 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=2 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1510391 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    471036 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1533141 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    462818 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=3 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1504240 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    436969 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1504490 ns/op	       2 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    511297 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=3 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   2958938 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    836193 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2933281 ns/op	       2 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	    812401 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=4 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   2936531 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    803542 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2972078 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	    876490 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=4 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1515167 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    440177 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1573162 ns/op	       2 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    449245 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=5 mode=NEON
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/NEON-4         	       8	   1538917 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/NEON-4         	       8	    442734 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/NEON-4           	       8	   1520828 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/NEON-4           	       8	    453875 ns/op	       0 B/op	       0 allocs/op
+PASS
+round=5 mode=Go
+goos: darwin
+goarch: arm64
+pkg: github.com/RyoSpiralArchitect/sr_go_tranformer/cmd/monolith
+cpu: Apple M4
+BenchmarkQ4FFNQuadNEON/GateUp/workers1/Go-4         	       8	   3008042 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/GateUp/workers4/Go-4         	       8	    790885 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers1/Go-4           	       8	   2917583 ns/op	       0 B/op	       0 allocs/op
+BenchmarkQ4FFNQuadNEON/Down/workers4/Go-4           	       8	    816562 ns/op	       0 B/op	       0 allocs/op
+PASS
