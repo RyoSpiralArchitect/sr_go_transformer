@@ -1,0 +1,133 @@
+{
+  "events_sha256": "2dc9b37d5675dc695ee2778150d4cfb5f2f2215e89f2d073a452c128e4ae2f12",
+  "projections": {
+    "KV/rows1/workers1": {
+      "ms": {
+        "A": 0.3816875,
+        "B": 0.2026795
+      },
+      "paired_ratio": 0.5358443645139226,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "KV/rows1/workers4": {
+      "ms": {
+        "A": 0.170349,
+        "B": 0.0994015
+      },
+      "paired_ratio": 0.5875127267450815,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "KV/rows2/workers1": {
+      "ms": {
+        "A": 0.516529,
+        "B": 0.4247605
+      },
+      "paired_ratio": 0.8223376696931863,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "KV/rows2/workers4": {
+      "ms": {
+        "A": 0.204203,
+        "B": 0.136875
+      },
+      "paired_ratio": 0.7266157479686044,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "QO/rows1/workers1": {
+      "ms": {
+        "A": 1.1925915,
+        "B": 0.6054455
+      },
+      "paired_ratio": 0.5161996905441512,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "QO/rows1/workers4": {
+      "ms": {
+        "A": 0.488794,
+        "B": 0.2067345
+      },
+      "paired_ratio": 0.4380760906774576,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "QO/rows2/workers1": {
+      "ms": {
+        "A": 1.593885,
+        "B": 1.2689815
+      },
+      "paired_ratio": 0.7990572778610523,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    },
+    "QO/rows2/workers4": {
+      "ms": {
+        "A": 0.623935,
+        "B": 0.4119375
+      },
+      "paired_ratio": 0.6870800732570082,
+      "wins": 6,
+      "max_allocs_per_op": 0
+    }
+  },
+  "sessions": {
+    "1": {
+      "exact_replays": 32,
+      "ms_per_forward": {
+        "A": 137.4365684642857,
+        "B": 121.11151635714285
+      },
+      "pooled_median": 0.8539267350119801,
+      "wave_medians": [
+        0.8456471647986203,
+        0.8625215852080761
+      ],
+      "wins": 8,
+      "repeats": {
+        "A": {
+          "median": 1.043944216369934,
+          "median_abs_from_one": 0.08202671401734285
+        },
+        "B": {
+          "median": 0.9979107861156029,
+          "median_abs_from_one": 0.02528154918681258
+        }
+      },
+      "repeat_pass": false,
+      "speed_pass": true
+    },
+    "2": {
+      "exact_replays": 32,
+      "ms_per_forward": {
+        "A": 162.82839132142857,
+        "B": 151.70888539285716
+      },
+      "pooled_median": 0.9250407282830952,
+      "wave_medians": [
+        0.9119492595943708,
+        0.9429338307716355
+      ],
+      "wins": 8,
+      "repeats": {
+        "A": {
+          "median": 0.9905979644356091,
+          "median_abs_from_one": 0.011371971373709766
+        },
+        "B": {
+          "median": 1.009696594548803,
+          "median_abs_from_one": 0.018618541025248903
+        }
+      },
+      "repeat_pass": true,
+      "speed_pass": true
+    }
+  },
+  "min_free_percent": 49,
+  "new_swapouts": 0,
+  "memory_pass": true,
+  "accepted": false
+}

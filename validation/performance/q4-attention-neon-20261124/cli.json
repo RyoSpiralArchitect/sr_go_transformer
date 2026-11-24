@@ -1,0 +1,116 @@
+{
+  "go": "go version go1.27.1 darwin/arm64",
+  "cpu": "Apple M4",
+  "args": [
+    "-context",
+    "128",
+    "-weight-format",
+    "q4-mixed",
+    "-weight-mib",
+    "2048",
+    "generate",
+    "-prompt",
+    "Hi",
+    "-max-tokens",
+    "6",
+    "-temperature",
+    "0",
+    "-seed",
+    "19",
+    "-json"
+  ],
+  "inputs": {
+    "previous": "4dfdf97e8bf2fee55d592de26b390d289dd2ec25",
+    "runtime": "5391b9a5e86ac296bc01f0c566bf4783dda83b96"
+  },
+  "binaries": {
+    "previous": "83ee1efe1a4ee75dd1b0a7d07bc66d63a78de9d54e0ef88f9932918a3a66213e",
+    "runtime": "8e4156e0867cc0e937b0097c7d16677bcf58800a6f54e90b1c403afcae2e87ba"
+  },
+  "models": {
+    "qwen25": {
+      "repo": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "outputs": {
+        "previous/all": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            11,
+            358,
+            2776,
+            4460,
+            311,
+            1855
+          ],
+          "text": ", I'm trying to create"
+        },
+        "runtime/all": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            11,
+            358,
+            2776,
+            4460,
+            311,
+            1855
+          ],
+          "text": ", I'm trying to create"
+        },
+        "runtime/all+attention": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            11,
+            358,
+            2776,
+            4460,
+            311,
+            1855
+          ],
+          "text": ", I'm trying to create"
+        }
+      }
+    },
+    "gpt2": {
+      "repo": "openai-community/gpt2",
+      "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "outputs": {
+        "previous/all": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            13,
+            314,
+            1101,
+            407,
+            1654,
+            611
+          ],
+          "text": ". I'm not sure if"
+        },
+        "runtime/all": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            13,
+            314,
+            1101,
+            407,
+            1654,
+            611
+          ],
+          "text": ". I'm not sure if"
+        },
+        "runtime/all+attention": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            13,
+            314,
+            1101,
+            407,
+            1654,
+            611
+          ],
+          "text": ". I'm not sure if"
+        }
+      }
+    }
+  }
+}

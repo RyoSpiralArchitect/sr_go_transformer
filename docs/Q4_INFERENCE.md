@@ -213,6 +213,16 @@ accumulations take the existing Go paths. A local M4 comparison on Llama
 Repeated settings exceeded the timing noise budget, and the host recorded
 swapouts during loading and warmup. See the [experiment and raw samples](../validation/performance/q4-ffn-single-neon-20261124/).
 
+Set `MONOLITH_Q4_FFN_NEON=all+attention` before starting the CLI or server
+to include Q, K, V and attention output (O) in the same one- and two-row
+NEON modes. Q4 and Q4-mixed weights use the existing packed representation.
+The selection covers rotary models and GPT-2's split Q/K/V and transposed
+output projection. The existing width, tail and wide-accumulation rules apply.
+With Q4-mixed storage the vocabulary head uses Q8. The [M4 comparison](../validation/performance/q4-attention-neon-20261124/)
+uses `all` as its FFN-only control. The median paired decode time was 14.6%
+shorter for one session and 7.5% shorter for two. The single-session control
+exceeded the repeatability limit.
+
 On Linux amd64, start the CLI or server with `MONOLITH_Q4_FFN_AVX2=1` to
 enable the two-row Gate, Up and Down kernel. Startup checks AVX2 and operating
 system support for saving YMM registers. The normal build targets GOAMD64=v1.
