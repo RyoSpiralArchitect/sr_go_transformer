@@ -3845,7 +3845,7 @@ type Param struct {
 	Name             string
 	Rows, Cols       int
 	Decay            bool
-	q4FFNPair        bool // This FFN weight can use the native two-row Q4 projection.
+	q4FFNPair        bool // Native Q4 projection is enabled for this FFN weight.
 	Data, Grad, M, V []float32
 	Q8               *q8Weights // Inference-only; Data is nil when present.
 	Q4               *q4Weights // Packed inference-only weights; no FP32 copy.
@@ -3853,6 +3853,9 @@ type Param struct {
 
 // Installed at startup by package builds with a native two-row FFN kernel.
 var q4FFNPairDot func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32)
+
+// Optional companion for one input row and four consecutive Q4 output rows.
+var q4FFNQuadDot func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32)
 
 const q8Block = 64
 
@@ -5198,6 +5201,13 @@ func linearQ4OutputQuadDirectRange(job *fp32Kernel, lo, hi int) {
 	for tile := lo; tile < hi; tile++ {
 		end := min((tile+1)*32, w.Rows)
 		o := tile * 32
+		if w.q4FFNPair && q4FFNQuadDot != nil {
+			for ; o+3 < end; o += 4 {
+				packed := w.Q4.Values[o*stride : (o+4)*stride]
+				scales := w.Q4.Scales[o*groups : (o+4)*groups]
+				y[o], y[o+1], y[o+2], y[o+3] = q4FFNQuadDot(x[:w.Cols], packed, scales)
+			}
+		}
 		for ; o+3 < end; o += 4 {
 			w0 := w.Q4.Values[o*stride : (o+1)*stride]
 			w1 := w.Q4.Values[(o+1)*stride : (o+2)*stride]

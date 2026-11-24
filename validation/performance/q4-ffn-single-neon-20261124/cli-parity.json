@@ -1,0 +1,136 @@
+{
+  "go": "go version go1.27.1 darwin/arm64",
+  "threads": 4,
+  "offline": true,
+  "arguments": [
+    "infer",
+    "local",
+    "-path",
+    "$MODEL",
+    "-context",
+    "128",
+    "-weight-format",
+    "q4-mixed",
+    "-weight-mib",
+    "2048",
+    "generate",
+    "-prompt",
+    "Hi",
+    "-max-tokens",
+    "6",
+    "-temperature",
+    "0",
+    "-seed",
+    "19",
+    "-json"
+  ],
+  "builds": {
+    "main": {
+      "source_commit": "a061282478805c561b7c290ec2ebbc441d74927f",
+      "binary_sha256": "1d220e1a94e098a4329013be5e16896f9e40a07f752d6c8a7ceb00ddb1097daa",
+      "go_build_vcs": [],
+      "MONOLITH_Q4_FFN_NEON": "1",
+      "sources_sha256": {
+        "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+        "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+        "cmd/monolith/monolith.go": "d9fbabb22f9f2dab662d36010baedbfded7beda422a3134d96657f9dfc6a9709",
+        "cmd/monolith/q4_ffn_darwin_arm64.go": "ab0cbd740146f73cc48d2547505333be226e544718a29ecae0348660f1af7ea9",
+        "cmd/monolith/q4_ffn_darwin_arm64.s": "25f94fa428a5b1873d4e9d888bf7d992b96e9596dc2ce44a97da2df5c26ba18e",
+        "cmd/monolith/q4_ffn_linux_amd64.go": "d9fd359baea315bd09709c4fdba8edbee62a5ad5dd89d55cecb1c11aa90cf7d4",
+        "cmd/monolith/q4_ffn_linux_amd64.s": "12d5acdd186118deb384d2e134084225bd5905f85deaa69521841e73bb9085e3"
+      }
+    },
+    "release": {
+      "source_commit": "87a719d2305023fd688b8ed786987b4b31d2d8b3",
+      "binary_sha256": "404b372784e7afa2b377167053c0e7b2fe4c19e4863b5f0f8475093594bc6b1c",
+      "go_build_vcs": [
+        "vcs=git",
+        "vcs.revision=7254c73ebfbebe87fd45bd47b6340c3a20fe4a55",
+        "vcs.time=2026-11-24T06:58:56Z",
+        "vcs.modified=true"
+      ],
+      "MONOLITH_Q4_FFN_NEON": "all",
+      "sources_sha256": {
+        "go.mod": "8fd924c4124c93ce607d506cf677a5462ef233b3a776d0ba26d2a6fb3f498adf",
+        "go.sum": "8a0467c34198969fd6b4a4f0f41acfdaf433dc2a393db612c4d8121a60d1f66f",
+        "cmd/monolith/monolith.go": "7068594771549215a167a3c143d06508f1cfd15d7403205b4751010e7f50dd78",
+        "cmd/monolith/q4_ffn_darwin_arm64.go": "081f9fa5c42bb8ce8cdc9bf56bef07b5b7531ee460cf7e06f410c61bb15b9de9",
+        "cmd/monolith/q4_ffn_darwin_arm64.s": "def454570dc689762b6619b94877d02054c1bf170fe1a8b1f50d2c904940e3cd",
+        "cmd/monolith/q4_ffn_linux_amd64.go": "d9fd359baea315bd09709c4fdba8edbee62a5ad5dd89d55cecb1c11aa90cf7d4",
+        "cmd/monolith/q4_ffn_linux_amd64.s": "12d5acdd186118deb384d2e134084225bd5905f85deaa69521841e73bb9085e3"
+      }
+    }
+  },
+  "models": {
+    "llama32-3b": {
+      "repo": "mlx-community/Llama-3.2-3B-bf16",
+      "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+      "outputs": {
+        "main": {
+          "prompt_tokens": 2,
+          "token_ids": [
+            11,
+            358,
+            2846,
+            502,
+            311,
+            420
+          ],
+          "text": ", I'm new to this"
+        },
+        "release": {
+          "prompt_tokens": 2,
+          "token_ids": [
+            11,
+            358,
+            2846,
+            502,
+            311,
+            420
+          ],
+          "text": ", I'm new to this"
+        }
+      }
+    },
+    "qwen25": {
+      "repo": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "outputs": {
+        "main": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            11,
+            358,
+            2776,
+            4460,
+            311,
+            1855
+          ],
+          "text": ", I'm trying to create"
+        },
+        "release": {
+          "prompt_tokens": 1,
+          "token_ids": [
+            11,
+            358,
+            2776,
+            4460,
+            311,
+            1855
+          ],
+          "text": ", I'm trying to create"
+        }
+      }
+    }
+  },
+  "build_note": "The release CLI was built before the startup-policy change was committed. The source digests match the listed source commit. Go recorded its pre-commit VCS metadata in the binary.",
+  "earlier_cli_attempt": {
+    "model": "llama32-3b",
+    "completed": [
+      "main_1",
+      "release_unset"
+    ],
+    "timeout_arm": "release_1",
+    "timeout_seconds": 180
+  }
+}

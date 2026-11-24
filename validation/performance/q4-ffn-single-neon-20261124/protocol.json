@@ -1,0 +1,25 @@
+{
+  "baseline": "a061282478805c561b7c290ec2ebbc441d74927f",
+  "model_id": "llama32-3b",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "weights": "q4-mixed",
+  "kv": "f16",
+  "workers": 4,
+  "prefix": 128,
+  "sessions": [1, 2],
+  "forwards": 7,
+  "orders": ["AabB", "aBAb", "BbaA", "bAaB", "BbaA", "bAaB", "aBAb", "AabB"],
+  "arms": "One resident process with the existing two-row NEON enabled throughout. A/a disable only the single-row hook, B/b enable it. Reverse each order for the second case.",
+  "limits": {
+    "min_free_percent": 30,
+    "max_new_swapout_pages": 0,
+    "control_median_range": [0.97, 1.03],
+    "control_median_abs_error_max": 0.05,
+    "single_median_max": 0.95,
+    "single_min_wins": 7,
+    "two_median_max": 1.05
+  },
+  "projection_probe": "Llama 3.2 3B Gate/Up and Down shapes, 1 and 4 workers, six alternating Go/NEON pairs, eight timed projections per sample. Diagnostic timings only."
+}
