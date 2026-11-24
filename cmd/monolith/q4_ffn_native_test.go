@@ -116,7 +116,7 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 	}{
 		{2, 64, 2, false}, {2, 192, 32, false}, {2, 2048, 65, false}, {2, 192, 1, false},
 		{2, 129, 7, false}, {1, 128, 3, false}, {3, 128, 5, false},
-		{2, 128, 3, true},
+		{2, 128, 3, true}, {7, 1024, 64, false},
 	} {
 		x, dense, _ := linearFixture(tc.rows, tc.cols, tc.out)
 		w := quantizeQ4TestParam(t, dense)
@@ -137,13 +137,20 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 			linearQ4Into(e, got, x, w, tc.rows)
 			exactWorkerFloats(t, got, want)
 			wantCalls := 0
-			if tc.rows == 2 && tc.cols%64 == 0 && !tc.wide && (!q4MatchSingleRows || tc.out%4 == 0) {
-				wantCalls = tc.out / 2
+			if tc.cols%64 == 0 && !tc.wide {
+				if q4MatchSingleRows && tc.out%4 == 0 {
+					wantCalls = (tc.rows / 2) * (tc.out / 2)
+				} else if !q4MatchSingleRows && tc.rows == 2 {
+					wantCalls = tc.out / 2
+				}
+			}
+			if tc.rows == 7 && workers == 4 && e.q4Fn == nil {
+				t.Fatal("seven-row fixture did not dispatch parallel Q4")
 			}
 			if gotCalls := calls.Load(); gotCalls != int64(wantCalls) {
 				t.Fatalf("%+v workers=%d: native output pairs = %d, want %d", tc, workers, gotCalls, wantCalls)
 			}
-			if !tc.wide && tc.rows == 2 && tc.cols%64 == 0 {
+			if !tc.wide && tc.rows >= 2 && tc.cols%64 == 0 {
 				if allocs := testing.AllocsPerRun(10, func() { linearQ4Into(e, got, x, w, tc.rows) }); allocs != 0 {
 					t.Fatalf("%d workers allocated %.1f times per projection", workers, allocs)
 				}
