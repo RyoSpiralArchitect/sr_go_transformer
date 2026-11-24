@@ -36,8 +36,8 @@ func TestQ4FFNPairNativeCodes(t *testing.T) {
 
 func TestQ4FFNPairNativeStartup(t *testing.T) {
 	mode := os.Getenv(testQ4NativeEnv)
-	wantAttention := testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all+attention"
-	want := (mode == "1" || testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all" || wantAttention) && testQ4NativeAvailable()
+	wantAttention := mode == "all+attention" && testQ4NativeAvailable()
+	want := (mode == "1" || mode == "all" || mode == "all+attention") && testQ4NativeAvailable()
 	if (q4NativePairDot != nil) != want {
 		t.Fatalf("native kernel registration = %t, want %t", q4NativePairDot != nil, want)
 	}
@@ -147,6 +147,85 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 				if allocs := testing.AllocsPerRun(10, func() { linearQ4Into(e, got, x, w, tc.rows) }); allocs != 0 {
 					t.Fatalf("%d workers allocated %.1f times per projection", workers, allocs)
 				}
+			}
+			e.close()
+		}
+	}
+}
+
+func TestQ4FFNQuadNativeCodes(t *testing.T) {
+	if !testQ4NativeAvailable() {
+		t.Skip("CPU does not support the native kernel")
+	}
+	var x [64]float32
+	var packed [128]byte
+	scales := []float32{1, 1, 1, 1}
+	for code := 0; code < 256; code++ {
+		for i := range packed {
+			packed[i] = byte(code + 37*i)
+		}
+		for col := range x {
+			x[col] = -1.25
+			a, b, c, d := testQ4NativeQuadDot(x[:], packed[:], scales)
+			p, q, r, s := dotQ4OutputQuadDirect64(&x, (*[32]byte)(packed[:32]), (*[32]byte)(packed[32:64]),
+				(*[32]byte)(packed[64:96]), (*[32]byte)(packed[96:]))
+			exactWorkerFloats(t, []float32{a, b, c, d}, []float32{p, q, r, s})
+			x[col] = 0
+		}
+	}
+}
+
+func TestQ4FFNQuadNativeProjection(t *testing.T) {
+	mode := os.Getenv(testQ4NativeEnv)
+	if (q4NativeQuadDot != nil) != (testQ4NativeAvailable() && (mode == "all" || mode == "all+attention")) {
+		t.Fatal("unexpected single-row native registration")
+	}
+	if !testQ4NativeAvailable() {
+		t.Skip("CPU does not support the native kernel")
+	}
+	previous := q4NativeQuadDot
+	var calls atomic.Int64
+	q4NativeQuadDot = func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32) {
+		calls.Add(1)
+		return testQ4NativeQuadDot(x, packed, scales)
+	}
+	t.Cleanup(func() { q4NativeQuadDot = previous })
+
+	for _, tc := range []struct {
+		rows, cols, out int
+		wide            bool
+	}{
+		{1, 64, 1, false}, {1, 64, 3, false}, {1, 64, 4, false},
+		{1, 192, 31, false}, {1, 256, 32, false}, {1, 2048, 65, false},
+		{1, 129, 33, false}, {1, 192, 5, true}, {3, 128, 5, false},
+	} {
+		x, dense, _ := linearFixture(tc.rows, tc.cols, tc.out)
+		x[0], x[1] = math.Float32frombits(1<<31), math.SmallestNonzeroFloat32
+		if tc.wide {
+			x[tc.cols-1] = math.MaxFloat32 / 2
+		}
+		w := quantizeQ4TestParam(t, dense)
+		for _, workers := range []int{1, 4} {
+			e := newKernelExecutor(workers)
+			want, got := make([]float32, tc.rows*tc.out), make([]float32, tc.rows*tc.out)
+			w.q4Native = false
+			calls.Store(0)
+			linearQ4Into(e, want, x, w, tc.rows)
+			if calls.Load() != 0 {
+				t.Fatal("unmarked weight used the single-row kernel")
+			}
+			w.q4Native = true
+			linearQ4Into(e, got, x, w, tc.rows)
+			exactWorkerFloats(t, got, want)
+			expected := 0
+			if tc.rows == 1 && tc.cols%64 == 0 && !tc.wide {
+				expected = tc.out / 4
+			}
+			if calls.Load() != int64(expected) {
+				t.Fatalf("%+v with %d workers: got %d calls, want %d", tc, workers, calls.Load(), expected)
+			}
+			if expected > 0 && testing.AllocsPerRun(10, func() { linearQ4Into(e, got, x, w, tc.rows) }) != 0 {
+				t.Fatal("single-row projection allocated after warmup")
 			}
 			e.close()
 		}

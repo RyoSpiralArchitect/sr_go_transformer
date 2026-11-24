@@ -5,8 +5,17 @@ package main
 import "os"
 
 func init() {
-	if os.Getenv("MONOLITH_Q4_FFN_AVX2") == "1" && q4HasAVX2() {
+	mode := os.Getenv("MONOLITH_Q4_FFN_AVX2")
+	switch mode {
+	case "1", "all", "all+attention":
+		if !q4HasAVX2() {
+			return
+		}
 		q4NativePairDot = dotQ4FFNPairAVX2
+		if mode != "1" {
+			q4NativeQuadDot = dotQ4QuadAVX2
+		}
+		q4NativeAttention = mode == "all+attention"
 	}
 }
 
@@ -23,3 +32,9 @@ func q4HasAVX2() bool
 //
 //go:noescape
 func dotQ4FFNPairAVX2(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (a00, a01, a10, a11 float32)
+
+// A whole number of 64-value blocks, with four contiguous packed output rows
+// and their per-row block scales.
+//
+//go:noescape
+func dotQ4QuadAVX2(x []float32, packed []byte, scales []float32) (a, b, c, d float32)

@@ -56,11 +56,14 @@ jobs:
         run: GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/monolith-arm64" ./cmd/monolith
       - name: Exercise AVX2 selection and the pure Go fallback on Linux
         if: runner.os == 'Linux'
-        env:
-          MONOLITH_Q4_FFN_AVX2: '1'
         run: |
-          go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
-          go test -tags=purego -run '^TestQ4' ./cmd/monolith
+          MONOLITH_Q4_FFN_AVX2=1 go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
+          MONOLITH_Q4_FFN_AVX2=all go test -race -count=1 -run '^TestQ4FFN' ./cmd/monolith
+          MONOLITH_Q4_FFN_AVX2=all+attention go test -race -count=1 -run '^TestQ4(Attention|FFN)' ./cmd/monolith
+          if /lib64/ld-linux-x86-64.so.2 --help | grep -F 'x86-64-v3 (supported, searched)' >/dev/null; then
+            MONOLITH_Q4_FFN_AVX2=all+attention GOAMD64=v3 go test -count=1 -run '^TestQ4(Attention|FFN)' ./cmd/monolith
+          fi
+          MONOLITH_Q4_FFN_AVX2=all+attention go test -tags=purego -run '^TestQ4' ./cmd/monolith
       - name: Exercise native Q4 opt-in on macOS
         if: runner.os == 'macOS'
         run: |

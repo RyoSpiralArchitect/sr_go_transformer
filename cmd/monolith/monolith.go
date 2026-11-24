@@ -4565,9 +4565,9 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 	y, x, w, n := job.y, job.x, job.w, job.n
 	in, out := w.Cols, w.Rows
 	if n == 1 && in%64 == 0 {
-		// Apple Silicon benefits from the wider tile. Keep the paired kernel
-		// elsewhere, where the four-output path has not cleared the speed gate.
-		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		// Apple Silicon uses four-output tiles even in Go. Other targets
+		// use them only for weights with a native single-row kernel.
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" || w.q4Native && q4NativeQuadDot != nil {
 			linearQ4OutputQuadDirectRange(job, lo, hi)
 		} else {
 			linearQ4OutputPairRange(job, lo, hi)
@@ -5757,8 +5757,14 @@ func linearQ4OutputPairRange(job *fp32Kernel, lo, hi int) {
 			var a, b float32
 			for g := 0; g < groups; g++ {
 				p, q := dotQ4OutputPair64((*[64]float32)(x[g*64:(g+1)*64]), (*[32]byte)(w0[g*32:(g+1)*32]), (*[32]byte)(w1[g*32:(g+1)*32]))
-				a += p * sc0[g]
-				b += q * sc1[g]
+				if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+					// Preserve the Linux paired kernel's block-scale rounding for AVX2.
+					a += float32(p * sc0[g])
+					b += float32(q * sc1[g])
+				} else {
+					a += p * sc0[g]
+					b += q * sc1[g]
+				}
 			}
 			y[o], y[o+1] = a, b
 		}
