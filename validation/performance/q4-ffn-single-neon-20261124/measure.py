@@ -4,6 +4,7 @@
 """Replay the single-row comparison in one resident model on Apple M4."""
 import argparse
 from contextlib import ExitStack
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -21,6 +22,7 @@ FIXTURE = ARCHIVE / "resident_test.go.txt"
 CORPUS = ROOT / "validation/quality/corpus.json"
 CATALOG = ROOT / "validation/hf/model-profiles.json"
 PROTOCOL = HERE / "protocol.json"
+MEASURED = "7254c73ebfbebe87fd45bd47b6340c3a20fe4a55"
 # Only the manual test accepts these commands, between synchronous forwards.
 SWITCH = '''
 		case "quad-go", "quad-neon":
@@ -36,24 +38,32 @@ SWITCH = '''
 '''
 
 
-def build(out, go, env):
-    pkg = out / PACKAGE
-    pkg.mkdir(parents=True)
-    for name in ("go.mod", "go.sum"):
-        shutil.copyfile(ROOT / name, out / name)
-    for path in (ROOT / PACKAGE).iterdir():
-        if path.suffix in (".go", ".s") and (not path.name.endswith("_test.go") or path.name == "inference_perf_test.go"):
-            shutil.copyfile(path, pkg / path.name)
-    template = FIXTURE.read_text()
+def pinned_blob(name):
+    return subprocess.check_output(["git", "show", f"{MEASURED}:{name}"], cwd=ROOT)
+
+
+def measured_sources():
+    tree = command("git", "ls-tree", "-r", "--name-only", MEASURED, "--", str(PACKAGE), cwd=ROOT)
+    names = ["go.mod", "go.sum", str(PACKAGE / "inference_perf_test.go")]
+    names.extend(n for n in tree.splitlines() if n.endswith((".go", ".s")) and not n.endswith("_test.go"))
+    sources = {n: pinned_blob(n) for n in names}
+    template = pinned_blob(FIXTURE.relative_to(ROOT)).decode()
     marker = '\t\tcase "quit":'
     if template.count(marker) != 1:
         raise ValueError("resident fixture command loop changed")
-    (pkg / "resident_test.go").write_text(template.replace(marker, SWITCH + marker))
-    sources = {str(p.relative_to(out)): sha(p) for p in sorted(out.rglob("*")) if p.is_file()}
+    sources[str(PACKAGE / "resident_test.go")] = template.replace(marker, SWITCH + marker).encode()
+    return sources
+
+
+def build(out, go, env):
+    (out / PACKAGE).mkdir(parents=True)
+    sources = measured_sources()
+    for name, data in sources.items():
+        (out / name).write_bytes(data)
     binary = out / "resident.test"
     subprocess.run([go, "test", "-c", "-trimpath", "-o", binary, "./cmd/monolith"],
                    cwd=out, env=env, check=True)
-    return binary, sources
+    return binary, {name: hashlib.sha256(data).hexdigest() for name, data in sources.items()}
 
 
 def run(model, out, observe_swap):

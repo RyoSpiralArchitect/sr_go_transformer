@@ -4,6 +4,8 @@
       "sessions": 1,
       "exact_replays": 32,
       "paired_median": 0.7373993186668747,
+      "repeat_median": 0.7343727782779859,
+      "pooled_median": 0.744990318177481,
       "median_ms_per_forward": {
         "A": 143.91806250000002,
         "B": 106.78200007142857
@@ -31,6 +33,8 @@
       "sessions": 2,
       "exact_replays": 32,
       "paired_median": 1.0492462113009515,
+      "repeat_median": 0.9817638446162879,
+      "pooled_median": 1.0035329465383338,
       "median_ms_per_forward": {
         "A": 174.87504157142857,
         "B": 184.428619

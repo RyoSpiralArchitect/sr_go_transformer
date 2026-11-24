@@ -30,8 +30,10 @@ four workers, Q4-mixed weights and FP16 KV. One resident model served both
 arms. A used the Go four-output loop and B used the single-row NEON leaf.
 The existing two-row NEON leaf was active in both arms. Each replay restored
 a 128-token prefix, timed seven forward calls and hashed the logits and KV
-outside the timer. Each case used eight counterbalanced rounds, including
-a repeat of each arm in every round. [Protocol](protocol.json)
+outside the timer. Each case used eight rounds, including a repeat of each
+arm in every round. Each arm went first in four primary comparisons.
+The position within the four-sample sequence was only partially balanced.
+[Protocol](protocol.json)
 
 | Sessions | Go ms/forward | NEON ms/forward | Paired time ratio | Faster rounds | Exact replays |
 | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -41,6 +43,20 @@ a repeat of each arm in every round. [Protocol](protocol.json)
 All 64 replays reproduced the greedy IDs, logit and KV digests, cache
 positions, workspace size and KV payload. The two-session result is a
 control because both arms executed the same two-row kernel. [Raw replays](events.jsonl)
+
+The ordinary offline CLI also generated the same six greedy tokens as
+the previous release on both Llama 3.2 3B and Qwen2.5 0.5B Instruct with
+the prompt `Hi`. The receipt records the source and binary hashes, command
+arguments and token IDs. [CLI comparison](cli-parity.json)
+
+In the one-session schedule, the primary NEON sample occupied positions
+1 through 4 respectively 2, 2, 0 and 4 times. The primary Go sample occupied
+each position twice. The two-session case reversed the order. As a sensitivity
+check, using only the repeats gives ratios of 0.7344 and 0.9818 for one and
+two sessions. Summing both samples per arm within each round gives 0.7450
+and 1.0035. These additional calculations leave the original assessment
+intact. For a fresh confirmation, replacing both `bAaB` rounds with
+`bABa` would place each label in each position twice.
 
 **The run missed the promotion criteria.** The first attempt stopped during
 loading after the system reported 112 new swapout pages. A separate
@@ -53,20 +69,34 @@ explicit opt-in for further evaluation. [First stop](load-stop.jsonl) · [Assess
 
 ## Reproduction
 
-The measured runtime is at `7254c73`, based on `a061282`. The measured binary
-and the hashes of its source files and generated test fixture are in the
-first event. The fixture switches only the single-row hook between synchronous
-replays. In the shipping CLI, kernel selection happens once at startup.
-The replay also checks the HF snapshot against the repository's pinned hashes.
+The driver stages production sources from `7254c73`, based on `a061282`,
+using the local Git history. The assessor verifies the binary, staged sources
+and generated test fixture against that build. The fixture switches only the
+single-row hook between synchronous replays. In the shipping CLI, kernel
+selection happens once at startup. The driver checks the HF snapshot against
+the repository's pinned hashes.
 
 ```sh
 d=validation/performance/q4-ffn-single-neon-20261124
 python3 -S "$d/assess.py"
+python3 -B -S -m unittest discover -s "$d"
 python3 -S "$d/measure.py" "$MODEL" "$OUTPUT"
-GOMAXPROCS=4 go test ./cmd/monolith -run '^$' -bench '^BenchmarkQ4FFNQuadNEON$' -benchtime=8x -benchmem
+python3 -S "$d/assess.py" "$OUTPUT/events.jsonl"
 ```
 
 Use a new output directory and the Go version in the protocol. The driver
 stops at the first memory limit by default. Its `--observe-swap` option
 records swapouts through completion while retaining the memory criterion and
-free-memory floor. The Linux AVX2 comparison is a separate follow-up.
+free-memory floor. To repeat the six pairs in the isolated projection table
+with the measured sources, set `PROJECTION_DIR` to a new directory and run
+the following from the repository root.
+
+```sh
+git worktree add --detach "$PROJECTION_DIR" 7254c73ebfbebe87fd45bd47b6340c3a20fe4a55
+cd "$PROJECTION_DIR"
+export GOMAXPROCS=4 CGO_ENABLED=0 GOENV=off GOWORK=off GOTOOLCHAIN=local GOFLAGS='' GOEXPERIMENT=''
+go test -c -trimpath -o ./kernel.test ./cmd/monolith
+for mode in Go NEON NEON Go Go NEON NEON Go Go NEON NEON Go; do
+  ./kernel.test -test.run='^$' -test.bench="^BenchmarkQ4FFNQuadNEON$/.*/.*/^${mode}$" -test.benchtime=8x -test.benchmem
+done
+```
