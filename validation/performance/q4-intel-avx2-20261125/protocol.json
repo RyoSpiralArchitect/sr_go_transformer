@@ -1,5 +1,5 @@
 {
-  "runtime": "79932ed17937b76f30b14ac965accb2a0a1dee78",
+  "runtime": "caf7df9be8e48f63e29b70a3af4ad817c5a872d0",
   "toolchain": "go version go1.27.1 darwin/arm64",
   "target": "linux/amd64/v1",
   "cpu": "Intel(R) Core(TM) Ultra 9 285K",
