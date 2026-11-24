@@ -1,0 +1,40 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"runtime/pprof"
+	"testing"
+)
+
+// The runner requests this separately after the timed cases. Include replay
+// restoration and signature hashing; exclude model loading and prefix prefill.
+func profileDecode(t *testing.T, ctx context.Context, c *residentCase, sessions, replays int) []residentSignature {
+	t.Helper()
+	if c == nil || len(c.prefix) != sessions || replays < 1 || replays > 16 {
+		t.Fatal("unexpected profiling case")
+	}
+	path := fmt.Sprintf("%s-%d.pprof", os.Getenv("MONOLITH_PROFILE_PATH"), sessions)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if err = pprof.StartCPUProfile(file); err != nil {
+		t.Fatal(err)
+	}
+	defer pprof.StopCPUProfile()
+	signatures := make([]residentSignature, replays)
+	for i := range signatures {
+		sample, err := c.decode(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		signatures[i] = sample.Signature
+	}
+	return signatures
+}
