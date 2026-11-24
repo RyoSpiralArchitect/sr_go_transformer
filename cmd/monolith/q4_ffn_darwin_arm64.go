@@ -7,6 +7,7 @@ import "os"
 func init() {
 	if os.Getenv("MONOLITH_Q4_FFN_NEON") == "1" {
 		q4FFNPairDot = dotQ4FFNPairNEON
+		q4FFNQuadDot = dotQ4FFNQuadNEON
 	}
 }
 
@@ -15,3 +16,9 @@ func init() {
 //
 //go:noescape
 func dotQ4FFNPairNEON(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (a00, a01, a10, a11 float32)
+
+// x contains whole 64-element blocks. packed and scales contain four
+// consecutive rows with 32 packed bytes and one scale per block per row.
+//
+//go:noescape
+func dotQ4FFNQuadNEON(x []float32, packed []byte, scales []float32) (a, b, c, d float32)
