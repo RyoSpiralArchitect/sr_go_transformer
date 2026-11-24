@@ -14,6 +14,8 @@ func init() {
 		q4NativePairDot = dotQ4FFNPairAVX2
 		if mode != "1" {
 			q4NativeQuadDot = dotQ4QuadAVX2
+			q4MatchSingleRows = q4UseFMA
+			q4PairScaleFMA = false
 		}
 		q4NativeAttention = mode == "all+attention"
 	}
@@ -22,6 +24,10 @@ func init() {
 // Go compilers may contract a multiply and add on GOAMD64=v3 and above.
 // This product rounds to 1 before addition, or to a negative residual if fused.
 var q4UseFMA = q4MultiplyAdd(1+0x1p-23, 1-0x1p-23, -1) != 0
+
+// Legacy two-row FFN follows its portable two-row reference. The expanded
+// modes use the same separately rounded block scale as the single-row kernel.
+var q4PairScaleFMA = q4UseFMA
 
 //go:noinline
 func q4MultiplyAdd(x, y, z float32) float32 { return x*y + z }

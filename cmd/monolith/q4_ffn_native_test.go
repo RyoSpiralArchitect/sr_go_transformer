@@ -114,7 +114,7 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 		rows, cols, out int
 		wide            bool
 	}{
-		{2, 64, 2, false}, {2, 2048, 65, false}, {2, 192, 1, false},
+		{2, 64, 2, false}, {2, 192, 32, false}, {2, 2048, 65, false}, {2, 192, 1, false},
 		{2, 129, 7, false}, {1, 128, 3, false}, {3, 128, 5, false},
 		{2, 128, 3, true},
 	} {
@@ -137,7 +137,7 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 			linearQ4Into(e, got, x, w, tc.rows)
 			exactWorkerFloats(t, got, want)
 			wantCalls := 0
-			if tc.rows == 2 && tc.cols%64 == 0 && !tc.wide {
+			if tc.rows == 2 && tc.cols%64 == 0 && !tc.wide && (!q4MatchSingleRows || tc.out%4 == 0) {
 				wantCalls = tc.out / 2
 			}
 			if gotCalls := calls.Load(); gotCalls != int64(wantCalls) {
@@ -220,6 +220,9 @@ func TestQ4FFNQuadNativeProjection(t *testing.T) {
 			expected := 0
 			if tc.rows == 1 && tc.cols%64 == 0 && !tc.wide {
 				expected = tc.out / 4
+			}
+			if q4MatchSingleRows && tc.rows > 1 && tc.cols%64 == 0 && tc.out%4 != 0 && !tc.wide {
+				expected = tc.rows * (tc.out / 4)
 			}
 			if calls.Load() != int64(expected) {
 				t.Fatalf("%+v with %d workers: got %d calls, want %d", tc, workers, calls.Load(), expected)

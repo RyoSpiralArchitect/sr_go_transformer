@@ -119,7 +119,7 @@ reduce:
 	VBROADCASTSS (DI), X2
 	VINSERTF128 $1, X2, Y1, Y1
 #ifdef MAY_FUSE
-	CMPB ·q4UseFMA(SB), $0
+	CMPB ·q4PairScaleFMA(SB), $0
 	JE separateScale
 	VFMADD231PS Y1, Y0, Y10
 	JMP nextBlock

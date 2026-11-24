@@ -3859,6 +3859,10 @@ var q4NativeQuadDot func(x []float32, packed []byte, scales []float32) (float32,
 
 var q4NativeAttention bool
 
+// Expanded Linux FMA builds match each row to its single-row projection even
+// when the compiler contracts different scalar expressions across batch shapes.
+var q4MatchSingleRows bool
+
 func selectNativeQ4(enabled bool, weights ...*Param) {
 	for _, p := range weights {
 		p.q4Native = enabled && p.Q4 != nil
@@ -4562,6 +4566,19 @@ func linearQ4Into(e *kernelExecutor, y, x []float32, w *Param, n int) {
 }
 
 func linearQ4Range(job *fp32Kernel, lo, hi int) {
+	if q4MatchSingleRows && job.n > 1 {
+		pairs := job.w.q4Native && job.w.Cols%64 == 0 && job.w.Rows%4 == 0
+		if job.n == 2 && pairs {
+			linearQ4TwoRowOutputPairRange(job, lo, hi)
+		} else {
+			linearQ4MatchedRowsRange(job, lo, hi, pairs)
+		}
+		return
+	}
+	linearQ4PackedRange(job, lo, hi)
+}
+
+func linearQ4PackedRange(job *fp32Kernel, lo, hi int) {
 	y, x, w, n := job.y, job.x, job.w, job.n
 	in, out := w.Cols, w.Rows
 	if n == 1 && in%64 == 0 {
@@ -4691,6 +4708,27 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 					y[row*out+o] = sum
 				}
 			}
+		}
+	}
+}
+
+// Work ownership remains four input rows by 32 outputs. Use the native pair
+// only where every output has the single-row quad's rounding. Small output
+// tails and portable weights use the identical one-row operation in any batch.
+func linearQ4MatchedRowsRange(job *fp32Kernel, lo, hi int, pairs bool) {
+	in, out := job.w.Cols, job.w.Rows
+	tiles := (out + 31) / 32
+	for task := lo; task < hi; task++ {
+		row, tile := (task/tiles)*4, task%tiles
+		end := min(row+4, job.n)
+		for pairs && row+1 < end {
+			pair := fp32Kernel{x: job.x[row*in : (row+2)*in], y: job.y[row*out : (row+2)*out], w: job.w, n: 2}
+			linearQ4TwoRowOutputPairRange(&pair, tile, tile+1)
+			row += 2
+		}
+		for ; row < end; row++ {
+			one := fp32Kernel{x: job.x[row*in : (row+1)*in], y: job.y[row*out : (row+1)*out], w: job.w, n: 1}
+			linearQ4PackedRange(&one, tile, tile+1)
 		}
 	}
 }
