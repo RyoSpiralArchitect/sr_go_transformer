@@ -40,7 +40,7 @@ func TestQ4InvocationExact(t *testing.T) {
 						guarded[i] = -777
 					}
 					got := guarded[1 : len(guarded)-1]
-					blockBaselineLinearQ4Into(e, want, x, w, rows)
+					q4ExpectedInto(e, want, x, w, rows, blockBaselineLinearQ4Into)
 					linearQ4Into(e, got, x, w, rows)
 					assertQ4InvocationCleared(t, e)
 					if guarded[0] != -777 || guarded[len(guarded)-1] != -777 {
@@ -70,7 +70,7 @@ func TestQ4InvocationWaitsBeforeClearing(t *testing.T) {
 	x, dense, _ := linearFixture(4, 513, 259)
 	w := quantizeQ4TestParam(t, dense)
 	y, want := make([]float32, 4*w.Rows), make([]float32, 4*w.Rows)
-	blockBaselineLinearQ4Into(e, want, x, w, 4)
+	q4ExpectedInto(e, want, x, w, 4, blockBaselineLinearQ4Into)
 	linearQ4Into(e, y, x, w, 4)
 	standard := e.q4Fn
 	if standard == nil {
@@ -122,7 +122,7 @@ func TestQ4InvocationWideAndIndependentOwners(t *testing.T) {
 	x, dense, _ := linearFixture(4, 513, 259)
 	w := quantizeQ4TestParam(t, dense)
 	want := make([]float32, 4*w.Rows)
-	blockBaselineLinearQ4Into(nil, want, x, w, 4)
+	q4ExpectedInto(nil, want, x, w, 4, blockBaselineLinearQ4Into)
 	var wg sync.WaitGroup
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
@@ -148,7 +148,7 @@ func TestQ4InvocationWideAndIndependentOwners(t *testing.T) {
 		t.Fatal("wide fixture did not select fallback")
 	}
 	y := make([]float32, len(want))
-	blockBaselineLinearQ4Into(e, want, x, w, 4)
+	q4ExpectedInto(e, want, x, w, 4, blockBaselineLinearQ4Into)
 	linearQ4Into(e, y, x, w, 4)
 	for i := range y {
 		if math.Float32bits(y[i]) != math.Float32bits(want[i]) {

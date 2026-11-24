@@ -50,7 +50,7 @@ func TestQ4FullBlockAndEveryTailMatchLegacy(t *testing.T) {
 			x[0] = float32(math.Copysign(0, -1))
 			q := quantizeQ4TestParam(t, dense)
 			got, want := make([]float32, rows*q.Rows), make([]float32, rows*q.Rows)
-			legacyLinearQ4Into(nil, want, x, q, rows)
+			q4ExpectedInto(nil, want, x, q, rows, legacyLinearQ4Into)
 			linearQ4Into(nil, got, x, q, rows)
 			for i := range got {
 				if math.Float32bits(got[i]) != math.Float32bits(want[i]) {
