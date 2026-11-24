@@ -7,6 +7,7 @@ import unittest
 
 import probe
 from summarize import summarize
+from verify_cli import stage_model
 
 
 class AttentionReceiptTests(unittest.TestCase):
@@ -21,7 +22,24 @@ class AttentionReceiptTests(unittest.TestCase):
                 summarize(path)
 
     def test_archive(self):
-        self.assertEqual(summarize(probe.HERE/"events.jsonl"), json.loads((probe.HERE/"assessment.json").read_text()))
+        result = summarize(probe.HERE/"events.jsonl")
+        self.assertEqual(result, json.loads((probe.HERE/"assessment.json").read_text()))
+        allocated = [n for p in result["projections"].values() for samples in p["bytes_per_op"].values() for n in samples]
+        self.assertEqual(len(allocated), 96)
+        self.assertEqual(sorted(n for n in allocated if n), [2, 2, 665])
+
+    def test_cli_uses_only_verified_assets(self):
+        with tempfile.TemporaryDirectory() as source, tempfile.TemporaryDirectory() as dest:
+            source, dest = Path(source), Path(dest)
+            (source/"model.safetensors").write_bytes(b"pinned")
+            (source/"model.safetensors.index.json").write_text("{}")
+            files = {"model.safetensors": probe.sha(source/"model.safetensors")}
+            stage_model(source, dest, files)
+            self.assertEqual({p.name for p in dest.iterdir()}, set(files))
+            self.assertEqual((dest/"model.safetensors").read_bytes(), b"pinned")
+            (source/"model.safetensors").write_bytes(b"other")
+            with self.assertRaisesRegex(ValueError, "snapshot hash differs"):
+                stage_model(source, dest, files)
 
     def test_wrong_route_or_artifact(self):
         rows = self.rows()

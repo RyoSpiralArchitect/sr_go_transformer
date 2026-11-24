@@ -1,6 +1,7 @@
 {
   "go": "go version go1.27.1 darwin/arm64",
   "cpu": "Apple M4",
+  "target": "darwin/arm64",
   "args": [
     "-context",
     "128",
@@ -31,6 +32,13 @@
     "qwen25": {
       "repo": "Qwen/Qwen2.5-0.5B-Instruct",
       "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "files": {
+        "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+        "generation_config.json": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6",
+        "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+      },
       "outputs": {
         "previous/all": {
           "prompt_tokens": 1,
@@ -73,6 +81,12 @@
     "gpt2": {
       "repo": "openai-community/gpt2",
       "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "files": {
+        "config.json": "0daed7749b4f02b8f76240d5444551d7b08712dab4d0adb8239c56ba823bb7b4",
+        "tokenizer.json": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+        "tokenizer_config.json": "5e04eb606e3a1583530a42e36c2a6b6615c86f34fe77e44d9ddeb43ff940931f",
+        "model.safetensors": "248dfc3911869ec493c76e65bf2fcf7f615828b0254c12b473182f0f81d3a707"
+      },
       "outputs": {
         "previous/all": {
           "prompt_tokens": 1,

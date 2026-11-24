@@ -22,6 +22,7 @@ BENCH = re.compile(r"BenchmarkAttentionQ4/(QO|KV)/rows([12])/workers([14])-4\s+(
 
 def projections(take, spec):
     times = defaultdict(lambda: {"A": [], "B": []})
+    bytes_per_op = defaultdict(lambda: {"A": [], "B": []})
     max_allocs = defaultdict(int)
     micro = spec["projection_probe"]
     for index, order in enumerate(micro["orders"]):
@@ -39,12 +40,14 @@ def projections(take, spec):
                     raise ValueError("duplicate projection shape")
                 seen.add(key)
                 times[key][arm].append(float(m[5]))
+                bytes_per_op[key][arm].append(int(m[6]))
                 max_allocs[key] = max(max_allocs[key], int(m[7]))
             if len(seen) != 8 or not output.rstrip().endswith("PASS"):
                 raise ValueError("incomplete projection benchmarks")
     return {k: dict(ms={arm: median(t) / 1e6 for arm, t in v.items()},
                     paired_ratio=median(b/a for a, b in zip(v["A"], v["B"])),
-                    wins=sum(b < a for a, b in zip(v["A"], v["B"])), max_allocs_per_op=max_allocs[k])
+                    wins=sum(b < a for a, b in zip(v["A"], v["B"])),
+                    bytes_per_op=bytes_per_op[k], max_allocs_per_op=max_allocs[k])
             for k, v in sorted(times.items())}
 
 

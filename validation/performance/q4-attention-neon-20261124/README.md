@@ -21,8 +21,10 @@ The starting mode alternates across pairs.
 | K or V | 1 | 0.5358 | 0.5875 |
 | K or V | 2 | 0.8223 | 0.7266 |
 
-All eight shapes favored NEON in all six pairs and reported zero allocations
-per timed projection. [Raw projection and decode samples](events.jsonl)
+All eight shapes favored NEON in all six pairs. Go reported an integer-rounded
+0 allocs/op in all 96 samples. Three samples reported 2, 2 and 665 B/op.
+The counters cover the benchmark process over eight timed iterations.
+[Raw projection and decode samples](events.jsonl)
 
 ## Resident decode
 
@@ -77,6 +79,7 @@ python3 -B -S "$d/verify_cli.py" "$QWEN_05B_SNAPSHOT" "$GPT2_SNAPSHOT" "$NEW_CLI
 
 To reproduce the original collection after the repository's shared tools have
 changed, run `probe.py` from a worktree at `2f5d856` and pass the resulting
-events file to the assessor above. The CLI comparison builds the previous
-and current ordinary binaries and checks six greedy tokens from the prompt
-`Hi` on the two pinned models. [CLI outputs](cli.json)
+events file to the assessor above. The CLI comparison builds both ordinary
+binaries for Darwin arm64. Each run reads a directory containing only the
+assets verified against the runtime commit's model catalog. It compares six
+greedy tokens from the prompt `Hi` on each model. [CLI outputs](cli.json)

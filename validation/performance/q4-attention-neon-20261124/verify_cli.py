@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+from tempfile import TemporaryDirectory
 
 import probe
 
@@ -22,9 +23,18 @@ def build_cli(ref, out, go, env):
     return binary
 
 
+def stage_model(source, destination, files):
+    for name, digest in files.items():
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source / name, target)
+        if probe.sha(target) != digest:
+            raise ValueError(f"snapshot hash differs for {name}")
+
+
 def run(qwen, gpt2, out):
     spec = json.loads(probe.SPEC.read_text())
-    env = probe.isolated_go_environment()
+    env = dict(probe.isolated_go_environment(), GOOS="darwin", GOARCH="arm64", GOARM64="v8.0")
     go = shutil.which("go", path=env["PATH"])
     if probe.command(go, "version", env=env) != spec["go"] or probe.command("/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string") != spec["cpu"]:
         raise ValueError("host or Go version differs")
@@ -32,19 +42,19 @@ def run(qwen, gpt2, out):
     binaries = {key: build_cli(spec[key], out/key, go, env) for key in ("previous", "runtime")}
     args = ["-context", "128", "-weight-format", "q4-mixed", "-weight-mib", "2048",
             "generate", "-prompt", "Hi", "-max-tokens", "6", "-temperature", "0", "-seed", "19", "-json"]
-    result = dict(go=spec["go"], cpu=spec["cpu"], args=args, inputs={key:spec[key] for key in binaries},
+    result = dict(go=spec["go"], cpu=spec["cpu"], target="darwin/arm64", args=args, inputs={key:spec[key] for key in binaries},
                   binaries={key:probe.sha(binary) for key, binary in binaries.items()}, models={})
-    catalog = json.loads(probe.CATALOG.read_text())["models"]
+    catalog = json.loads(probe.pinned(spec["runtime"], probe.CATALOG.relative_to(probe.ROOT)))["models"]
     for name, path in (("qwen25", qwen), ("gpt2", gpt2)):
         model = next(m for m in catalog if m["id"] == name)
-        if any(probe.sha(path/n) != h for n, h in model["files"].items()):
-            raise ValueError(f"{name} snapshot differs")
         outputs = {}
-        for key, mode in (("previous", "all"), ("runtime", "all"), ("runtime", "all+attention")):
-            cli = [binaries[key], "infer", "local", "-path", path, *args]
-            response = json.loads(subprocess.check_output(cli, env=dict(env, **{probe.SWITCH:mode}), timeout=360))
-            outputs[f"{key}/{mode}"] = {k:response[k] for k in ("prompt_tokens", "token_ids", "text")}
-        result["models"][name] = dict(repo=model["repo"], revision=model["revision"], outputs=outputs)
+        with TemporaryDirectory(dir=out) as directory:
+            stage_model(path, Path(directory), model["files"])
+            for key, mode in (("previous", "all"), ("runtime", "all"), ("runtime", "all+attention")):
+                cli = [binaries[key], "infer", "local", "-path", directory, *args]
+                response = json.loads(subprocess.check_output(cli, env=dict(env, **{probe.SWITCH:mode}), timeout=360))
+                outputs[f"{key}/{mode}"] = {k:response[k] for k in ("prompt_tokens", "token_ids", "text")}
+        result["models"][name] = dict(repo=model["repo"], revision=model["revision"], files=model["files"], outputs=outputs)
         (out/"cli.json").write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
         if any(s != outputs["previous/all"] or len(s["token_ids"]) != 6 for s in outputs.values()):
             raise ValueError(f"{name} CLI output differs")
