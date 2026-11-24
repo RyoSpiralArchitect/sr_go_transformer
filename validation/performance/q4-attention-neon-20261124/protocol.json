@@ -1,0 +1,22 @@
+{
+  "runtime": "5391b9a5e86ac296bc01f0c566bf4783dda83b96",
+  "previous": "4dfdf97e8bf2fee55d592de26b390d289dd2ec25",
+  "model": "llama32-3b",
+  "revision": "60a99aaf43164077157d64bf909b7b61143c6a6d",
+  "cpu": "Apple M4",
+  "go": "go version go1.27.1 darwin/arm64",
+  "modes": {"A": "all", "B": "all+attention"},
+  "binary_sha256": "de15170e6cee9f536db47247fa0e30b50adbb6989a85e59831160c0374e7013d",
+  "weights": "q4-mixed",
+  "kv": "f16",
+  "workers": 4,
+  "prefix": 128,
+  "steps": 7,
+  "waves": [
+    {"load": "AB", "sessions": [1, 2], "orders": ["AabB", "aBAb", "BbaA", "bABa"]},
+    {"load": "BA", "sessions": [2, 1], "orders": ["BbaA", "bABa", "aBAb", "AabB"]}
+  ],
+  "timing": "A and a repeat FFN-only. B and b repeat FFN plus attention. Reverse each four-sample order in two-session cases. The primary statistic is the median across eight rounds of (B+b)/(A+a), using seven forward times per replay. Restart both processes between waves.",
+  "limits": {"max_pooled_ratio": 0.98, "min_round_wins": 7, "max_wave_ratio": 1.0, "repeat_median_range": [0.97, 1.03], "max_repeat_median_abs_error": 0.05, "min_free_percent": 30, "max_new_swapouts": 0},
+  "projection_probe": {"orders": ["AB", "BA", "AB", "BA", "AB", "BA"], "iterations": 8}
+}

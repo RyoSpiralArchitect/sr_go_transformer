@@ -1,0 +1,68 @@
+// Copyright 2026 RyoSpiralArchitect
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+// Count the actual model's selected matrices before any timed call.
+func attentionProbeRoutes(m *Model) map[string]int {
+	routes := map[string]int{"attention": 0, "ffn": 0, "total": 0}
+	for _, b := range m.Blocks {
+		for _, p := range [...]*Param{b.Q, b.K, b.V, b.O} {
+			if p.q4Native {
+				routes["attention"]++
+			}
+		}
+		for _, p := range [...]*Param{b.Gate, b.Up, b.Down} {
+			if p.q4Native {
+				routes["ffn"]++
+			}
+		}
+	}
+	for _, p := range m.Params {
+		if p.q4Native {
+			routes["total"]++
+		}
+	}
+	return routes
+}
+
+func BenchmarkAttentionQ4(b *testing.B) {
+	for _, shape := range []struct {
+		name string
+		out  int
+	}{{"QO", 3072}, {"KV", 1024}} {
+		const in = 3072
+		w := newInferenceParamFormat("attention", shape.out, in, true, "q4")
+		selectNativeQ4(q4NativeAttention, w)
+		for i := range w.Q4.Values {
+			w.Q4.Values[i] = byte(i*37 + i/31)
+		}
+		for i := range w.Q4.Scales {
+			w.Q4.Scales[i] = float32(1+i%13) / 127
+		}
+		for _, rows := range []int{1, 2} {
+			x, y := make([]float32, in*rows), make([]float32, shape.out*rows)
+			for i := range x {
+				x[i] = float32(i%37-18) / 19
+			}
+			for _, workers := range []int{1, 4} {
+				b.Run(fmt.Sprintf("%s/rows%d/workers%d", shape.name, rows, workers), func(b *testing.B) {
+					e := newKernelExecutor(workers)
+					defer e.close()
+					linearQ4Into(e, y, x, w, rows)
+					b.ReportAllocs()
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						linearQ4Into(e, y, x, w, rows)
+					}
+					b.StopTimer()
+				})
+			}
+		}
+	}
+}
