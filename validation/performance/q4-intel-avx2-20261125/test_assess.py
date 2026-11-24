@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from assess import HERE, assess, probe
+from v3_cli import PREVIOUS, verify
 
 
 class IntelReceiptTests(unittest.TestCase):
@@ -29,15 +30,25 @@ class IntelReceiptTests(unittest.TestCase):
     def test_v3_cli_outputs(self):
         for model, vocab in (("olmo2-1b", 100352), ("llama32-3b", 128256)):
             rows = [json.loads(s) for s in (HERE/f"v3-{model}.jsonl").read_text().splitlines()]
-            self.assertEqual([(r["arm"], r["mode"]) for r in rows],
-                             [("previous","1"), ("current","1"), ("current","all"), ("current","all+attention")])
+            verify(rows)
+            self.assertEqual(rows[0]["builds"]["previous"]["revision"], PREVIOUS)
+            self.assertEqual(rows[0]["builds"]["current"]["revision"], json.loads((HERE/"protocol.json").read_text())["runtime"])
             for row in rows:
                 self.assertEqual((row["model"], row["vocab"], row["builds"]["target"]), (model, vocab, "linux/amd64/v3"))
                 self.assertEqual(row["builds"], rows[0]["builds"])
                 self.assertEqual(row["ids"], rows[0]["ids"])
                 self.assertEqual(len(row["ids"]), 4)
                 self.assertRegex(row["logits_sha256"], "^[0-9a-f]{64}$")
-                self.assertEqual(row["logits_sha256"], rows[0]["logits_sha256"])
+                self.assertEqual(row["flags"][row["flags"].index("-prefill-chunk")+1], str(row["chunk"]))
+                self.assertEqual(set(row["vs_previous"]), {"1"} if row is rows[0] else {"1", "2"})
+                for chunk, delta in row["vs_previous"].items():
+                    reference = rows[int(chunk)-1]
+                    self.assertEqual(row["logits_sha256"] == reference["logits_sha256"], delta["different_floats"] == 0)
+                    self.assertLessEqual(delta["different_floats"], vocab * len(row["ids"]))
+                    self.assertGreaterEqual(delta["different_floats"], 0)
+                    self.assertGreaterEqual(delta["max_abs"], 0)
+                    if delta["different_floats"] == 0:
+                        self.assertEqual(delta["max_abs"], 0)
 
     def reject(self, rows, reason):
         with TemporaryDirectory() as directory:
