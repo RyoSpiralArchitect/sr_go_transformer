@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"math"
 	"os"
 	"sync/atomic"
@@ -35,17 +36,45 @@ func TestQ4FFNPairNativeCodes(t *testing.T) {
 
 func TestQ4FFNPairNativeStartup(t *testing.T) {
 	mode := os.Getenv(testQ4NativeEnv)
-	want := (mode == "1" || testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all") && testQ4NativeAvailable()
-	if (q4FFNPairDot != nil) != want {
-		t.Fatalf("native kernel registration = %t, want %t", q4FFNPairDot != nil, want)
+	wantAttention := testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all+attention"
+	want := (mode == "1" || testQ4NativeEnv == "MONOLITH_Q4_FFN_NEON" && mode == "all" || wantAttention) && testQ4NativeAvailable()
+	if (q4NativePairDot != nil) != want {
+		t.Fatalf("native kernel registration = %t, want %t", q4NativePairDot != nil, want)
 	}
 	c, err := preset("tiny")
 	if err != nil {
 		t.Fatal(err)
 	}
 	b := allocateModelStorageFormat(c, nil, "q4-mixed").Blocks[0]
-	if b.Gate.q4FFNPair != want || b.Up.q4FFNPair != want || b.Down.q4FFNPair != want || b.O.q4FFNPair {
+	if b.Gate.q4Native != want || b.Up.q4Native != want || b.Down.q4Native != want || b.O.q4Native != wantAttention || q4NativeAttention != wantAttention {
 		t.Fatal("model projection selection does not match startup policy")
+	}
+}
+
+func TestQ4AttentionModelWeights(t *testing.T) {
+	for _, dir := range []string{"testdata/hf-gpt2/f16", "testdata/hf-llama/untied-f32", "testdata/hf-qwen2/untied-bf16", "testdata/hf-olmo2/f32", "testdata/hf-mistral/f32"} {
+		for _, format := range []string{"q4-mixed", "q4", "q8", "f32"} {
+			m, _, err := loadHFModelFormat(context.Background(), dir, 32, 4, format)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := make(map[*Param]bool)
+			for _, b := range m.Blocks {
+				for _, p := range [...]*Param{b.Q, b.K, b.V, b.O} {
+					want[p] = q4NativeAttention && p.Q4 != nil
+				}
+				if m.hf.ModelType != "gpt2" {
+					for _, p := range [...]*Param{b.Gate, b.Up, b.Down} {
+						want[p] = q4NativePairDot != nil && p.Q4 != nil
+					}
+				}
+			}
+			for _, p := range m.Params {
+				if p.q4Native != want[p] {
+					t.Fatalf("%s/%s/%s native=%t, want %t", dir, format, p.Name, p.q4Native, want[p])
+				}
+			}
+		}
 	}
 }
 
@@ -53,13 +82,13 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 	if !testQ4NativeAvailable() {
 		t.Skip("CPU does not support the native kernel")
 	}
-	previous := q4FFNPairDot
+	previous := q4NativePairDot
 	var calls atomic.Int64
-	q4FFNPairDot = func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32) {
+	q4NativePairDot = func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32) {
 		calls.Add(1)
 		return testQ4NativeDot(x0, x1, w0, w1, s0, s1)
 	}
-	t.Cleanup(func() { q4FFNPairDot = previous })
+	t.Cleanup(func() { q4NativePairDot = previous })
 	c, err := preset("tiny")
 	if err != nil {
 		t.Fatal(err)
@@ -68,13 +97,16 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 		m := allocateModelStorageFormat(c, nil, format)
 		expected := make(map[*Param]bool)
 		for _, b := range m.Blocks {
+			for _, p := range [...]*Param{b.Q, b.K, b.V, b.O} {
+				expected[p] = q4NativeAttention && p.Q4 != nil
+			}
 			for _, p := range [...]*Param{b.Gate, b.Up, b.Down} {
 				expected[p] = format == "q4" || format == "q4-mixed"
 			}
 		}
 		for _, p := range m.Params {
-			if p.q4FFNPair != expected[p] {
-				t.Fatalf("%s/%s route = %t", format, p.Name, p.q4FFNPair)
+			if p.q4Native != expected[p] {
+				t.Fatalf("%s/%s route = %t", format, p.Name, p.q4Native)
 			}
 		}
 	}
@@ -96,12 +128,12 @@ func TestQ4FFNPairNativeProjection(t *testing.T) {
 			e := newKernelExecutor(workers)
 			got, want := make([]float32, tc.rows*tc.out), make([]float32, tc.rows*tc.out)
 			calls.Store(0)
-			w.q4FFNPair = false
+			w.q4Native = false
 			linearQ4Into(e, want, x, w, tc.rows)
 			if calls.Load() != 0 {
 				t.Fatal("unmarked weight dispatched to native kernel")
 			}
-			w.q4FFNPair = true
+			w.q4Native = true
 			linearQ4Into(e, got, x, w, tc.rows)
 			exactWorkerFloats(t, got, want)
 			wantCalls := 0

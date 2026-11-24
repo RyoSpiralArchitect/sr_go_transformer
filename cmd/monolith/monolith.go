@@ -3845,17 +3845,25 @@ type Param struct {
 	Name             string
 	Rows, Cols       int
 	Decay            bool
-	q4FFNPair        bool // Native Q4 projection is enabled for this FFN weight.
+	q4Native         bool // Native Q4 projection is enabled for this weight.
 	Data, Grad, M, V []float32
 	Q8               *q8Weights // Inference-only; Data is nil when present.
 	Q4               *q4Weights // Packed inference-only weights; no FP32 copy.
 }
 
-// Installed at startup by package builds with a native two-row FFN kernel.
-var q4FFNPairDot func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32)
+// Installed at startup by package builds with a native two-row Q4 kernel.
+var q4NativePairDot func(x0, x1 []float32, w0, w1 []byte, s0, s1 []float32) (float32, float32, float32, float32)
 
 // Optional companion for one input row and four consecutive Q4 output rows.
-var q4FFNQuadDot func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32)
+var q4NativeQuadDot func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32)
+
+var q4NativeAttention bool
+
+func selectNativeQ4(enabled bool, weights ...*Param) {
+	for _, p := range weights {
+		p.q4Native = enabled && p.Q4 != nil
+	}
+}
 
 const q8Block = 64
 
@@ -4566,7 +4574,7 @@ func linearQ4Range(job *fp32Kernel, lo, hi int) {
 		}
 		return
 	}
-	if n == 2 && in%64 == 0 && (w.q4FFNPair || runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
+	if n == 2 && in%64 == 0 && (w.q4Native || runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
 		linearQ4TwoRowOutputPairRange(job, lo, hi)
 		return
 	}
@@ -4701,8 +4709,8 @@ func linearQ4TwoRowOutputPairRange(job *fp32Kernel, lo, hi int) {
 		for ; o+1 < end; o += 2 {
 			w0, w1 := w.Q4.Values[o*stride:(o+1)*stride], w.Q4.Values[(o+1)*stride:(o+2)*stride]
 			s0, s1 := w.Q4.Scales[o*groups:(o+1)*groups], w.Q4.Scales[(o+1)*groups:(o+2)*groups]
-			if w.q4FFNPair {
-				y[o], y[o+1], y[out+o], y[out+o+1] = q4FFNPairDot(x0, x1, w0, w1, s0, s1)
+			if w.q4Native {
+				y[o], y[o+1], y[out+o], y[out+o+1] = q4NativePairDot(x0, x1, w0, w1, s0, s1)
 				continue
 			}
 			var a00, a01, a10, a11 float32
@@ -5201,11 +5209,11 @@ func linearQ4OutputQuadDirectRange(job *fp32Kernel, lo, hi int) {
 	for tile := lo; tile < hi; tile++ {
 		end := min((tile+1)*32, w.Rows)
 		o := tile * 32
-		if w.q4FFNPair && q4FFNQuadDot != nil {
+		if w.q4Native && q4NativeQuadDot != nil {
 			for ; o+3 < end; o += 4 {
 				packed := w.Q4.Values[o*stride : (o+4)*stride]
 				scales := w.Q4.Scales[o*groups : (o+4)*groups]
-				y[o], y[o+1], y[o+2], y[o+3] = q4FFNQuadDot(x[:w.Cols], packed, scales)
+				y[o], y[o+1], y[o+2], y[o+3] = q4NativeQuadDot(x[:w.Cols], packed, scales)
 			}
 		}
 		for ; o+3 < end; o += 4 {
@@ -6626,6 +6634,7 @@ func loadGPT2(ctx context.Context, a *hfArchive) (*Model, error) {
 				return nil, err
 			}
 		}
+		selectNativeQ4(q4NativeAttention, b.Q, b.K, b.V, b.O)
 		if err := conv(p+"attn.c_attn.weight", b.Q, b.K, b.V); err != nil {
 			return nil, err
 		}
@@ -6732,9 +6741,8 @@ func allocateModelStorageFormat(c Config, rng *RNG, format string) *Model {
 		b.Gate = makeParam(prefix+"gate", h, d, false, 1/math.Sqrt(float64(d)))
 		b.Up = makeParam(prefix+"up", h, d, false, 1/math.Sqrt(float64(d)))
 		b.Down = makeParam(prefix+"down", d, h, false, 1/math.Sqrt(float64(2*c.Layers*h)))
-		for _, p := range [...]*Param{b.Gate, b.Up, b.Down} {
-			p.q4FFNPair = p.Q4 != nil && q4FFNPairDot != nil
-		}
+		selectNativeQ4(q4NativePairDot != nil, b.Gate, b.Up, b.Down)
+		selectNativeQ4(q4NativeAttention, b.Q, b.K, b.V, b.O)
 		m.Blocks = append(m.Blocks, b)
 	}
 	m.Final = makeParam("final_norm", 1, d, true, 0)

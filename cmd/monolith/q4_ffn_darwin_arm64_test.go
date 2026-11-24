@@ -36,16 +36,17 @@ func TestQ4FFNQuadNEONCodes(t *testing.T) {
 }
 
 func TestQ4FFNQuadNEONProjection(t *testing.T) {
-	if (q4FFNQuadDot != nil) != (os.Getenv(testQ4NativeEnv) == "all") {
+	mode := os.Getenv(testQ4NativeEnv)
+	if (q4NativeQuadDot != nil) != (mode == "all" || mode == "all+attention") {
 		t.Fatal("unexpected single-row NEON registration")
 	}
-	previous := q4FFNQuadDot
+	previous := q4NativeQuadDot
 	var calls atomic.Int64
-	q4FFNQuadDot = func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32) {
+	q4NativeQuadDot = func(x []float32, packed []byte, scales []float32) (float32, float32, float32, float32) {
 		calls.Add(1)
 		return dotQ4FFNQuadNEON(x, packed, scales)
 	}
-	t.Cleanup(func() { q4FFNQuadDot = previous })
+	t.Cleanup(func() { q4NativeQuadDot = previous })
 
 	for _, tc := range []struct {
 		rows, cols, out int
@@ -64,13 +65,13 @@ func TestQ4FFNQuadNEONProjection(t *testing.T) {
 		for _, workers := range []int{1, 4} {
 			e := newKernelExecutor(workers)
 			want, got := make([]float32, tc.rows*tc.out), make([]float32, tc.rows*tc.out)
-			w.q4FFNPair = false
+			w.q4Native = false
 			calls.Store(0)
 			linearQ4Into(e, want, x, w, tc.rows)
 			if calls.Load() != 0 {
 				t.Fatal("unmarked weight used the single-row kernel")
 			}
-			w.q4FFNPair = true
+			w.q4Native = true
 			linearQ4Into(e, got, x, w, tc.rows)
 			exactWorkerFloats(t, got, want)
 			expected := 0
@@ -89,9 +90,9 @@ func TestQ4FFNQuadNEONProjection(t *testing.T) {
 }
 
 func BenchmarkQ4FFNQuadNEON(b *testing.B) {
-	previous := q4FFNQuadDot
-	q4FFNQuadDot = dotQ4FFNQuadNEON
-	b.Cleanup(func() { q4FFNQuadDot = previous })
+	previous := q4NativeQuadDot
+	q4NativeQuadDot = dotQ4FFNQuadNEON
+	b.Cleanup(func() { q4NativeQuadDot = previous })
 	for _, shape := range []struct {
 		name      string
 		cols, out int
@@ -112,7 +113,7 @@ func BenchmarkQ4FFNQuadNEON(b *testing.B) {
 				b.Run(fmt.Sprintf("%s/workers%d/%s", shape.name, workers, mode), func(b *testing.B) {
 					e := newKernelExecutor(workers)
 					defer e.close()
-					w.q4FFNPair = mode == "NEON"
+					w.q4Native = mode == "NEON"
 					linearQ4Into(e, y, x, w, 1)
 					b.ReportAllocs()
 					b.ResetTimer()

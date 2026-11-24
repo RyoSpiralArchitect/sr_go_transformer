@@ -1,6 +1,8 @@
 # sr_go_tranformer
 
-A self-contained decoder-only Transformer written in Go, with training, text generation, and an HTTP inference server. The portable runtime lives in [`monolith.go`](cmd/monolith/monolith.go). On Apple Silicon, `MONOLITH_Q4_FFN_NEON=1` enables two-row Q4 feed-forward projections. Set it to `all` to also try the experimental single-row kernel during interactive generation. On supported Linux amd64 CPUs, `MONOLITH_Q4_FFN_AVX2=1` enables the two-row AVX2 kernel. The only runtime module dependency is `golang.org/x/text/unicode/norm` for Qwen NFC tokenization.
+A self-contained decoder-only Transformer written in Go, with training, text generation, and an HTTP inference server. The portable runtime lives in [`monolith.go`](cmd/monolith/monolith.go). On Apple Silicon, `MONOLITH_Q4_FFN_NEON=1` enables two-row Q4 feed-forward projections. Set it to `all` to also try the experimental single-row feed-forward kernel. The `all+attention` setting extends both row counts to Q/K/V/O projections. [Q4 inference and measurements](docs/Q4_INFERENCE.md)
+
+On supported Linux amd64 CPUs, `MONOLITH_Q4_FFN_AVX2=1` enables the two-row AVX2 kernel. The only runtime module dependency is `golang.org/x/text/unicode/norm` for Qwen NFC tokenization.
 
 ## Features
 
